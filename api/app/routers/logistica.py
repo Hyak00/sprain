@@ -794,7 +794,7 @@ async def tomar_decisao_economica(dados: DecisaoEconomicaRequest, conn: asyncpg.
     resultado = EconomicDecisionEngine.compare_and_recommend(
         rota_direta=rota_direta_info,
         rota_segura=rota_segura_info,
-        parametros=dados.parametros.model_dump()
+        parametros=dados.parametros.dict()
     )
     
     return {
@@ -937,3 +937,4 @@ async def obter_alertas_meteorologicos_regiao(precipitacao_mm: float = 65.0, raj
 async def resetar_rate_limit_servidor():
     TenantRateLimiter.reset()
     return {"sucesso": True, "status": "RATE_LIMIT_RESETADO"}
+
