@@ -19,3 +19,5 @@ cache/
 !scripts/migracao_pedagios.sql
 
 .env.*
+relatorio_projeto.txt
+api/relatorio_projeto.txt
