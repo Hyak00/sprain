@@ -1,4 +1,4 @@
-import time
+﻿import time
 import json
 import asyncpg
 from typing import Dict, Any, Optional, Tuple
@@ -9,8 +9,8 @@ class RoutingEngine:
     _max_cache_size: int = 5000
 
     @classmethod
-    def _make_cache_key(cls, orig_lon: float, orig_lat: float, dest_lon: float, dest_lat: float, profile: str, rain_mm: float) -> str:
-        return f"{round(orig_lon, 5)}:{round(orig_lat, 5)}_{round(dest_lon, 5)}:{round(dest_lat, 5)}_{profile}_{round(rain_mm, 1)}"
+    def _make_cache_key(cls, orig_lon: float, orig_lat: float, dest_lon: float, dest_lat: float, profile: str, rain_mm: float, tipo_veiculo: str) -> str:
+        return f"{round(orig_lon, 5)}:{round(orig_lat, 5)}_{round(dest_lon, 5)}:{round(dest_lat, 5)}_{profile}_{round(rain_mm, 1)}_{tipo_veiculo}"
 
     @classmethod
     def _get_from_cache(cls, key: str) -> Optional[Dict[str, Any]]:
@@ -39,9 +39,10 @@ class RoutingEngine:
         dest_lon: float,
         dest_lat: float,
         profile: str = "FASTEST",
-        rain_mm: float = 0.0
+        rain_mm: float = 0.0,
+        tipo_veiculo: str = "VUC"
     ) -> Optional[Dict[str, Any]]:
-        cache_key = cls._make_cache_key(orig_lon, orig_lat, dest_lon, dest_lat, profile, rain_mm)
+        cache_key = cls._make_cache_key(orig_lon, orig_lat, dest_lon, dest_lat, profile, rain_mm, tipo_veiculo)
         cached_result = cls._get_from_cache(cache_key)
         if cached_result is not None:
             return cached_result
@@ -76,11 +77,15 @@ class RoutingEngine:
         else:
             cost_sql = """
             t.length / CASE 
-                WHEN t.highway IN (''primary'', ''trunk'') THEN 40.0
-                WHEN t.highway IN (''secondary'', ''tertiary'') THEN 30.0
+                WHEN t.highway IN ('primary', 'trunk') THEN 40.0
+                WHEN t.highway IN ('secondary', 'tertiary') THEN 30.0
                 ELSE 20.0
             END
             """
+
+        restricao = ""
+        if tipo_veiculo in ["TRUCK_3_EIXOS", "CARRETA_5_EIXOS"]:
+            restricao = " * CASE WHEN t.highway IN ('residential', 'living_street', 'unclassified', 'track') THEN 25.0 ELSE 1.0 END"
 
         pgr_query = f"""
         SELECT 
@@ -93,7 +98,7 @@ class RoutingEngine:
             t.length, 
             ST_AsGeoJSON(ST_Transform(t.geom, 4326)) AS geojson
         FROM pgr_dijkstra(
-            'SELECT t.id_trecho AS id, t.source::bigint, t.target::bigint, ({cost_sql})::float AS cost, ({cost_sql})::float AS reverse_cost FROM trechos_osm t WHERE t.source IS NOT NULL AND t.target IS NOT NULL',
+            'SELECT t.id_trecho AS id, t.source::bigint, t.target::bigint, (({cost_sql}){restricao})::float AS cost, (({cost_sql}){restricao})::float AS reverse_cost FROM trechos_osm t WHERE t.source IS NOT NULL AND t.target IS NOT NULL',
             $1::bigint, $2::bigint, false
         ) r
         LEFT JOIN trechos_osm t ON t.id_trecho = r.edge

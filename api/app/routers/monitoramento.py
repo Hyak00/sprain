@@ -1,7 +1,8 @@
 ﻿import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from typing import Optional
 
 from app.database import get_connection
 
@@ -54,20 +55,52 @@ async def aplicar_impacto_chuva(conn, acumulado_mm: float) -> int:
 @router.post("/sincronizar-cge")
 async def sincronizar_cge(conn=Depends(get_connection)):
     if not coletar_chuva_cge:
-        raise HTTPException(status_code=500, detail="Modulo scripts.monitorar_chuva_cge nao localizado")
-    try:
-        dados = coletar_chuva_cge()
-        acumulado = float(dados.get("chuva_acumulada_recente_mm", 0.0)) if dados else 0.0
-        linhas = await aplicar_impacto_chuva(conn, acumulado)
-        return {
-            "status": "sucesso",
-            "telemetria": {
-                "posto_id": dados.get("posto", POSTO_ITAQUERA_ID),
-                "posto_nome": dados.get("nome", "Itaquera"),
-                "acumulado_mm": acumulado,
-                "timestamp": datetime.utcnow().isoformat()
-            },
-            "trechos_atualizados": linhas
-        }
-    except Exception as e:
-        raise HTTPException(status_code=502, detail=f"Erro ao consultar CGE: {str(e)}")
+        from app.services.weather import CGEWeatherProvider
+        provider = CGEWeatherProvider()
+        acumulado = provider.get_current_rainfall(POSTO_ITAQUERA_ID)
+        if acumulado is None:
+            raise HTTPException(
+                status_code=502,
+                detail="Fonte CGE indisponivel no momento. Estado operacional preservado para seguranca viaria."
+            )
+        dados = {"posto": POSTO_ITAQUERA_ID, "nome": "Itaquera", "chuva_acumulada_recente_mm": acumulado}
+    else:
+        try:
+            dados = coletar_chuva_cge()
+        except Exception as e:
+            raise HTTPException(
+                status_code=502,
+                detail=f"Falha de comunicacao com a estacao meteorologica: {str(e)}"
+            )
+
+    if not dados or "chuva_acumulada_recente_mm" not in dados:
+        raise HTTPException(
+            status_code=502,
+            detail="Dados meteorologicos ausentes. Malha viaria mantida em estado seguro anterior."
+        )
+
+    acumulado = float(dados["chuva_acumulada_recente_mm"])
+    linhas = await aplicar_impacto_chuva(conn, acumulado)
+    return {
+        "status": "sucesso",
+        "telemetria": {
+            "posto_id": dados.get("posto", POSTO_ITAQUERA_ID),
+            "posto_nome": dados.get("nome", "Itaquera"),
+            "acumulado_mm": acumulado,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "confiabilidade": "VALIDADO_SENSOR"
+        },
+        "trechos_atualizados": linhas
+    }
+
+@router.post("/simular-chuva")
+async def simular_chuva_manual(acumulado_mm: float, conn=Depends(get_connection)):
+    if acumulado_mm < 0:
+        raise HTTPException(status_code=400, detail="Volume de chuva nao pode ser negativo.")
+    linhas = await aplicar_impacto_chuva(conn, acumulado_mm)
+    return {
+        "status": "sucesso",
+        "acumulado_mm": acumulado_mm,
+        "trechos_atualizados": linhas,
+        "modo": "SIMULACAO_MANUAL"
+    }
