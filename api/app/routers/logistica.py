@@ -525,7 +525,7 @@ async def planejar_operacoes_d1(dados: PlanejamentoD1Request, conn: asyncpg.Conn
     
     if dados.previsao_chuva_mm <= 0:
         provider = OpenMeteoProvider()
-        dados.previsao_chuva_mm = provider.get_forecast_rainfall(-21.79, -48.17, days=1)
+        dados.previsao_chuva_mm = (provider.get_forecast_rainfall(-21.79, -48.17, days=1) or 0.0)
         
     query_ops = """
         SELECT o.id_operacao, o.id_veiculo, o.distancia_planejada_km, o.tempo_planejado_min, o.custo_estimado,
