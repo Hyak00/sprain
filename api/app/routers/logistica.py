@@ -794,7 +794,7 @@ async def tomar_decisao_economica(dados: DecisaoEconomicaRequest, conn: asyncpg.
     resultado = EconomicDecisionEngine.compare_and_recommend(
         rota_direta=rota_direta_info,
         rota_segura=rota_segura_info,
-        parametros=dados.parametros.dict()
+        parametros=dados.parametros.model_dump()
     )
     
     return {
