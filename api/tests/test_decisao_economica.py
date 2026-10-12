@@ -1,4 +1,4 @@
-import pytest
+﻿import pytest
 import httpx
 
 BASE_URL = "http://127.0.0.1:8000/api/v1/logistica"
@@ -34,3 +34,5 @@ async def test_decisao_economica_tradeoff():
         assert "vantagem_economica_brl" in data["decisao"]["tradeoff"]
         assert "rota_direta" in data["rotas_geometria"]
         assert "rota_alternativa" in data["rotas_geometria"]
+
+
