@@ -28,9 +28,7 @@ class _SemRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         return None
 
-
 _opener_seguro = urllib.request.build_opener(_SemRedirect)
-
 
 async def aplicar_rate_limit(request: Request, claims: dict = Depends(get_current_user_claims)):
     limite, restantes = TenantRateLimiter.check_rate_limit(claims["tenant_id"])
@@ -47,14 +45,22 @@ def resolve_tenant(x_tenant_id: Optional[str] = Header(None), tenant_id: Optiona
 @router.post("/veiculos", dependencies=[Depends(require_role(["ADMIN", "OPERATOR"])), Depends(aplicar_rate_limit)])
 async def cadastrar_veiculo(dados: VeiculoCreate, conn: asyncpg.Connection = Depends(get_connection), tenant_id: str = Depends(resolve_tenant)):
     dados.tenant_id = tenant_id
+    query_check = "SELECT tenant_id FROM veiculos WHERE id_veiculo = $1;"
+    dono_atual = await conn.fetchval(query_check, dados.id_veiculo)
+    if dono_atual and dono_atual != dados.tenant_id:
+        raise HTTPException(status_code=403, detail="Veiculo pertence a outro tenant.")
+
     query = """
     INSERT INTO veiculos (id_veiculo, placa, modelo, tipo_veiculo, lat_atual, lon_atual, tenant_id)
     VALUES ($1, $2, $3, $4, $5, $6, $7)
     ON CONFLICT (id_veiculo) DO UPDATE
-    SET placa = EXCLUDED.placa, modelo = EXCLUDED.modelo, lat_atual = EXCLUDED.lat_atual, lon_atual = EXCLUDED.lon_atual, tenant_id = EXCLUDED.tenant_id
+    SET placa = EXCLUDED.placa, modelo = EXCLUDED.modelo, tipo_veiculo = EXCLUDED.tipo_veiculo, lat_atual = EXCLUDED.lat_atual, lon_atual = EXCLUDED.lon_atual
+    WHERE veiculos.tenant_id = EXCLUDED.tenant_id
     RETURNING id_veiculo;
     """
     res = await conn.fetchval(query, dados.id_veiculo, dados.placa, dados.modelo, dados.tipo_veiculo, dados.lat_atual, dados.lon_atual, dados.tenant_id)
+    if not res:
+        raise HTTPException(status_code=403, detail="Nao foi possivel atualizar o veiculo.")
     return {"sucesso": True, "id_veiculo": res, "tenant_id": dados.tenant_id}
 
 @router.get("/veiculos", dependencies=[Depends(require_role(["ADMIN", "OPERATOR", "VIEWER"])), Depends(aplicar_rate_limit)])
@@ -69,7 +75,7 @@ async def criar_operacao(dados: OperacaoCreate, conn: asyncpg.Connection = Depen
         conn, dados.origem_lon, dados.origem_lat, dados.destino_lon, dados.destino_lat, profile="FASTEST", rain_mm=0.0
     )
     if not rota_inicial:
-        raise HTTPException(status_code=400, detail="Não foi possível traçar rota para as coordenadas fornecidas.")
+        raise HTTPException(status_code=400, detail="Nao foi possivel trancar rota para as coordenadas fornecidas.")
 
     dist_km = rota_inicial["distancia_km"]
     tempo_min = rota_inicial["tempo_min"]
@@ -115,7 +121,7 @@ async def simular_impacto(dados: SimulacaoB2BRequest, conn: asyncpg.Connection =
     id_cenario = f"SIM_{int(dados.precipitacao_mm)}MM_{uuid.uuid4().hex[:6]}"
     await conn.execute(
         "INSERT INTO cenarios_clima (id_cenario, nome, precipitacao_mm, tipo, tenant_id) VALUES ($1, $2, $3, 'SIMULACAO', $4);",
-        id_cenario, f"Simulação {dados.precipitacao_mm} mm", dados.precipitacao_mm, dados.tenant_id
+        id_cenario, f"Simulacao {dados.precipitacao_mm} mm", dados.precipitacao_mm, dados.tenant_id
     )
 
     fator_chuva = min(1.0, dados.precipitacao_mm / 100.0)
@@ -174,7 +180,7 @@ async def simular_impacto(dados: SimulacaoB2BRequest, conn: asyncpg.Connection =
                 custo_desvio = (km_add * custo_km) + ((min_add / 60.0) * custo_hora)
                 prejuizo_evitado = dados.parametros_custo.prejuizo_potencial_alagamento
 
-                motivo = f"Detectados {c_count} trechos bloqueados e {r_count} em risco de inundação na rota planejada."
+                motivo = f"Detectados {c_count} trechos bloqueados e {r_count} em risco de inundacao na rota planejada."
 
                 await conn.execute("""
                 INSERT INTO recomendacoes_operacao (
@@ -215,7 +221,7 @@ async def simular_impacto(dados: SimulacaoB2BRequest, conn: asyncpg.Connection =
 async def obter_explicacao_decisao(id_operacao: str, tenant_id: str = Depends(resolve_tenant), conn: asyncpg.Connection = Depends(get_connection)):
     op = await conn.fetchrow("SELECT * FROM operacoes WHERE id_operacao = $1 AND tenant_id = $2;", id_operacao, tenant_id)
     if not op:
-        raise HTTPException(status_code=404, detail="Operação não encontrada.")
+        raise HTTPException(status_code=404, detail="Operacao nao encontrada.")
 
     veiculo = await conn.fetchrow("SELECT placa, modelo, tipo_veiculo FROM veiculos WHERE id_veiculo = $1 AND tenant_id = $2;", op["id_veiculo"], tenant_id)
     rec = await conn.fetchrow("""
@@ -247,18 +253,18 @@ async def obter_explicacao_decisao(id_operacao: str, tenant_id: str = Depends(re
     pontos_bloqueio = [
         {
             "id_trecho": r["id_trecho"],
-            "nome_via": r["name"] or f"Trecho #{r['id_trecho']}",
+            "nome_via": r["name"] or f"Trecho ID {r['id_trecho']}",
             "status": r["classe_risco"],
             "extensao_metros": round(float(r["length"] or 0), 1),
             "score_risco": float(r["ivi_score"] or 0),
-            "motivo": f"Vulnerabilidade histórica IVI {r['ivi_score']}"
+            "motivo": f"Vulnerabilidade historica IVI {r['ivi_score']}"
         }
         for r in trechos_criticos
     ]
 
     justificativa = rec["motivo"] if rec and rec["motivo"] else (
-        f"A rota planejada intercepta {len(pontos_bloqueio)} trecho(s) classificados com severidade de alagamento. Recomendado desvio preventivo para resguardar o veículo e a carga."
-        if pontos_bloqueio else "Operação em trechos normais sem restrições severas de alagamento."
+        f"A rota planejada intercepta {len(pontos_bloqueio)} trecho(s) classificados com severidade de alagamento. Recomendado desvio preventivo para resguardar o veiculo e a carga."
+        if pontos_bloqueio else "Operacao em trechos normais sem restricoes severas de alagamento."
     )
 
     return {
@@ -308,7 +314,7 @@ async def exportar_plano_contingencia_csv(tenant_id: str = Depends(resolve_tenan
             ROUND((o.tempo_planejado_min + COALESCE(r.minutos_adicionais, 0.0))::numeric, 2) AS tempo_total_min,
             COALESCE(r.custo_desvio, 0.0) AS custo_desvio_brl,
             COALESCE(r.prejuizo_potencial_evitado, 0.0) AS prejuizo_evitado_brl,
-            COALESCE(r.motivo, 'Operação sem impedimentos detectados.') AS justificativa
+            COALESCE(r.motivo, 'Operacao sem impedimentos detectados.') AS justificativa
         FROM operacoes o
         LEFT JOIN veiculos v ON v.id_veiculo = o.id_veiculo AND v.tenant_id = o.tenant_id
         LEFT JOIN LATERAL (
@@ -371,11 +377,18 @@ async def importar_operacoes_lote(lote: List[Dict[str, Any]], tenant_id: str = D
         try:
             id_op = item.get("id_operacao")
             id_v = item.get("id_veiculo")
-            op_tenant = item.get("tenant_id", tenant_id)
+            op_tenant = tenant_id
+
+            if id_v:
+                dono_v = await conn.fetchval("SELECT tenant_id FROM veiculos WHERE id_veiculo = $1;", id_v)
+                if dono_v and dono_v != op_tenant:
+                    erros.append({"id_operacao": id_op, "erro": "Veiculo pertence a outro tenant"})
+                    continue
+
             orig_nome = item.get("origem_nome", "Ponto de Coleta")
             orig_lat = float(item["origem_lat"])
             orig_lon = float(item["origem_lon"])
-            dest_nome = item.get("destino_nome", "Destinatário")
+            dest_nome = item.get("destino_nome", "Destinatario")
             dest_lat = float(item["destino_lat"])
             dest_lon = float(item["destino_lon"])
             dist_km = float(item.get("distancia_planejada_km", 5.0))
@@ -403,8 +416,8 @@ async def importar_operacoes_lote(lote: List[Dict[str, Any]], tenant_id: str = D
                     destino_lon = EXCLUDED.destino_lon,
                     distancia_planejada_km = EXCLUDED.distancia_planejada_km,
                     tempo_planejado_min = EXCLUDED.tempo_planejado_min,
-                    custo_estimado = EXCLUDED.custo_estimado,
-                    tenant_id = EXCLUDED.tenant_id;
+                    custo_estimado = EXCLUDED.custo_estimado
+                WHERE operacoes.tenant_id = EXCLUDED.tenant_id;
             """
             await conn.execute(query, id_op, id_v, orig_nome, orig_lat, orig_lon, dest_nome, dest_lat, dest_lon, dist_km, tempo_min, custo, op_tenant)
             sucessos += 1
@@ -421,7 +434,7 @@ async def disparar_alerta_webhook(dados: WebhookAlertaRequest, conn: asyncpg.Con
         raise HTTPException(status_code=403, detail="Tenant mismatch")
     op = await conn.fetchrow("SELECT * FROM operacoes WHERE id_operacao = $1 AND tenant_id = $2;", dados.id_operacao, dados.tenant_id)
     if not op:
-        raise HTTPException(status_code=404, detail="Operação não encontrada.")
+        raise HTTPException(status_code=404, detail="Operacao nao encontrada.")
 
     veiculo = await conn.fetchrow("SELECT placa, modelo, tipo_veiculo FROM veiculos WHERE id_veiculo = $1 AND tenant_id = $2;", op["id_veiculo"], dados.tenant_id)
     rec = await conn.fetchrow("""
@@ -446,7 +459,7 @@ async def disparar_alerta_webhook(dados: WebhookAlertaRequest, conn: asyncpg.Con
             "recomendacao": {
                 "acao": rec["tipo_acao"] if rec else "ALTERAR_ROTA",
                 "nivel_risco": rec["nivel_risco"] if rec else "CRITICO",
-                "motivo": rec["motivo"] if rec else "Risco de inundação severa no trajeto.",
+                "motivo": rec["motivo"] if rec else "Risco de inundacao severa no trajeto.",
                 "confianca": float(rec["confianca"]) if rec and rec["confianca"] else 0.88
             },
             "impacto_financeiro": {
@@ -567,7 +580,7 @@ async def planejar_operacoes_d1(dados: PlanejamentoD1Request, conn: asyncpg.Conn
     }
 
 @router.get("/auditoria/acuracia", dependencies=[Depends(require_role(["ADMIN", "OPERATOR", "VIEWER"]))])
-async def obter_auditoria_acuracia(conn: asyncpg.Connection = Depends(get_connection)):
+async def obter_auditoria_acuracia(conn: asyncpg.Connection = Depends(get_connection), tenant_id: str = Depends(resolve_tenant)):
     query = """
         SELECT 
             COUNT(*) AS total_avaliado,
@@ -626,8 +639,6 @@ async def limpar_cache():
     RoutingEngine.clear_cache()
     return {"sucesso": True, "mensagem": "Cache de rotas esvaziado"}
 
-
-
 from app.services.observabilidade import MetricsCollector
 
 @router.get("/observabilidade/metricas", dependencies=[Depends(require_role(["ADMIN", "OPERATOR"]))])
@@ -638,10 +649,6 @@ async def obter_metricas_sistema():
 async def resetar_metricas_sistema():
     MetricsCollector.resetar()
     return {"sucesso": True, "mensagem": "Metricas de observabilidade zeradas com sucesso"}
-
-import csv
-import io
-from fastapi.responses import StreamingResponse
 
 @router.get("/relatorios/auditoria.csv", dependencies=[Depends(require_role(["ADMIN", "OPERATOR"]))])
 async def exportar_auditoria_csv(tenant_id: str = Depends(resolve_tenant), conn: asyncpg.Connection = Depends(get_connection)):
@@ -722,7 +729,6 @@ async def obter_sumario_executivo(tenant_id: str = Depends(resolve_tenant), conn
         }
     }
 
-
 from app.services.webhook_dispatcher import WebhookDispatcher
 from pydantic import BaseModel
 
@@ -735,7 +741,6 @@ class WebhookTestRequest(BaseModel):
     evento: str = "ALERTA_ALAGAMENTO"
     dados: dict
     enviar: bool = False
-
 
 @router.post("/webhooks/configurar", dependencies=[Depends(require_role(["ADMIN"]))])
 async def configurar_webhook_tenant(payload: WebhookConfigRequest, tenant_id: str = Depends(resolve_tenant), conn: asyncpg.Connection = Depends(get_connection)):
@@ -756,7 +761,8 @@ from app.schemas_economic import DecisaoEconomicaRequest
 from app.services.economic_engine import EconomicDecisionEngine
 
 @router.post("/decisao-economica", dependencies=[Depends(aplicar_rate_limit)])
-async def tomar_decisao_economica(dados: DecisaoEconomicaRequest, conn: asyncpg.Connection = Depends(get_connection)):
+async def tomar_decisao_economica(dados: DecisaoEconomicaRequest, conn: asyncpg.Connection = Depends(get_connection), tenant_id: str = Depends(resolve_tenant)):
+    dados.tenant_id = tenant_id
     rota_direta = await RoutingEngine.compute_route(
         conn, dados.origem_lon, dados.origem_lat, dados.destino_lon, dados.destino_lat, profile="FASTEST", rain_mm=0.0
     )
