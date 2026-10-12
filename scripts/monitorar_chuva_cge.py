@@ -14,7 +14,6 @@ def coletar_chuva_cge() -> dict:
     with urllib.request.urlopen(req, timeout=20) as resp:
         html = resp.read().decode("utf-8", errors="replace")
 
-    # Limpa tags html para facilitar a extração do texto puro
     texto_limpo = re.sub(r'<[^>]+>', ' ', html)
     texto_limpo = re.sub(r'\s+', ' ', texto_limpo)
 
@@ -36,7 +35,6 @@ def atualizar_risco_por_chuva(dados_chuva: dict):
     mm_total = dados_chuva["chuva_acumulada_recente_mm"]
     motor = create_engine(URL_BANCO)
 
-    # Se não houver chuva acumulada (> 0.5 mm), não altera nada na malha
     if mm_total < 0.5:
         return {
             "chuva_mm": mm_total,
@@ -45,7 +43,6 @@ def atualizar_risco_por_chuva(dados_chuva: dict):
             "status": "Sem chuva relevante no momento."
         }
 
-    # Limiar dinâmico proporcional à chuva acumulada
     limiar_ivi = max(40.0, 85.0 - (mm_total * 1.5))
     relato = f"[Telemetria CGE Itaquera] Chuva recente: {mm_total} mm (Per. Atual: {dados_chuva['chuva_periodo_atual_mm']} mm, Ant: {dados_chuva['chuva_periodo_anterior_mm']} mm)"
 

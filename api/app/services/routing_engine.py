@@ -9,8 +9,8 @@ class RoutingEngine:
     _max_cache_size: int = 5000
 
     @classmethod
-    def _make_cache_key(cls, orig_lon: float, orig_lat: float, dest_lon: float, dest_lat: float, profile: str, rain_mm: float, tipo_veiculo: str) -> str:
-        return f"{round(orig_lon, 5)}:{round(orig_lat, 5)}_{round(dest_lon, 5)}:{round(dest_lat, 5)}_{profile}_{round(rain_mm, 1)}_{tipo_veiculo}"
+    def _make_cache_key(cls, orig_lon: float, orig_lat: float, dest_lon: float, dest_lat: float, profile: str, rain_mm: float, tipo_veiculo: str, tenant_id: str = "global") -> str:
+        return f"{tenant_id}:{round(orig_lon, 5)}:{round(orig_lat, 5)}_{round(dest_lon, 5)}:{round(dest_lat, 5)}_{profile}_{round(rain_mm, 1)}_{tipo_veiculo}"
 
     @classmethod
     def _get_from_cache(cls, key: str) -> Optional[Dict[str, Any]]:
@@ -40,9 +40,10 @@ class RoutingEngine:
         dest_lat: float,
         profile: str = "FASTEST",
         rain_mm: float = 0.0,
-        tipo_veiculo: str = "VUC"
+        tipo_veiculo: str = "VUC",
+        tenant_id: str = "global"
     ) -> Optional[Dict[str, Any]]:
-        cache_key = cls._make_cache_key(orig_lon, orig_lat, dest_lon, dest_lat, profile, rain_mm, tipo_veiculo)
+        cache_key = cls._make_cache_key(orig_lon, orig_lat, dest_lon, dest_lat, profile, rain_mm, tipo_veiculo, tenant_id)
         cached_result = cls._get_from_cache(cache_key)
         if cached_result is not None:
             return cached_result
@@ -146,13 +147,22 @@ class RoutingEngine:
         return result
 
     @classmethod
-    def clear_cache(cls):
-        cls._cache.clear()
+    def clear_cache(cls, tenant_id: Optional[str] = None):
+        if tenant_id is None:
+            cls._cache.clear()
+        else:
+            chaves = [k for k in cls._cache if k.startswith(f"{tenant_id}:")]
+            for k in chaves:
+                cls._cache.pop(k, None)
 
     @classmethod
-    def cache_stats(cls) -> Dict[str, Any]:
+    def cache_stats(cls, tenant_id: Optional[str] = None) -> Dict[str, Any]:
+        if tenant_id is None:
+            total = len(cls._cache)
+        else:
+            total = sum(1 for k in cls._cache if k.startswith(f"{tenant_id}:"))
         return {
-            "total_entradas": len(cls._cache),
+            "total_entradas": total,
             "max_capacidade": cls._max_cache_size,
             "ttl_segundos": cls._cache_ttl_seconds
         }

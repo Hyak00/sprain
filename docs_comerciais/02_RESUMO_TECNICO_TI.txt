@@ -1,0 +1,16 @@
+RESUMO TECNICO PARA TI E SEGURANCA - SPRAIN B2B
+
+1. Arquitetura e Hospedagem:
+- Aplicacao conteinerizada em Docker (FastAPI Python 3.11 + PostgreSQL/PostGIS + pgRouting).
+- Comunicacao isolada em rede interna; banco de dados restrito ao loopback local (127.0.0.1).
+
+2. Autenticacao e Controle de Acesso (RBAC):
+- Autenticacao via cabecalho X-API-Key comparada em tempo constante (secrets.compare_digest).
+- Tres perfis de acesso: ADMIN, OPERATOR e VIEWER.
+- Bloqueio automatico de inicializacao em producao caso variaveis sensiveis ou chaves padrao estejam presentes.
+
+3. Isolamento Multi-Tenant:
+- Segregacao logica por tenant_id validada a partir da credencial autenticada.
+- Cache de roteamento particionado por tenant_id.
+- Segredos de webhooks armazenados com criptografia simetrica Fernet e payloads assinados via HMAC-SHA256 (X-SPRain-Signature).
+- Protecao ativa contra SSRF bloqueando IPs privados, loopback e redirecionamentos HTTP.

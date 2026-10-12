@@ -1,4 +1,4 @@
-name: SPRain CI Pipeline
+﻿name: SPRain CI Pipeline
 
 on:
   push:
@@ -17,16 +17,24 @@ jobs:
       - name: Build and Start Containers
         run: |
           docker compose up -d --build
-          sleep 10
 
       - name: Wait for Postgres and Bootstrap CI Database
         run: |
           docker exec sprain_db sh -c 'until pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"; do sleep 2; done'
           for f in db/ci/*.sql; do
-            echo ">>> Aplicando $f"
             docker cp "$f" sprain_db:/tmp/ci.sql
             docker exec sprain_db psql -v ON_ERROR_STOP=1 -U enchentes -d enchentes -f /tmp/ci.sql
           done
+
+      - name: Wait for API Readiness Probe
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8000/api/v1/health/readiness >/dev/null; then
+              break
+            fi
+            sleep 2
+          done
+          curl -fsS http://127.0.0.1:8000/api/v1/health/readiness
 
       - name: Run Full Test Suite Inside Container
         run: |

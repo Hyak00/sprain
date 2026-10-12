@@ -1,0 +1,25 @@
+ROTEIRO DE DESCOBERTA COMERCIAL E ESTRUTURA DE APRESENTACAO (8 SLIDES)
+
+PARTE A - 12 PERGUNTAS PARA REUNIAO DE DESCOBERTA:
+1. Quais corredores sao mais criticos para sua operacao hoje?
+2. Com que frequencia chuva, alagamentos ou interdicoes afetam suas entregas?
+3. Como voces descobrem atualmente que uma rota esta comprometida?
+4. Quem toma a decisao de desviar, esperar ou reprogramar a viagem?
+5. Quanto tempo costuma levar para a equipe reagir apos um bloqueio?
+6. Quais dados voces ja recebem do rastreador ou TMS?
+7. Que tipos de custo aumentam quando uma viagem atrasa (hora extra, pernoite, multa OTIF)?
+8. Como registram os motivos de atrasos e desvios para auditoria?
+9. Qual e a consequencia operacional de um alerta falso para a equipe?
+10. Que evidencia voces precisariam ver em 30 dias para pagar pela solucao?
+11. Quem seria o responsavel interno por acompanhar o piloto?
+12. Que restricoes de TI e seguranca precisam ser atendidas na integracao?
+
+PARTE B - ESTRUTURA DOS 8 SLIDES:
+Slide 1 (Problema): Como eventos severos de chuva e retencao viaria quebram a previsibilidade do corredor.
+Slide 2 (Custo Operacional): O impacto em diesel adicional, horas paradas e janelas de entrega perdidas.
+Slide 3 (Solucao): SPRain como camada de apoio a decisao climatica e documentacao operacional.
+Slide 4 (Demonstracao): Corredor real, identificacao de trecho critico (IVI), alternativa calculada e registro do gestor.
+Slide 5 (Como Funciona): Cruzamento de malha viaria PostGIS, vulnerabilidade fisica e telemetria meteorologica.
+Slide 6 (Modelo de Piloto): 30 dias, 1 corredor monitorado, operacao supervisionada sem friccao com o TMS atual.
+Slide 7 (Medicao de Sucesso): Alertas rastreaveis, tempo de avaliacao do gestor e comparativo de custo estimado vs observado.
+Slide 8 (Proximo Passo): Selecionar o corredor critico da transportadora e agendar o kickoff do piloto.

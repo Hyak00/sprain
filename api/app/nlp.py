@@ -20,7 +20,6 @@ def sem_acento(texto: str) -> str:
 def extrair_dados_ocorrencia(texto: str) -> dict:
     t = sem_acento(texto)
 
-    # bloqueio primeiro: "intransitavel" contem "transitavel"
     if any(p in t for p in BLOQUEIO):
         status = "INTRANSITAVEL"
         severidade = "VERMELHO" if any(p in t for p in GRAVES) else "LARANJA"

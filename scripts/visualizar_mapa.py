@@ -15,7 +15,6 @@ def main():
     centro_lat = trechos.geometry.centroid.y.mean()
     centro_lon = trechos.geometry.centroid.x.mean()
 
-    # Esri WorldStreetMap: Não exige API Key, não exige Referer e funciona perfeito em arquivos locais file://
     mapa = folium.Map(
         location=[centro_lat, centro_lon],
         zoom_start=14,

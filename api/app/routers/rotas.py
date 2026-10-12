@@ -108,7 +108,6 @@ async def calcular_rota_intermunicipal(
     tempo_nominal_total = sum(float(s["tempo_nominal_min"]) for s in segmentos)
     tempo_real_total = sum(float(s["tempo_real_min"]) for s in segmentos)
     
-    # Resolucao de tarifas de pedagio da malha por categoria
     coluna_tarifa = "tarifa_truck_3eixos"
     if tipo_veiculo.upper() == "VUC":
         coluna_tarifa = "tarifa_vuc"

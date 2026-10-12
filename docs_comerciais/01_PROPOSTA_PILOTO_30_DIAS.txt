@@ -1,0 +1,21 @@
+PROPOSTA DE PILOTO ACOMPANHADO (30 DIAS) - SPRAIN B2B
+
+Posicionamento:
+Plataforma de inteligencia climatica para operacoes logisticas que ajuda transportadoras a identificar riscos em seus corredores, avaliar alternativas e documentar o impacto operacional de eventos de chuva e alagamento.
+
+Escopo Inicial:
+- Duracao: 30 dias.
+- Cobertura: 1 corredor principal (ex.: Araraquara <-> Sao Paulo via SP-310/SP-348 e acesso Zona Leste).
+- Faixa de Investimento de Validacao: R$ 500 a R$ 1.500 (escopo fechado de teste acompanhado).
+
+Entregaveis ao Cliente:
+1. Cadastro e importacao do conjunto de rotas recorrentes do corredor escolhido.
+2. Monitoramento de vulnerabilidade viaria com fontes e limitacoes documentadas.
+3. Comparacao entre rota original e rota alternativa com premissas financeiras abertas.
+4. Registro auditavel das decisoes do gestor operacional (Aprovar Desvio, Manter Original, Aguardar).
+5. Exportacao de relatorios em CSV e fechamento de 30 dias com indicadores reais.
+
+Limites Explicitos (O que o piloto nao promete):
+- Nao substitui o rastreador ou TMS atual da transportadora.
+- Nao executa alteracoes autonomas de rota sem supervisao humana do gestor.
+- Nao garante prevencao total de atrasos nem cobertura nacional fora do corredor validado.

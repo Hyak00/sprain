@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.seguranca import validar_configuracao_producao
 from app.services.security_headers import SecurityHeadersMiddleware
 from app.services.observabilidade import ObservabilidadeMiddleware
 from app.database import init_db_pool, close_db_pool
@@ -39,6 +40,7 @@ async def agendador_telemetria_corredor():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    validar_configuracao_producao()
     await init_db_pool()
     await WebhookDispatcher.garantir_schema()
     task_clima = asyncio.create_task(agendador_telemetria_corredor())

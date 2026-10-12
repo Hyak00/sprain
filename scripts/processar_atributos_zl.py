@@ -17,7 +17,6 @@ def main():
     print("2. Obtendo envelope geografico (WGS84)...")
     trechos_wgs84 = trechos.to_crs(4326)
     minx, miny, maxx, maxy = trechos_wgs84.total_bounds
-    # Expande levemente o bounding box para garantir hidrografia na borda
     envelope = box(minx - 0.02, miny - 0.02, maxx + 0.02, maxy + 0.02)
 
     print("3. Baixando cursos d'agua do OpenStreetMap...")
@@ -43,7 +42,6 @@ def main():
         conn.execute(text("ALTER TABLE trechos_osm ADD COLUMN IF NOT EXISTS grau_suscetibilidade text DEFAULT 'Medio';"))
         conn.execute(text("ALTER TABLE trechos_osm ADD COLUMN IF NOT EXISTS total_alagamentos integer DEFAULT 0;"))
     
-    # Gravacao rapida em lote da distancia
     df_temp = trechos[["id_trecho", "distancia_agua_m"]].copy()
     df_temp.to_sql("temp_dist_agua", motor, if_exists="replace", index=False)
 

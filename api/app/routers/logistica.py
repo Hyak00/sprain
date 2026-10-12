@@ -72,7 +72,7 @@ async def listar_veiculos(tenant_id: str = Depends(resolve_tenant), conn: asyncp
 async def criar_operacao(dados: OperacaoCreate, conn: asyncpg.Connection = Depends(get_connection), tenant_id: str = Depends(resolve_tenant)):
     dados.tenant_id = tenant_id
     rota_inicial = await RoutingEngine.compute_route(
-        conn, dados.origem_lon, dados.origem_lat, dados.destino_lon, dados.destino_lat, profile="FASTEST", rain_mm=0.0
+        conn, dados.origem_lon, dados.origem_lat, dados.destino_lon, dados.destino_lat, profile="FASTEST", rain_mm=0.0, tenant_id=dados.tenant_id
     )
     if not rota_inicial:
         raise HTTPException(status_code=400, detail="Nao foi possivel trancar rota para as coordenadas fornecidas.")
@@ -171,7 +171,7 @@ async def simular_impacto(dados: SimulacaoB2BRequest, conn: asyncpg.Connection =
         if nivel in ("CRITICO", "RISCO"):
             rota_segura = await RoutingEngine.compute_route(
                 conn, op["origem_lon"], op["origem_lat"], op["destino_lon"], op["destino_lat"],
-                profile="SAFEST", rain_mm=dados.precipitacao_mm
+                profile="SAFEST", rain_mm=dados.precipitacao_mm, tenant_id=dados.tenant_id
             )
 
             if rota_segura:
@@ -225,7 +225,7 @@ async def obter_explicacao_decisao(id_operacao: str, tenant_id: str = Depends(re
 
     veiculo = await conn.fetchrow("SELECT placa, modelo, tipo_veiculo FROM veiculos WHERE id_veiculo = $1 AND tenant_id = $2;", op["id_veiculo"], tenant_id)
     rec = await conn.fetchrow("""
-        SELECT tipo_acao, nivel_risco, motivo, confianca, km_adicionais, minutos_adicionais, custo_desvio, prejuizo_potencial_evitado
+        SELECT tipo_acao, nivel_risco, motivo, confianca, km_adicionais, minutos_adicionais, custo_desvio, prejuizo_potencial_evitado, rota_alternativa_geojson
         FROM recomendacoes_operacao
         WHERE id_operacao = $1 AND tenant_id = $2
         ORDER BY id_recomendacao DESC LIMIT 1;
@@ -289,7 +289,14 @@ async def obter_explicacao_decisao(id_operacao: str, tenant_id: str = Depends(re
             "custo_desvio_brl": custo_desvio,
             "prejuizo_evitado_brl": prejuizo_evitado
         },
-        "pontos_bloqueio": pontos_bloqueio
+        "pontos_bloqueio": pontos_bloqueio,
+        "validacao_rota": {
+            "rota_alternativa_disponivel": bool(rec and rec["rota_alternativa_geojson"]),
+            "avisos_limitacao": "Malha OSM urbana validada para conectividade; restricoes fisicas locais de balanca e altura devem ser conferidas pelo motorista."
+        },
+        "geometrias": {
+            "rota_alternativa_geojson": json.loads(rec["rota_alternativa_geojson"]) if rec and rec["rota_alternativa_geojson"] else None
+        }
     }
 
 @router.get("/exportar-contingencia/csv")
@@ -698,13 +705,19 @@ async def exportar_auditoria_csv(tenant_id: str = Depends(resolve_tenant), conn:
 async def obter_sumario_executivo(tenant_id: str = Depends(resolve_tenant), conn: asyncpg.Connection = Depends(get_connection)):
     query = """
         SELECT 
-            COUNT(DISTINCT o.id_operacao)::int AS total_operacoes,
-            COUNT(DISTINCT r.id_operacao) FILTER (WHERE r.nivel_risco IN ('CRITICO', 'RISCO'))::int AS rotas_em_risco,
-            COUNT(DISTINCT r.id_operacao) FILTER (WHERE r.tipo_acao = 'ALTERAR_ROTA')::int AS rotas_recalculadas,
+            COUNT(o.id_operacao)::int AS total_operacoes,
+            COUNT(r.id_operacao) FILTER (WHERE r.nivel_risco IN ('CRITICO', 'RISCO'))::int AS rotas_em_risco,
+            COUNT(r.id_operacao) FILTER (WHERE r.tipo_acao = 'ALTERAR_ROTA')::int AS rotas_recalculadas,
             COALESCE(SUM(r.prejuizo_potencial_evitado), 0.0)::float AS prejuizo_evitado,
             COALESCE(SUM(r.minutos_adicionais), 0.0)::float AS tempo_desvios
         FROM operacoes o
-        LEFT JOIN recomendacoes_operacao r ON r.id_operacao = o.id_operacao AND r.tenant_id = o.tenant_id
+        LEFT JOIN LATERAL (
+            SELECT id_operacao, nivel_risco, tipo_acao, prejuizo_potencial_evitado, minutos_adicionais
+            FROM recomendacoes_operacao
+            WHERE id_operacao = o.id_operacao AND tenant_id = o.tenant_id
+            ORDER BY id_recomendacao DESC
+            LIMIT 1
+        ) r ON true
         WHERE o.tenant_id = $1;
     """
     row = await conn.fetchrow(query, tenant_id)
@@ -764,10 +777,10 @@ from app.services.economic_engine import EconomicDecisionEngine
 async def tomar_decisao_economica(dados: DecisaoEconomicaRequest, conn: asyncpg.Connection = Depends(get_connection), tenant_id: str = Depends(resolve_tenant)):
     dados.tenant_id = tenant_id
     rota_direta = await RoutingEngine.compute_route(
-        conn, dados.origem_lon, dados.origem_lat, dados.destino_lon, dados.destino_lat, profile="FASTEST", rain_mm=0.0
+        conn, dados.origem_lon, dados.origem_lat, dados.destino_lon, dados.destino_lat, profile="FASTEST", rain_mm=0.0, tenant_id=dados.tenant_id
     )
     rota_segura = await RoutingEngine.compute_route(
-        conn, dados.origem_lon, dados.origem_lat, dados.destino_lon, dados.destino_lat, profile="SAFEST", rain_mm=dados.precipitacao_mm
+        conn, dados.origem_lon, dados.origem_lat, dados.destino_lon, dados.destino_lat, profile="SAFEST", rain_mm=dados.precipitacao_mm, tenant_id=dados.tenant_id
     )
     
     if not rota_direta or not rota_segura:
@@ -928,7 +941,9 @@ from app.services.weather_alert_engine import SevereWeatherEngine
 async def obter_alertas_meteorologicos_regiao(precipitacao_mm: float = 65.0, rajada_vento_kmh: float = 40.0):
     alerta = SevereWeatherEngine.parse_alert_severity(precipitacao_mm, rajada_vento_kmh)
     return {
-        "fonte": "SPRain Unified Weather Feed (CGE/INMET/CEMADEN)",
+        "fonte": "Motor de Classificacao Parametrizada SPRain",
+        "modo_dados": "AVALIACAO_PARAMETRIZADA_SIMULADA",
+        "aviso_operacional": "Classificacao calculada a partir dos parametros informados na requisicao. Nao representa leitura automatica de estacao em tempo real.",
         "jurisdicao": "Regiao Metropolitana de Sao Paulo - Polo Zona Leste",
         "alerta": alerta
     }
@@ -938,3 +953,70 @@ async def resetar_rate_limit_servidor():
     TenantRateLimiter.reset()
     return {"sucesso": True, "status": "RATE_LIMIT_RESETADO"}
 
+
+
+class DecisaoGestorRequest(BaseModel):
+    decisao: str
+    motivo_gestor: str = "Validado pela mesa operacional"
+
+@router.post("/operacoes/{id_operacao}/decisao", dependencies=[Depends(require_role(["ADMIN", "OPERATOR"])), Depends(aplicar_rate_limit)])
+async def registrar_decisao_gestor(id_operacao: str, payload: DecisaoGestorRequest, tenant_id: str = Depends(resolve_tenant), conn: asyncpg.Connection = Depends(get_connection)):
+    if payload.decisao not in ("APROVAR_DESVIO", "MANTER_ROTA_ORIGINAL", "AGUARDAR_MELHORA"):
+        raise HTTPException(status_code=400, detail="Decisao invalida.")
+    op = await conn.fetchrow("SELECT id_operacao FROM operacoes WHERE id_operacao = $1 AND tenant_id = $2;", id_operacao, tenant_id)
+    if not op:
+        raise HTTPException(status_code=404, detail="Operacao nao encontrada.")
+    await conn.execute("""
+        CREATE TABLE IF NOT EXISTS decisoes_gestor_operacao (
+            id_decisao SERIAL PRIMARY KEY,
+            id_operacao TEXT NOT NULL,
+            tenant_id TEXT NOT NULL,
+            decisao TEXT NOT NULL,
+            motivo_gestor TEXT NOT NULL,
+            registrado_em TIMESTAMPTZ DEFAULT NOW()
+        );
+    """)
+    row = await conn.fetchrow("""
+        INSERT INTO decisoes_gestor_operacao (id_operacao, tenant_id, decisao, motivo_gestor)
+        VALUES ($1, $2, $3, $4)
+        RETURNING id_decisao, registrado_em;
+    """, id_operacao, tenant_id, payload.decisao, payload.motivo_gestor)
+    return {
+        "sucesso": True,
+        "id_decisao": row["id_decisao"],
+        "id_operacao": id_operacao,
+        "tenant_id": tenant_id,
+        "decisao_registrada": payload.decisao,
+        "motivo_gestor": payload.motivo_gestor,
+        "registrado_em": row["registrado_em"].isoformat()
+    }
+
+@router.get("/operacoes/{id_operacao}/decisoes", dependencies=[Depends(require_role(["ADMIN", "OPERATOR", "VIEWER"])), Depends(aplicar_rate_limit)])
+async def listar_decisoes_gestor(id_operacao: str, tenant_id: str = Depends(resolve_tenant), conn: asyncpg.Connection = Depends(get_connection)):
+    await conn.execute("""
+        CREATE TABLE IF NOT EXISTS decisoes_gestor_operacao (
+            id_decisao SERIAL PRIMARY KEY,
+            id_operacao TEXT NOT NULL,
+            tenant_id TEXT NOT NULL,
+            decisao TEXT NOT NULL,
+            motivo_gestor TEXT NOT NULL,
+            registrado_em TIMESTAMPTZ DEFAULT NOW()
+        );
+    """)
+    rows = await conn.fetch("""
+        SELECT id_decisao, id_operacao, tenant_id, decisao, motivo_gestor, registrado_em
+        FROM decisoes_gestor_operacao
+        WHERE id_operacao = $1 AND tenant_id = $2
+        ORDER BY id_decisao DESC;
+    """, id_operacao, tenant_id)
+    return [
+        {
+            "id_decisao": r["id_decisao"],
+            "id_operacao": r["id_operacao"],
+            "tenant_id": r["tenant_id"],
+            "decisao": r["decisao"],
+            "motivo_gestor": r["motivo_gestor"],
+            "registrado_em": r["registrado_em"].isoformat()
+        }
+        for r in rows
+    ]

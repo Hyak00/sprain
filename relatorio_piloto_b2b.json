@@ -1,0 +1,40 @@
+{
+  "gerado_em_utc": "2026-10-12T23:04:58.266827+00:00",
+  "escopo_piloto": "Corredor SP-310 / SP-348 (Araraquara -> Sao Paulo) e Polo Urbano Zona Leste",
+  "infraestrutura": {
+    "status": "READY",
+    "banco": "sprain_db",
+    "postgis": "OPERACIONAL",
+    "total_trechos_osm": 2978,
+    "latencia_db_ms": 2.97
+  },
+  "premissas_financeiras_explicitas": {
+    "custo_km_brl": 4.5,
+    "custo_hora_total_brl": 85.0,
+    "custo_pedagio_corredor_brl": 141.3,
+    "aviso_transparencia": "Valores baseados em parametros operacionais configuraveis. Nao representam garantia de economia sem validacao em campo."
+  },
+  "analise_corredor_rodoviario": {
+    "distancia_total_km": 245.0,
+    "tempo_nominal_min": 183.7,
+    "tempo_real_estimado_min": 183.7,
+    "atraso_climatico_min": 0.0,
+    "status_geral": "CONDICOES_FAVORAVEIS"
+  },
+  "simulacao_urbana_75mm": {
+    "total_operacoes": 100,
+    "normais": 5,
+    "atencao": 0,
+    "em_risco": 21,
+    "criticas": 74
+  },
+  "kpis_atuais_tenant": {
+    "total_operacoes": 100,
+    "rotas_em_risco_alagamento": 86,
+    "rotas_recalculadas_com_sucesso": 86,
+    "indice_resiliencia_pct": 100.0,
+    "prejuizo_estimado_evitado_brl": 240800.0,
+    "tempo_total_desvios_min": 111.3,
+    "status_sla": "OPERACAO_PROTEGIDA"
+  }
+}

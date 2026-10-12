@@ -3,7 +3,6 @@ import json
 import urllib.request
 from sqlalchemy import create_engine, text
 
-# Usa sprain_db caso esteja no docker, ou localhost se fora
 URL_BANCO = os.getenv("URL_BANCO", "postgresql+psycopg2://enchentes:enchentes@sprain_db:5432/enchentes")
 
 COORDENADAS_SEGMENTOS = {

@@ -11,12 +11,6 @@ def main():
         conn.execute(text("ALTER TABLE trechos_osm ADD COLUMN IF NOT EXISTS ivi_score double precision;"))
         conn.execute(text("ALTER TABLE trechos_osm ADD COLUMN IF NOT EXISTS classe_risco text;"))
 
-        # Calculo ponderado:
-        # 1. Proximidade fluvial (peso 35%)
-        # 2. Relevo plano / depressao (peso 25%)
-        # 3. Cota altimetrica relativa (peso 15%)
-        # 4. Suscetibilidade física (peso 15%)
-        # 5. Ocorrencias historicas CGE (peso 10%)
         conn.execute(text("""
             WITH normalizado AS (
                 SELECT 

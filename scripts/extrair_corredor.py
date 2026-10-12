@@ -3,7 +3,6 @@ import osmnx as ox
 import geopandas as gpd
 from sqlalchemy import create_engine
 
-# Utiliza espelho alternativo com maior capacidade
 ox.settings.overpass_endpoint = "https://overpass.kumi.systems/api/interpreter"
 ox.settings.timeout = 180
 
@@ -12,10 +11,8 @@ URL_BANCO = os.getenv("URL_BANCO", "postgresql+psycopg2://enchentes:enchentes@lo
 def extrair_por_rodovia(motor):
     print("Baixando eixos das rodovias SP-310, SP-330 e SP-348...")
     
-    # Query estruturada direta nas relacoes/vias do estado de SP
     filtro = '["ref"~"SP-310|SP-330|SP-348"]["highway"~"motorway|trunk|primary"]'
     
-    # Consulta restrita a Sao Paulo
     try:
         grafo = ox.graph_from_place("São Paulo state, Brazil", network_type="drive", custom_filter=filtro)
         _, edges = ox.graph_to_gdfs(grafo)
@@ -30,7 +27,6 @@ def extrair_por_rodovia(motor):
         print("Tabela corredor_sp_araraquara indexada com sucesso no PostGIS!")
     except Exception as e:
         print(f"Falha na consulta por place: {e}. Executando extracao por trechos intermediarios...")
-        # Fallback rapido: corredores municipais encadeados
         cidades = ["Araraquara, SP, Brazil", "São Carlos, SP, Brazil", "Rio Claro, SP, Brazil", "Limeira, SP, Brazil", "Campinas, SP, Brazil", "Jundiaí, SP, Brazil"]
         gdfs = []
         for cidade in cidades:

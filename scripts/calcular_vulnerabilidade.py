@@ -29,7 +29,6 @@ def main():
         conn.execute(text("ALTER TABLE trechos_osm ADD COLUMN IF NOT EXISTS grau_suscetibilidade text DEFAULT 'Baixo';"))
         conn.execute(text("ALTER TABLE trechos_osm ADD COLUMN IF NOT EXISTS id_setor_ibge text;"))
 
-        # Associa o setor censitario a cada rua
         conn.execute(text("""
             UPDATE trechos_osm t
             SET id_setor_ibge = sub.id_setor::text
@@ -41,7 +40,6 @@ def main():
             WHERE t.id_trecho = sub.id_trecho;
         """))
 
-        # Classificacao da suscetibilidade fisica
         conn.execute(text("""
             UPDATE trechos_osm
             SET grau_suscetibilidade = CASE 
