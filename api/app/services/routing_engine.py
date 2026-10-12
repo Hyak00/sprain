@@ -98,7 +98,7 @@ class RoutingEngine:
             t.length, 
             ST_AsGeoJSON(ST_Transform(t.geom, 4326)) AS geojson
         FROM pgr_dijkstra(
-            'SELECT t.id_trecho AS id, t.source::bigint, t.target::bigint, (({cost_sql}){restricao})::float AS cost, (({cost_sql}){restricao})::float AS reverse_cost FROM trechos_osm t WHERE t.source IS NOT NULL AND t.target IS NOT NULL',
+            $sql$SELECT t.id_trecho AS id, t.source::bigint, t.target::bigint, (({cost_sql}){restricao})::float AS cost, (({cost_sql}){restricao})::float AS reverse_cost FROM trechos_osm t WHERE t.source IS NOT NULL AND t.target IS NOT NULL$sql$,
             $1::bigint, $2::bigint, false
         ) r
         LEFT JOIN trechos_osm t ON t.id_trecho = r.edge
