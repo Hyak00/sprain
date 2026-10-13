@@ -1,7 +1,9 @@
-import time
+﻿import time
 import json
 import asyncpg
 from typing import Dict, Any, Optional, Tuple
+from types import SimpleNamespace
+from app.services.infraestrutura_viaria import SELECT_PONTOS, avaliar_ponto, resumir_rota, LIMITES
 
 class RoutingEngine:
     _cache: Dict[str, Tuple[float, Dict[str, Any]]] = {}
@@ -41,36 +43,56 @@ class RoutingEngine:
         profile: str = "FASTEST",
         rain_mm: float = 0.0,
         tipo_veiculo: str = "VUC",
-        tenant_id: str = "global"
+        tenant_id: str = "global",
+        blocked_edge_ids: Optional[list[int]] = None,
+        vehicle_dimensions: Optional[dict] = None,
+        infra_context: Optional[dict] = None,
     ) -> Optional[Dict[str, Any]]:
+        pontos = infra_context['pontos'] if infra_context is not None else await conn.fetch(SELECT_PONTOS, tenant_id)
+        if vehicle_dimensions:
+            tipo_veiculo = "CARRETA_5_EIXOS" if vehicle_dimensions["eixos"] >= 5 else ("TRUCK_3_EIXOS" if vehicle_dimensions["eixos"]>=3 else "VUC")
+        veiculo = SimpleNamespace(**vehicle_dimensions) if vehicle_dimensions else None
+        # Sem dimensoes, nenhuma ponte cadastrada e automaticamente considerada transponivel.
+        restritos = [p["id_trecho"] for p in pontos if p["tipo"] == "PONTE" and (
+            veiculo is None or avaliar_ponto(p, veiculo)["status"] == "BLOQUEADO"
+        )]
+        limites_malha = infra_context['limites'] if infra_context is not None else await conn.fetch("""SELECT t.id_trecho,t.limites_malha FROM trechos_osm t
+            WHERE (t.tenant_malha IS NULL OR t.tenant_malha=$1) AND t.limites_malha IS NOT NULL
+            AND t.limites_malha<>'{}'::jsonb AND (t.importacao_malha_id IS NULL OR EXISTS(
+                SELECT 1 FROM malha_importacoes m WHERE m.id=t.importacao_malha_id AND m.ativo))""",tenant_id)
+        for trecho in limites_malha:
+            limites = json.loads(trecho["limites_malha"])
+            if not vehicle_dimensions or any(vehicle_dimensions[medida] > limites[limite]
+                for medida,limite in LIMITES.items() if limite in limites):
+                restritos.append(trecho["id_trecho"])
+        blocked_edge_ids = (blocked_edge_ids or []) + restritos
         cache_key = cls._make_cache_key(orig_lon, orig_lat, dest_lon, dest_lat, profile, rain_mm, tipo_veiculo, tenant_id)
+        blocked_edge_ids = sorted(set(int(edge) for edge in (blocked_edge_ids or [])))
+        cache_key += ":blocked=" + ",".join(str(edge) for edge in blocked_edge_ids)
+        cache_key += ":dimensions=" + json.dumps(vehicle_dimensions, sort_keys=True)
         cached_result = cls._get_from_cache(cache_key)
         if cached_result is not None:
-            return cached_result
+            return {**cached_result, "infraestrutura": {**cached_result['infraestrutura'],
+                **resumir_rota(pontos, cached_result["ids_trechos"], vehicle_dimensions)}}
 
         vert_query = """
-        SELECT t.source AS id
-        FROM trechos_osm t
-        WHERE t.source IS NOT NULL AND t.target IS NOT NULL
-        ORDER BY ST_Transform(t.geom, 4326) <-> ST_SetSRID(ST_Point($1, $2), 4326)
-        LIMIT 25;
+        SELECT v.id, ST_DWithin(ST_Transform(v.the_geom,4326)::geography,
+            ST_SetSRID(ST_Point($1,$2),4326)::geography,150) AS coberto
+        FROM trechos_osm_vertices_pgr v
+        WHERE EXISTS (SELECT 1 FROM trechos_osm t WHERE (t.source=v.id OR t.target=v.id)
+            AND (t.tenant_malha IS NULL OR t.tenant_malha=$3)
+            AND (t.importacao_malha_id IS NULL OR EXISTS(SELECT 1 FROM malha_importacoes m
+                 WHERE m.id=t.importacao_malha_id AND m.ativo)))
+        ORDER BY v.the_geom <-> ST_Transform(ST_SetSRID(ST_Point($1, $2), 4326), 31983)
+        LIMIT 1;
         """
-        orig_rows = await conn.fetch(vert_query, float(orig_lon), float(orig_lat))
-        dest_rows = await conn.fetch(vert_query, float(dest_lon), float(dest_lat))
+        origem = await conn.fetchrow(vert_query, orig_lon, orig_lat, tenant_id)
+        destino = await conn.fetchrow(vert_query, dest_lon, dest_lat, tenant_id)
+        if not origem or not destino or not origem["coberto"] or not destino["coberto"]:
+            return None
+        orig_vert, dest_vert = origem["id"], destino["id"]
 
-        orig_candidates = []
-        for r in orig_rows:
-            v = int(r["id"])
-            if v not in orig_candidates:
-                orig_candidates.append(v)
-
-        dest_candidates = []
-        for r in dest_rows:
-            v = int(r["id"])
-            if v not in dest_candidates:
-                dest_candidates.append(v)
-
-        if not orig_candidates or not dest_candidates:
+        if not orig_vert or not dest_vert or orig_vert == dest_vert:
             return None
 
         fator_chuva = min(1.0, rain_mm / 100.0)
@@ -102,6 +124,18 @@ class RoutingEngine:
         if tipo_veiculo in ["TRUCK_3_EIXOS", "CARRETA_5_EIXOS"]:
             restricao = " * CASE WHEN t.highway IN ('residential', 'living_street', 'unclassified', 'track') THEN 25.0 ELSE 1.0 END"
 
+        filtro_bloqueios = ""
+        if blocked_edge_ids:
+            filtro_bloqueios = " AND t.id_trecho NOT IN (" + ",".join(str(edge) for edge in blocked_edge_ids) + ")"
+        empresa_sql = "'" + tenant_id.replace("'", "''") + "'"
+        arestas_sql = f"""SELECT t.id_trecho AS id, t.source::bigint, t.target::bigint,
+            CASE WHEN t.sentido='INVERSO' THEN -1 ELSE (({cost_sql}){restricao})::float END AS cost,
+            CASE WHEN t.sentido='DIRETO' THEN -1 ELSE (({cost_sql}){restricao})::float END AS reverse_cost
+            FROM trechos_osm t WHERE t.source IS NOT NULL AND t.target IS NOT NULL
+            AND (t.tenant_malha IS NULL OR t.tenant_malha={empresa_sql})
+            AND (t.importacao_malha_id IS NULL OR EXISTS(SELECT 1 FROM malha_importacoes m
+                WHERE m.id=t.importacao_malha_id AND m.ativo)){filtro_bloqueios}"""
+
         pgr_query = f"""
         SELECT 
             r.seq, 
@@ -111,39 +145,20 @@ class RoutingEngine:
             t.id_trecho, 
             t.name, 
             t.length, 
+            t.ivi_score,
+            t.sentido,
+            t.limites_malha, t.fonte_malha, t.limites_verificado_em,t.limites_valido_ate,
             ST_AsGeoJSON(ST_Transform(t.geom, 4326)) AS geojson
         FROM pgr_dijkstra(
-            $sql$SELECT t.id_trecho AS id, t.source::bigint, t.target::bigint, (({cost_sql}){restricao})::float AS cost, (({cost_sql}){restricao})::float AS reverse_cost FROM trechos_osm t WHERE t.source IS NOT NULL AND t.target IS NOT NULL$sql$,
-            $1::bigint, $2::bigint, false
+            $3::text,
+            $1::bigint, $2::bigint, true
         ) r
         LEFT JOIN trechos_osm t ON t.id_trecho = r.edge
         WHERE r.edge != -1
         ORDER BY r.seq;
         """
 
-        rows = []
-        for oc in orig_candidates[:8]:
-            for dc in dest_candidates[:8]:
-                if oc != dc:
-                    rows = await conn.fetch(pgr_query, oc, dc)
-                    if rows:
-                        break
-            if rows:
-                break
-
-        if not rows:
-            par_fallback = await conn.fetchrow("""
-                SELECT t1.source AS s_node, t2.target AS t_node
-                FROM operacao_rotas_trechos ort1
-                JOIN trechos_osm t1 ON t1.id_trecho = ort1.id_trecho
-                JOIN operacao_rotas_trechos ort2 ON ort2.id_operacao = ort1.id_operacao
-                JOIN trechos_osm t2 ON t2.id_trecho = ort2.id_trecho
-                WHERE t1.source != t2.target
-                LIMIT 1;
-            """)
-            if par_fallback:
-                rows = await conn.fetch(pgr_query, int(par_fallback["s_node"]), int(par_fallback["t_node"]))
-
+        rows = await conn.fetch(pgr_query, int(orig_vert), int(dest_vert), arestas_sql)
         if not rows:
             return None
 
@@ -162,7 +177,14 @@ class RoutingEngine:
                     "properties": {
                         "id_trecho": row["id_trecho"],
                         "name": row["name"],
-                        "length": l
+                        "length": l,
+                        "ivi_score":float(row['ivi_score'] or 0),
+                        "sentido_cadastrado": row["sentido"],
+                        "limites_importados": json.loads(row["limites_malha"]) if row["limites_malha"] else {},
+                        "fonte_malha": row["fonte_malha"],
+                        "verificado_em":row['limites_verificado_em'],
+                        "valido_ate":row['limites_valido_ate'],
+                        "status_limite":"CONFERENCIA_NECESSARIA"
                     }
                 })
 
@@ -173,11 +195,15 @@ class RoutingEngine:
             "distancia_km": dist_km,
             "tempo_min": tempo_min,
             "ids_trechos": trecho_ids,
+            "trechos_excluidos_por_limites": blocked_edge_ids,
+            "infraestrutura": resumir_rota(pontos, trecho_ids, vehicle_dimensions),
             "geojson": {
                 "type": "FeatureCollection",
                 "features": features
             }
         }
+        result['infraestrutura']['limites_mapa']={'type':'FeatureCollection',
+            'features':[f for f in features if f['properties']['limites_importados']]}
 
         cls._set_cache(cache_key, result)
         return result

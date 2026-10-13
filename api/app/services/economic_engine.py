@@ -14,10 +14,12 @@ class EconomicDecisionEngine:
         valor_frete: float,
         valor_carga: float,
         multa_por_hora_atraso: float,
-        janela_limite_min: float
+        janela_limite_min: float,
+        custo_pedagio_conhecido: float = 0.0,
+        custo_por_km: float | None = None,
     ) -> Dict[str, Any]:
         consumo_litros = distancia_km / max(0.1, consumo_km_l)
-        custo_combustivel = round(consumo_litros * preco_diesel_litro, 2)
+        custo_combustivel = round(consumo_litros * preco_diesel_litro if custo_por_km is None else distancia_km*custo_por_km, 2)
         
         horas_operacao = tempo_min / 60.0
         custo_tempo_operacional = round(horas_operacao * (custo_hora_veiculo + custo_hora_motorista), 2)
@@ -27,16 +29,19 @@ class EconomicDecisionEngine:
         
         risco_bloqueio_carga = round(probabilidade_bloqueio * (valor_carga * 0.05 + 500.0), 2)
         
-        custo_total = round(custo_combustivel + custo_tempo_operacional + custo_multa_atraso + risco_bloqueio_carga, 2)
+        custo_total = round(custo_combustivel + custo_tempo_operacional + custo_multa_atraso + risco_bloqueio_carga + custo_pedagio_conhecido, 2)
         resultado_liquido = round(valor_frete - custo_total, 2)
         
         return {
             "distancia_km": round(distancia_km, 2),
             "tempo_estimado_min": round(tempo_min, 1),
             "custo_combustivel_brl": custo_combustivel,
+            "origem_custo_variavel": "COMBUSTIVEL_ESTIMADO" if custo_por_km is None else "CUSTO_POR_KM_INFORMADO",
             "custo_tempo_operacional_brl": custo_tempo_operacional,
             "custo_multa_atraso_brl": custo_multa_atraso,
             "risco_perda_alagamento_brl": risco_bloqueio_carga,
+            "subtotal_pedagios_conhecidos_brl": custo_pedagio_conhecido,
+            "cobertura_pedagios_completa": False,
             "custo_total_estimado_brl": custo_total,
             "resultado_liquido_brl": resultado_liquido
         }
@@ -60,7 +65,9 @@ class EconomicDecisionEngine:
             valor_frete=parametros.get("valor_frete", 600.0),
             valor_carga=parametros.get("valor_carga", 25000.0),
             multa_por_hora_atraso=parametros.get("multa_por_hora_atraso", 150.0),
-            janela_limite_min=parametros.get("janela_limite_min", 45.0)
+            janela_limite_min=parametros.get("janela_limite_min", 45.0),
+            custo_pedagio_conhecido=rota_direta.get("custo_pedagio_conhecido", 0.0),
+            custo_por_km=parametros.get('custo_por_km')
         )
         
         segura_eval = cls.evaluate_route_tradeoff(
@@ -75,7 +82,9 @@ class EconomicDecisionEngine:
             valor_frete=parametros.get("valor_frete", 600.0),
             valor_carga=parametros.get("valor_carga", 25000.0),
             multa_por_hora_atraso=parametros.get("multa_por_hora_atraso", 150.0),
-            janela_limite_min=parametros.get("janela_limite_min", 45.0)
+            janela_limite_min=parametros.get("janela_limite_min", 45.0),
+            custo_pedagio_conhecido=rota_segura.get("custo_pedagio_conhecido", 0.0),
+            custo_por_km=parametros.get('custo_por_km')
         )
         
         escolha_segura = segura_eval["resultado_liquido_brl"] >= direta_eval["resultado_liquido_brl"]

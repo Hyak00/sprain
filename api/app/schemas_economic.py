@@ -1,7 +1,9 @@
 from pydantic import BaseModel, Field
 from typing import Optional, Dict, Any
+from app.schemas_infraestrutura import VeiculoDimensoes
 
 class ParametrosDecisaoEconomica(BaseModel):
+    custo_por_km: Optional[float] = Field(default=None, ge=0, allow_inf_nan=False)
     consumo_km_l: float = Field(default=3.0, ge=0.5, le=20.0)
     preco_diesel_litro: float = Field(default=6.20, ge=1.0)
     custo_hora_veiculo: float = Field(default=50.0, ge=0.0)
@@ -12,6 +14,8 @@ class ParametrosDecisaoEconomica(BaseModel):
     janela_limite_min: float = Field(default=45.0, ge=1.0)
 
 class DecisaoEconomicaRequest(BaseModel):
+    id_veiculo: Optional[str] = None
+    dimensoes: Optional[VeiculoDimensoes] = None
     tenant_id: str = "demo_corp"
     origem_lat: float = Field(..., ge=-90, le=90)
     origem_lon: float = Field(..., ge=-180, le=180)
