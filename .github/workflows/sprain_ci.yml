@@ -16,7 +16,8 @@ jobs:
 
       - name: Build and Start Containers
         run: |
-          docker compose up -d --build
+          docker compose build api
+          docker compose up -d db
 
       - name: Wait for Postgres and Bootstrap CI Database
         run: |
@@ -28,6 +29,7 @@ jobs:
 
       - name: Wait for API Readiness Probe
         run: |
+          docker compose up -d api
           for i in $(seq 1 30); do
             if curl -fsS http://127.0.0.1:8000/api/v1/health/readiness >/dev/null; then
               break
