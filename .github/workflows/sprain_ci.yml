@@ -17,6 +17,13 @@ jobs:
       - name: Build and Start Containers
         run: |
           docker compose build api
+          echo "ENVIRONMENT=testing" > .env
+          echo "API_KEYS=CHAVE_ZONA_LESTE_PILOTO" >> .env
+          echo "TENANT_API_KEYS=CHAVE_ZONA_LESTE_PILOTO:ADMIN:piloto_zl_logistics" >> .env
+          echo "DB_USER=enchentes" >> .env
+          echo "DB_PASSWORD=enchentes" >> .env
+          echo "DB_NAME=enchentes" >> .env
+          echo "GITHUB_ACTIONS=true" >> .env
           docker compose up -d db
 
       - name: Wait for Postgres and Bootstrap CI Database
