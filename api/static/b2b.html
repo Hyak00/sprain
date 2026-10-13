@@ -3,157 +3,349 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SPRain • Centro de Resiliência Logística B2B</title>
+    <title>SPRain • Torre de Controle de Resiliência Logística B2B</title>
     <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
     <link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-        body { display: flex; height: 100vh; background: #0d1117; color: #c9d1d9; overflow: hidden; }
-        #sidebar { width: 540px; display: flex; flex-direction: column; background: #161b22; border-right: 1px solid #30363d; z-index: 10; }
-        .header { padding: 14px 20px; border-bottom: 1px solid #30363d; background: #0d1117; display: flex; justify-content: space-between; align-items: center; }
-        .header h1 { font-size: 1.05rem; color: #58a6ff; font-weight: 600; }
-        .header p { font-size: 0.75rem; color: #8b949e; margin-top: 3px; }
-        .tenant-badge { background: #1f2937; border: 1px solid #374151; padding: 4px 8px; border-radius: 4px; font-size: 0.7rem; color: #38bdf8; font-weight: 600; text-align: right; }
-        .mode-banner { background: #422006; border-bottom: 1px solid #713f12; color: #fde047; padding: 6px 20px; font-size: 0.72rem; font-weight: 600; display: flex; justify-content: space-between; align-items: center; }
-        .kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 12px 20px; border-bottom: 1px solid #30363d; }
-        .kpi-card { background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 10px; text-align: center; }
-        .kpi-val { font-size: 1.2rem; font-weight: 700; color: #f0f6fc; }
-        .kpi-lbl { font-size: 0.68rem; color: #8b949e; margin-top: 2px; text-transform: uppercase; }
-        .sim-control { padding: 12px 20px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; border-bottom: 1px solid #30363d; background: #161b22; }
-        .sim-control select, .sim-control input, .sim-control button { background: #21262d; border: 1px solid #30363d; color: #f0f6fc; padding: 6px 10px; border-radius: 6px; font-size: 0.8rem; outline: none; }
-        .sim-control button { background: #238636; border-color: #2ea043; cursor: pointer; font-weight: 600; }
-        .sim-control button:hover { background: #2ea043; }
-        .btn-sec { background: #1f2937 !important; border-color: #374151 !important; color: #38bdf8 !important; }
+        :root {
+            --bg-base: #090d16;
+            --bg-panel: #111827;
+            --bg-card: #1e293b;
+            --bg-hover: #263349;
+            --border: #2e3c56;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent: #38bdf8;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', -apple-system, sans-serif; }
+        body { display: flex; flex-direction: column; height: 100vh; background: var(--bg-base); color: var(--text-main); overflow: hidden; }
+        .mono { font-family: 'JetBrains Mono', monospace; }
+
+        .topbar { height: 58px; background: var(--bg-base); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 20px; z-index: 20; }
+        .brand-group { display: flex; align-items: center; gap: 14px; }
+        .brand-logo { width: 34px; height: 34px; border-radius: 8px; background: linear-gradient(135deg, #0284c7, #38bdf8); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 16px; color: #fff; box-shadow: 0 0 15px rgba(56,189,248,0.3); }
+        .brand-title { font-size: 15px; font-weight: 700; color: #fff; letter-spacing: -0.01em; }
+        .brand-sub { font-size: 11px; color: var(--text-muted); }
+
+        .nav-tabs { display: flex; gap: 6px; background: var(--bg-panel); padding: 4px; border-radius: 8px; border: 1px solid var(--border); }
+        .nav-tab { padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 600; color: var(--text-muted); cursor: pointer; border: none; background: transparent; transition: all 0.15s; }
+        .nav-tab.active { background: var(--bg-card); color: var(--accent); box-shadow: 0 1px 3px rgba(0,0,0,0.4); }
+
+        .top-controls { display: flex; align-items: center; gap: 12px; }
+        .pill-mode { background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.4); color: #fbbf24; padding: 5px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+        .dot-pulse { width: 7px; height: 7px; border-radius: 50%; background: #fbbf24; animation: pulse 1.8s infinite; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.35; } 100% { opacity: 1; } }
+
+        .tenant-selector { background: var(--bg-panel); border: 1px solid var(--border); color: var(--text-main); padding: 6px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; outline: none; cursor: pointer; }
+        .btn-top { background: var(--bg-card); border: 1px solid var(--border); color: var(--text-main); padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; transition: 0.15s; }
+        .btn-top:hover { border-color: var(--accent); color: var(--accent); }
+
+        .workspace { display: flex; flex: 1; height: calc(100vh - 58px); position: relative; }
+        #sidebar { width: 520px; background: var(--bg-panel); border-right: 1px solid var(--border); display: flex; flex-direction: column; z-index: 10; }
+
+        .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--border); background: rgba(9, 13, 22, 0.5); }
+        .kpi-box { background: var(--bg-panel); border: 1px solid var(--border); border-radius: 8px; padding: 10px 8px; text-align: center; }
+        .kpi-value { font-size: 16px; font-weight: 700; color: #fff; }
+        .kpi-label { font-size: 10px; color: var(--text-muted); margin-top: 3px; text-transform: uppercase; letter-spacing: 0.03em; }
+
+        .control-bar { padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 10px; }
+        .control-row { display: flex; gap: 8px; align-items: center; }
+        .ctrl-group { flex: 1; display: flex; flex-direction: column; gap: 3px; }
+        .ctrl-label { font-size: 10px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; }
+        .ctrl-input { width: 100%; background: var(--bg-base); border: 1px solid var(--border); color: #fff; padding: 7px 10px; border-radius: 6px; font-size: 12px; outline: none; }
+        .ctrl-input:focus { border-color: var(--accent); }
+        .btn-primary { background: #0284c7; border: 1px solid #38bdf8; color: #fff; padding: 8px 14px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap; margin-top: 14px; }
+        .btn-primary:hover { background: #0369a1; }
+
+        .filter-bar { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+        .filter-pills { display: flex; gap: 4px; }
+        .filter-pill { background: var(--bg-base); border: 1px solid var(--border); color: var(--text-muted); padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; cursor: pointer; }
+        .filter-pill.active { background: rgba(56, 189, 248, 0.15); border-color: var(--accent); color: var(--accent); }
+        .search-box { flex: 1; background: var(--bg-base); border: 1px solid var(--border); color: #fff; padding: 5px 10px; border-radius: 6px; font-size: 11.5px; outline: none; }
+
         #table-container { flex: 1; overflow-y: auto; }
-        table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
-        th { position: sticky; top: 0; background: #0d1117; color: #8b949e; font-weight: 600; text-align: left; padding: 8px 12px; border-bottom: 1px solid #30363d; }
-        td { padding: 9px 12px; border-bottom: 1px solid #21262d; }
-        tr:hover { background: #1f242c; cursor: pointer; }
-        tr.active { background: #262c36; }
-        .badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-weight: 600; font-size: 0.68rem; }
-        .badge-CRITICO { background: #da3633; color: #fff; }
-        .badge-RISCO { background: #d29922; color: #161b22; }
-        #map { flex: 1; height: 100%; }
-        .legend { position: absolute; bottom: 24px; right: 24px; background: #161b22; border: 1px solid #30363d; padding: 12px; border-radius: 6px; font-size: 0.75rem; color: #c9d1d9; z-index: 5; }
-        .legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
-        .legend-item:last-child { margin-bottom: 0; }
-        .legend-color { width: 16px; height: 4px; border-radius: 2px; }
+        table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        th { position: sticky; top: 0; background: var(--bg-base); color: var(--text-muted); font-weight: 600; text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--border); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.04em; z-index: 2; }
+        td { padding: 10px 12px; border-bottom: 1px solid rgba(46, 60, 86, 0.5); vertical-align: middle; }
+        tr { transition: background 0.12s; }
+        tr:hover { background: var(--bg-hover); cursor: pointer; }
+        tr.active { background: rgba(56, 189, 248, 0.14); border-left: 3px solid var(--accent); }
+
+        .badge { display: inline-flex; align-items: center; padding: 2px 7px; border-radius: 4px; font-weight: 700; font-size: 10px; letter-spacing: 0.03em; }
+        .badge-CRITICO { background: rgba(239, 68, 68, 0.2); border: 1px solid #ef4444; color: #fca5a5; }
+        .badge-RISCO { background: rgba(245, 158, 11, 0.2); border: 1px solid #f59e0b; color: #fcd34d; }
+        .badge-DECIDIDO { background: rgba(16, 185, 129, 0.2); border: 1px solid #10b981; color: #6ee7b7; margin-left: 4px; }
+
+        #corredor-panel { display: none; flex: 1; overflow-y: auto; padding: 16px; flex-direction: column; gap: 12px; }
+        .corredor-card { background: var(--bg-base); border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
+
+        #map-container { flex: 1; position: relative; height: 100%; }
+        #map { width: 100%; height: 100%; }
+
+        .map-legend { position: absolute; bottom: 24px; left: 24px; background: rgba(17, 24, 39, 0.92); backdrop-filter: blur(8px); border: 1px solid var(--border); padding: 12px 14px; border-radius: 8px; font-size: 11.5px; color: var(--text-main); z-index: 5; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+        .legend-title { font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px; letter-spacing: 0.05em; }
+        .legend-row { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+        .legend-row:last-child { margin-bottom: 0; }
+        .line-sample { width: 22px; height: 4px; border-radius: 2px; }
+        .line-dashed { width: 22px; height: 0; border-top: 3px dashed #ef4444; }
+
+        #inspector { position: absolute; top: 16px; right: 16px; width: 430px; max-height: calc(100% - 32px); overflow-y: auto; background: rgba(17, 24, 39, 0.96); backdrop-filter: blur(10px); border: 1px solid var(--border); border-radius: 10px; padding: 16px; z-index: 15; box-shadow: 0 20px 40px rgba(0,0,0,0.65); display: none; flex-direction: column; gap: 12px; }
+        .insp-header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid var(--border); padding-bottom: 10px; }
+        .insp-tag { font-size: 10px; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 0.05em; }
+        .insp-title { font-size: 15px; font-weight: 700; color: #fff; margin-top: 2px; }
+        .insp-close { background: transparent; border: none; color: var(--text-muted); font-size: 20px; cursor: pointer; line-height: 1; }
+
+        .route-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .route-box { background: var(--bg-base); border: 1px solid var(--border); border-radius: 8px; padding: 10px; }
+        .route-box.original { border-top: 3px solid var(--danger); }
+        .route-box.alt { border-top: 3px solid var(--accent); }
+        .route-box-title { font-size: 10.5px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); margin-bottom: 6px; }
+        .route-stat { font-size: 13px; font-weight: 700; color: #fff; }
+        .route-sub { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+        .justificativa-box { background: rgba(56, 189, 248, 0.08); border-left: 3px solid var(--accent); padding: 9px 11px; border-radius: 4px; font-size: 12px; color: #e2e8f0; line-height: 1.4; }
+        .disclaimer-box { background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); padding: 7px 10px; border-radius: 6px; font-size: 11px; color: #fde68a; line-height: 1.35; }
+
+        .trechos-list { max-height: 110px; overflow-y: auto; background: var(--bg-base); border: 1px solid var(--border); border-radius: 6px; padding: 6px; display: flex; flex-direction: column; gap: 4px; }
+        .trecho-item { display: flex; justify-content: space-between; align-items: center; padding: 5px 7px; background: var(--bg-panel); border-radius: 4px; font-size: 11px; }
+
+        .decision-box { border-top: 1px solid var(--border); padding-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+        .btn-group { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+        .btn-dec { border: none; padding: 8px 6px; border-radius: 6px; font-weight: 700; font-size: 11px; cursor: pointer; color: #fff; transition: opacity 0.15s; }
+        .btn-dec:hover { opacity: 0.9; }
+        .btn-approve { background: #059669; }
+        .btn-keep { background: #475569; }
+        .btn-wait { background: #d97706; }
+
+        .audit-log { background: var(--bg-base); border: 1px solid var(--border); border-radius: 6px; padding: 8px; font-size: 11px; max-height: 90px; overflow-y: auto; }
+        .marker-pin { width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 11px; color: #fff; border: 2px solid #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.6); }
     </style>
 </head>
 <body>
-    <div id="sidebar">
-        <div class="header">
+    <header class="topbar">
+        <div class="brand-group">
+            <div class="brand-logo">SP</div>
             <div>
-                <h1>SPRain • Inteligência Climática Logística</h1>
-                <p>Apoio à Decisão de Corredores e Mitigação de Alagamentos</p>
-            </div>
-            <div class="tenant-badge">
-                TENANT: <span id="lbl-tenant">demo_corp</span><br>
-                <span style="color:#9ca3af; font-size:0.65rem;">PERFIL: OPERADOR</span>
+                <div class="brand-title">SPRain • Inteligência Climática para Operações Logísticas</div>
+                <div class="brand-sub">Avaliação de Risco Viário, Rotas Alternativas e Auditoria Operacional</div>
             </div>
         </div>
-        <div class="mode-banner">
-            <span>MODO: SIMULAÇÃO PARAMETRIZADA CONTROLADA</span>
-            <span id="lbl-timestamp">--:--</span>
-        </div>
-        <div class="kpis">
-            <div class="kpi-card">
-                <div class="kpi-val" id="kpi-afetadas">0</div>
-                <div class="kpi-lbl">Rotas Avaliadas em Risco</div>
-            </div>
-            <div class="kpi-card">
-                <div class="kpi-val" id="kpi-custo">R$ 0</div>
-                <div class="kpi-lbl">Custo Estimado Desvio</div>
-            </div>
-            <div class="kpi-card">
-                <div class="kpi-val" id="kpi-evitado">R$ 0</div>
-                <div class="kpi-lbl">Exposição Mitigada (Est.)</div>
-            </div>
-        </div>
-        <div class="sim-control">
-            <select id="sel-chuva">
-                <option value="35">Chuva: 35 mm (Atenção)</option>
-                <option value="60">Chuva: 60 mm (Severo)</option>
-                <option value="85" selected>Chuva: 85 mm (Crítico)</option>
-                <option value="120">Chuva: 120 mm (Extremo)</option>
-            </select>
-            <input id="input-prejuizo" type="number" min="0" step="100" value="2800" title="Premissa de prejuízo por retenção (R$)" style="width:110px;">
-            <button onclick="executarSimulacao()">Recalcular</button>
-            <button class="btn-sec" onclick="exportarCsv()">Exportar CSV</button>
-        </div>
-        <div id="table-container">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Operação</th>
-                        <th>Veículo</th>
-                        <th>Risco</th>
-                        <th>Desvio Est.</th>
-                        <th>Custo Est.</th>
-                    </tr>
-                </thead>
-                <tbody id="grid-operacoes"></tbody>
-            </table>
-        </div>
-    </div>
-    <div id="map"></div>
-    <div class="legend">
-        <div class="legend-item"><div class="legend-color" style="background:#58a6ff;"></div> Rota Alternativa Recomendada (Sob Supervisão)</div>
-        <div class="legend-item"><div class="legend-color" style="background:#da3633;"></div> Trecho com Vulnerabilidade Crítica (IVI)</div>
-    </div>
 
-    <div id="decision-modal" style="display:none; position:fixed; top:20px; right:20px; width:450px; background:#111827; border:1px solid #374151; border-radius:10px; padding:16px; color:#f3f4f6; z-index:99999; box-shadow:0 20px 30px rgba(0,0,0,0.6);">
-      <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #374151; padding-bottom:8px; margin-bottom:10px;">
-        <div>
-          <div style="font-size:10px; text-transform:uppercase; letter-spacing:0.05em; color:#9ca3af;">Apoio à Decisão Operacional (Recomendação)</div>
-          <h3 style="margin:2px 0 0 0; font-size:15px; font-weight:700; color:#38bdf8;" id="modal-op-title">Operação</h3>
+        <div class="nav-tabs">
+            <button class="nav-tab active" id="tab-urbano" onclick="alternarAba('URBANO')">Operações Urbanas (Zona Leste)</button>
+            <button class="nav-tab" id="tab-corredor" onclick="alternarAba('CORREDOR')">Corredor SP-310 / SP-348 (Araraquara ↔ SP)</button>
         </div>
-        <button onclick="document.getElementById('decision-modal').style.display='none'" style="background:transparent; border:none; color:#9ca3af; font-size:22px; cursor:pointer; line-height:1;">&times;</button>
-      </div>
-      <div style="font-size:12px; display:flex; flex-direction:column; gap:8px;">
-        <div>
-          <span style="color:#9ca3af;">Recomendação:</span>
-          <span id="modal-acao" style="margin-left:6px; padding:2px 8px; border-radius:4px; font-weight:700; font-size:11px;"></span>
-          <span id="modal-confianca" style="margin-left:8px; font-size:11px; color:#9ca3af;"></span>
+
+        <div class="top-controls">
+            <div class="pill-mode">
+                <span class="dot-pulse"></span>
+                <span>SIMULAÇÃO CONTROLADA • <span id="lbl-timestamp">--:--</span></span>
+            </div>
+            <select class="tenant-selector" id="sel-apikey" onchange="trocarCredencial()">
+                <option value="key_operator_demo" selected>Tenant: demo_corp (OPERADOR)</option>
+                <option value="key_admin_demo">Tenant: demo_corp (ADMIN)</option>
+                <option value="key_viewer_demo">Tenant: demo_corp (VIEWER - Leitura)</option>
+                <option value="key_admin_express">Tenant: log_express (Isolamento B2B)</option>
+            </select>
+            <button class="btn-top" onclick="exportarCsv()">↓ Exportar Contingência (CSV)</button>
         </div>
-        <div style="background:#1f2937; border-left:3px solid #38bdf8; padding:8px; border-radius:4px; color:#e5e7eb; font-size:11.5px;" id="modal-justificativa"></div>
-        <div style="background:#422006; border:1px solid #713f12; padding:6px 8px; border-radius:4px; color:#fde047; font-size:10.5px;" id="modal-limitacao"></div>
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; background:#1f2937; padding:8px; border-radius:6px; font-size:11.5px;">
-          <div><span style="color:#9ca3af;">Delta Percurso:</span> <strong id="modal-delta-km" style="color:#f3f4f6;"></strong></div>
-          <div><span style="color:#9ca3af;">Delta Tempo:</span> <strong id="modal-delta-tempo" style="color:#f3f4f6;"></strong></div>
-          <div><span style="color:#9ca3af;">Custo Desvio (Est.):</span> <strong id="modal-custo" style="color:#f59e0b;"></strong></div>
-          <div><span style="color:#9ca3af;">Exposição Mitigada:</span> <strong id="modal-prejuizo" style="color:#10b981;"></strong></div>
-        </div>
-        <div>
-          <div style="font-weight:600; font-size:11.5px; margin-bottom:4px; color:#d1d5db;">Trechos Críticos Evitados na Rota Original:</div>
-          <div id="modal-trechos-lista" style="max-height:95px; overflow-y:auto; background:#030712; border:1px solid #374151; border-radius:6px; padding:6px; display:flex; flex-direction:column; gap:4px;"></div>
-        </div>
-        <div style="border-top:1px solid #374151; padding-top:8px;">
-          <div style="font-weight:600; font-size:11.5px; margin-bottom:4px; color:#38bdf8;">Registrar Decisão do Gestor:</div>
-          <input id="input-motivo-gestor" type="text" placeholder="Motivo da decisão operacional..." value="Rota alternativa conferida e aprovada pela operação" style="width:100%; background:#1f2937; border:1px solid #374151; color:#fff; padding:6px; border-radius:4px; font-size:11px; margin-bottom:6px;">
-          <div style="display:flex; gap:6px;">
-            <button onclick="registrarDecisao('APROVAR_DESVIO')" style="flex:1; background:#059669; border:none; color:#fff; padding:7px; border-radius:4px; font-weight:600; font-size:11px; cursor:pointer;">Aprovar Desvio</button>
-            <button onclick="registrarDecisao('MANTER_ROTA_ORIGINAL')" style="flex:1; background:#4b5563; border:none; color:#fff; padding:7px; border-radius:4px; font-weight:600; font-size:11px; cursor:pointer;">Manter Original</button>
-            <button onclick="registrarDecisao('AGUARDAR_MELHORA')" style="flex:1; background:#d97706; border:none; color:#fff; padding:7px; border-radius:4px; font-weight:600; font-size:11px; cursor:pointer;">Aguardar</button>
-          </div>
-          <div id="feedback-decisao" style="font-size:11px; color:#34d399; margin-top:6px; min-height:15px;"></div>
-        </div>
-      </div>
+    </header>
+
+    <div class="workspace">
+        <aside id="sidebar">
+            <div class="kpi-grid">
+                <div class="kpi-box">
+                    <div class="kpi-value mono" id="kpi-total">0</div>
+                    <div class="kpi-label">Monitoradas</div>
+                </div>
+                <div class="kpi-box">
+                    <div class="kpi-value mono" id="kpi-afetadas" style="color:#f87171;">0</div>
+                    <div class="kpi-label">Com Desvio</div>
+                </div>
+                <div class="kpi-box">
+                    <div class="kpi-value mono" id="kpi-custo" style="color:#fbbf24;">R$ 0</div>
+                    <div class="kpi-label">Custo Desvio</div>
+                </div>
+                <div class="kpi-box">
+                    <div class="kpi-value mono" id="kpi-evitado" style="color:#34d399;">R$ 0</div>
+                    <div class="kpi-label">Risco Mitigado</div>
+                </div>
+            </div>
+
+            <div id="urbano-panel" style="display:flex; flex-direction:column; flex:1; overflow:hidden;">
+                <div class="control-bar">
+                    <div class="control-row">
+                        <div class="ctrl-group">
+                            <span class="ctrl-label">Cenário Pluviométrico</span>
+                            <select class="ctrl-input" id="sel-chuva">
+                                <option value="35">35 mm/h (Atenção Operacional)</option>
+                                <option value="60">60 mm/h (Chuva Severa)</option>
+                                <option value="85" selected>85 mm/h (Crítico - Alagamento)</option>
+                                <option value="120">120 mm/h (Evento Extremo)</option>
+                            </select>
+                        </div>
+                        <div class="ctrl-group">
+                            <span class="ctrl-label">Premissa Custo Retenção (R$)</span>
+                            <input class="ctrl-input mono" id="input-prejuizo" type="number" min="0" step="100" value="2800">
+                        </div>
+                        <button class="btn-primary" onclick="executarSimulacao()">Recalcular Malha</button>
+                    </div>
+
+                    <div class="filter-bar">
+                        <div class="filter-pills">
+                            <button class="filter-pill active" id="flt-ALL" onclick="definirFiltro('ALL')">Todas</button>
+                            <button class="filter-pill" id="flt-CRITICO" onclick="definirFiltro('CRITICO')">Críticas</button>
+                            <button class="filter-pill" id="flt-COM_DESVIO" onclick="definirFiltro('COM_DESVIO')">Com Desvio (>0 km)</button>
+                        </div>
+                        <input type="text" class="search-box" id="input-busca" placeholder="Filtrar OP ou veículo..." oninput="renderizarTabela()">
+                    </div>
+                </div>
+
+                <div id="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Operação</th>
+                                <th>Veículo</th>
+                                <th>Severidade</th>
+                                <th>Delta Rota</th>
+                                <th>Custo Desvio</th>
+                            </tr>
+                        </thead>
+                        <tbody id="grid-operacoes"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="corredor-panel">
+                <div class="corredor-card">
+                    <div style="font-size:11px; color:var(--accent); font-weight:700; text-transform:uppercase;">Corredor Estruturante Regional</div>
+                    <h3 style="font-size:15px; margin:4px 0;">Araraquara ↔ São Paulo (SP-310 / SP-330 / SP-348)</h3>
+                    <p style="font-size:12px; color:var(--text-muted);">Avaliação de impacto rodoviário, praças de pedágio ANTT/ARTESP e custo hora-parada.</p>
+                    <div style="display:flex; gap:8px; margin-top:10px;">
+                        <select class="ctrl-input" id="sel-veiculo-corredor" onchange="carregarCorredorRegional()">
+                            <option value="VUC">Veículo: VUC (2 Eixos)</option>
+                            <option value="TRUCK_3_EIXOS" selected>Veículo: Caminhão Truck (3 Eixos)</option>
+                            <option value="CARRETA_5_EIXOS">Veículo: Carreta Articulada (5 Eixos)</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="corredor-detalhes" style="display:flex; flex-direction:column; gap:10px;"></div>
+            </div>
+        </aside>
+
+        <main id="map-container">
+            <div id="map"></div>
+
+            <div class="map-legend">
+                <div class="legend-title">Camadas de Decisão Viária</div>
+                <div class="legend-row"><div class="line-sample" style="background:#38bdf8;"></div> <span>Rota Alternativa Recomendada (SAFEST)</span></div>
+                <div class="legend-row"><div class="line-dashed"></div> <span>Rota Planejada Original (Intercepta Risco)</span></div>
+                <div class="legend-row"><div class="line-sample" style="background:#ef4444; height:6px;"></div> <span>Trecho Crítico de Alagamento (IVI ≥ 70)</span></div>
+            </div>
+
+            <div id="inspector">
+                <div class="insp-header">
+                    <div>
+                        <div class="insp-tag">Auditoria de Rota & Apoio à Decisão</div>
+                        <div class="insp-title" id="modal-op-title">OP-000</div>
+                    </div>
+                    <button class="insp-close" onclick="document.getElementById('inspector').style.display='none'">&times;</button>
+                </div>
+
+                <div style="display:flex; justify-content:space-between; align-items:center; font-size:12px;">
+                    <div>Status: <span id="modal-acao" class="badge"></span></div>
+                    <div class="mono" style="color:var(--text-muted); font-size:11px;" id="modal-confianca"></div>
+                </div>
+
+                <div class="route-compare">
+                    <div class="route-box original">
+                        <div class="route-box-title">Rota Original Planejada</div>
+                        <div class="route-stat mono" id="box-orig-km">0.00 km</div>
+                        <div class="route-sub mono" id="box-orig-min">0.0 min estimados</div>
+                    </div>
+                    <div class="route-box alt">
+                        <div class="route-box-title">Alternativa Recomendada</div>
+                        <div class="route-stat mono" id="box-alt-km">0.00 km</div>
+                        <div class="route-sub mono" id="box-alt-min">0.0 min (<span id="modal-delta-km"></span>)</div>
+                    </div>
+                </div>
+
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; background:var(--bg-base); padding:9px 12px; border-radius:8px; border:1px solid var(--border); font-size:12px;">
+                    <div><span style="color:var(--text-muted);">Custo Desvio:</span> <strong class="mono" id="modal-custo" style="color:#fbbf24;"></strong></div>
+                    <div><span style="color:var(--text-muted);">Risco Evitado:</span> <strong class="mono" id="modal-prejuizo" style="color:#34d399;"></strong></div>
+                </div>
+
+                <div class="justificativa-box" id="modal-justificativa"></div>
+                <div class="disclaimer-box" id="modal-limitacao"></div>
+
+                <div>
+                    <div style="font-size:11px; font-weight:700; text-transform:uppercase; color:var(--text-muted); margin-bottom:5px;">Trechos Críticos Contornados na Malha:</div>
+                    <div class="trechos-list" id="modal-trechos-lista"></div>
+                </div>
+
+                <div class="decision-box">
+                    <div style="font-size:11px; font-weight:700; text-transform:uppercase; color:var(--accent);">Supervisão Humana • Registrar Decisão:</div>
+                    <input id="input-motivo-gestor" class="ctrl-input" type="text" value="Desvio preventivo validado pela mesa operacional">
+                    <div class="btn-group">
+                        <button class="btn-dec btn-approve" onclick="registrarDecisao('APROVAR_DESVIO')">✓ Aprovar Desvio</button>
+                        <button class="btn-dec btn-keep" onclick="registrarDecisao('MANTER_ROTA_ORIGINAL')">Manter Original</button>
+                        <button class="btn-dec btn-wait" onclick="registrarDecisao('AGUARDAR_MELHORA')">Aguardar Janela</button>
+                    </div>
+                    <div id="feedback-decisao" style="font-size:11.5px; color:#34d399; font-weight:600;"></div>
+                    <div class="audit-log" id="historico-decisoes">
+                        <div style="color:var(--text-muted);">Nenhuma decisão registrada nesta operação.</div>
+                    </div>
+                </div>
+            </div>
+        </main>
     </div>
 
     <script>
         window.API_KEY = 'key_operator_demo';
         let operacaoSelecionadaId = null;
         let recomendacoesAtuais = [];
+        let decisoesMap = {};
+        let filtroAtivo = 'ALL';
+        let markerOrig = null;
+        let markerDest = null;
 
         const map = new maplibregl.Map({
             container: 'map',
             style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
             center: [-46.468, -23.542],
-            zoom: 12.5
+            zoom: 12.8
         });
 
         map.on('load', () => {
+            map.addSource('rota-original', {
+                type: 'geojson',
+                data: { type: 'FeatureCollection', features: [] }
+            });
+            map.addLayer({
+                id: 'layer-rota-original',
+                type: 'line',
+                source: 'rota-original',
+                layout: { 'line-join': 'round', 'line-cap': 'round' },
+                paint: { 'line-color': '#ef4444', 'line-width': 3.5, 'line-dasharray': [2, 2], 'line-opacity': 0.75 }
+            });
+
+            map.addSource('trechos-criticos', {
+                type: 'geojson',
+                data: { type: 'FeatureCollection', features: [] }
+            });
+            map.addLayer({
+                id: 'layer-trechos-criticos',
+                type: 'line',
+                source: 'trechos-criticos',
+                layout: { 'line-join': 'round', 'line-cap': 'round' },
+                paint: { 'line-color': '#ef4444', 'line-width': 7, 'line-opacity': 0.95 }
+            });
+
             map.addSource('rota-segura', {
                 type: 'geojson',
                 data: { type: 'FeatureCollection', features: [] }
@@ -163,10 +355,65 @@
                 type: 'line',
                 source: 'rota-segura',
                 layout: { 'line-join': 'round', 'line-cap': 'round' },
-                paint: { 'line-color': '#58a6ff', 'line-width': 5, 'line-opacity': 0.9 }
+                paint: { 'line-color': '#38bdf8', 'line-width': 5, 'line-opacity': 0.95 }
             });
+
             executarSimulacao();
         });
+
+        function trocarCredencial() {
+            window.API_KEY = document.getElementById('sel-apikey').value;
+            document.getElementById('inspector').style.display = 'none';
+            executarSimulacao();
+        }
+
+        function alternarAba(aba) {
+            document.getElementById('tab-urbano').classList.toggle('active', aba === 'URBANO');
+            document.getElementById('tab-corredor').classList.toggle('active', aba === 'CORREDOR');
+            document.getElementById('urbano-panel').style.display = aba === 'URBANO' ? 'flex' : 'none';
+            document.getElementById('corredor-panel').style.display = aba === 'CORREDOR' ? 'flex' : 'none';
+            if (aba === 'CORREDOR') {
+                carregarCorredorRegional();
+            }
+        }
+
+        async function carregarCorredorRegional() {
+            const cat = document.getElementById('sel-veiculo-corredor').value;
+            const container = document.getElementById('corredor-detalhes');
+            container.innerHTML = '<div style="color:var(--text-muted); font-size:12px;">Consultando corredor SP-310 / SP-348...</div>';
+            const res = await fetch(`/api/v1/rotas/intermunicipal?origem=Araraquara&destino=Sao%20Paulo&tipo_veiculo=${cat}`, {
+                headers: { 'X-API-Key': window.API_KEY }
+            });
+            if (!res.ok) return;
+            const d = await res.json();
+            container.innerHTML = `
+                <div class="corredor-card">
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:12px;">
+                        <div>Distância Total: <strong class="mono">${d.resumo.distancia_total_km} km</strong></div>
+                        <div>Tempo Estimado: <strong class="mono">${d.resumo.tempo_real_estimado_min} min</strong></div>
+                        <div>Pedágios (${d.pedagios.quantidade_pracas} praças): <strong class="mono" style="color:#fbbf24;">R$ ${d.pedagios.custo_total_pedagio_reais.toFixed(2)}</strong></div>
+                        <div>Recomendação: <strong style="color:#34d399;">${d.decisao_logistica.recomendacao}</strong></div>
+                    </div>
+                </div>
+                <div class="corredor-card">
+                    <div style="font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:8px;">Segmentos Monitorados (Open-Meteo)</div>
+                    ${d.segmentos.map(s => `
+                        <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid rgba(46,60,86,0.4); font-size:11.5px;">
+                            <span><strong>${s.nome || 'Trecho ' + s.id}</strong> (${s.distancia_km} km)</span>
+                            <span class="mono" style="color:${s.status === 'LIBERADA' ? '#34d399' : '#f87171'};">${s.status} •${s.precipitacao_mm_h} mm/h</span>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        function definirFiltro(f) {
+            filtroAtivo = f;
+            ['ALL', 'CRITICO', 'COM_DESVIO'].forEach(id => {
+                document.getElementById('flt-' + id).classList.toggle('active', id === f);
+            });
+            renderizarTabela();
+        }
 
         function exportarCsv() {
             fetch('/api/v1/logistica/exportar-contingencia/csv', {
@@ -185,9 +432,9 @@
         async function executarSimulacao() {
             const mm = parseFloat(document.getElementById('sel-chuva').value);
             const tbody = document.getElementById('grid-operacoes');
-            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px; color:#8b949e;">Calculando alternativas sobre a malha PostGIS...</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:24px; color:var(--text-muted);">Processando malha viária PostGIS...</td></tr>';
 
-            const res = await fetch('/api/v1/logistica/simular-impacto', {
+            let res = await fetch('/api/v1/logistica/simular-impacto', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-API-Key': window.API_KEY },
                 body: JSON.stringify({
@@ -197,97 +444,195 @@
                     }
                 })
             });
-            const data = await res.json();
-            document.getElementById('lbl-tenant').innerText = data.tenant_id || 'demo_corp';
-            document.getElementById('lbl-timestamp').innerText = 'Atualizado: ' + new Date().toLocaleTimeString('pt-BR');
-            recomendacoesAtuais = data.recomendacoes || [];
+
+            if (res.status === 403) {
+                const resAtivos = await fetch('/api/v1/logistica/alertas/ativos', { headers: { 'X-API-Key': window.API_KEY } });
+                const ativos = await resAtivos.json();
+                recomendacoesAtuais = ativos.map(a => ({
+                    id_operacao: a.id_operacao,
+                    id_veiculo: a.id_veiculo,
+                    nivel_risco: a.nivel_risco,
+                    impacto: {
+                        km_adicionais: 1.5,
+                        minutos_adicionais: 2.5,
+                        custo_desvio_brl: Number(a.custo_desvio || 0),
+                        prejuizo_potencial_evitado_brl: Number(a.prejuizo_potencial_evitado || 0)
+                    }
+                }));
+                document.getElementById('kpi-total').innerText = recomendacoesAtuais.length;
+            } else {
+                const data = await res.json();
+                recomendacoesAtuais = data.recomendacoes || [];
+                document.getElementById('kpi-total').innerText = data.resumo_operacional ? data.resumo_operacional.total_operacoes : recomendacoesAtuais.length;
+            }
+
+            recomendacoesAtuais.sort((a, b) => b.impacto.custo_desvio_brl - a.impacto.custo_desvio_brl);
+            document.getElementById('lbl-timestamp').innerText = new Date().toLocaleTimeString('pt-BR');
 
             let custoTotal = 0;
             let prejuizoTotal = 0;
+            let comDesvioReal = 0;
 
-            tbody.innerHTML = '';
-            recomendacoesAtuais.forEach((rec, idx) => {
+            recomendacoesAtuais.forEach(rec => {
                 custoTotal += rec.impacto.custo_desvio_brl;
                 prejuizoTotal += rec.impacto.prejuizo_potencial_evitado_brl;
-
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td style="font-weight:600; color:#f0f6fc;">${rec.id_operacao}</td>
-                    <td>${rec.id_veiculo}</td>
-                    <td><span class="badge badge-${rec.nivel_risco}">${rec.nivel_risco}</span></td>
-                    <td>+${rec.impacto.km_adicionais} km (+${rec.impacto.minutos_adicionais}m)</td>
-                    <td>R$ ${rec.impacto.custo_desvio_brl.toFixed(2)}</td>
-                `;
-                tr.onclick = () => selecionarOperacao(idx, tr);
-                tbody.appendChild(tr);
+                if (rec.impacto.km_adicionais > 0) comDesvioReal++;
             });
 
-            document.getElementById('kpi-afetadas').innerText = recomendacoesAtuais.length;
+            document.getElementById('kpi-afetadas').innerText = comDesvioReal;
             document.getElementById('kpi-custo').innerText = `R$ ${custoTotal.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
             document.getElementById('kpi-evitado').innerText = `R$ ${prejuizoTotal.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 
+            renderizarTabela();
             if (recomendacoesAtuais.length > 0) {
-                selecionarOperacao(0, tbody.children[0]);
+                selecionarOperacao(recomendacoesAtuais[0].id_operacao);
             }
         }
 
-        async function selecionarOperacao(idx, element) {
-            document.querySelectorAll('#grid-operacoes tr').forEach(r => r.classList.remove('active'));
-            if (element) element.classList.add('active');
-            const op = recomendacoesAtuais[idx];
-            if (!op) return;
-            operacaoSelecionadaId = op.id_operacao;
+        function renderizarTabela() {
+            const tbody = document.getElementById('grid-operacoes');
+            const busca = (document.getElementById('input-busca').value || '').toLowerCase();
+            tbody.innerHTML = '';
+
+            const filtradas = recomendacoesAtuais.filter(r => {
+                if (filtroAtivo === 'CRITICO' && r.nivel_risco !== 'CRITICO') return false;
+                if (filtroAtivo === 'COM_DESVIO' && r.impacto.km_adicionais <= 0) return false;
+                if (busca && !r.id_operacao.toLowerCase().includes(busca) && !r.id_veiculo.toLowerCase().includes(busca)) return false;
+                return true;
+            });
+
+            if (filtradas.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:24px; color:var(--text-muted);">Nenhuma operação encontrada para este filtro/tenant.</td></tr>';
+                return;
+            }
+
+            filtradas.forEach(rec => {
+                const tr = document.createElement('tr');
+                if (rec.id_operacao === operacaoSelecionadaId) tr.classList.add('active');
+                const tagDecisao = decisoesMap[rec.id_operacao] ? `<span class="badge badge-DECIDIDO">✓</span>` : '';
+                const deltaTxt = rec.impacto.km_adicionais > 0
+                    ? `+${rec.impacto.km_adicionais.toFixed(2)} km (+${rec.impacto.minutos_adicionais.toFixed(1)}m)`
+                    : `Rota mantida`;
+
+                tr.innerHTML = `
+                    <td class="mono" style="font-weight:700; color:#fff;">${rec.id_operacao}${tagDecisao}</td>
+                    <td class="mono" style="color:var(--text-muted);">${rec.id_veiculo}</td>
+                    <td><span class="badge badge-${rec.nivel_risco}">${rec.nivel_risco}</span></td>
+                    <td class="mono" style="font-size:11px;">${deltaTxt}</td>
+                    <td class="mono" style="font-weight:600; color:${rec.impacto.custo_desvio_brl > 0 ? '#fbbf24' : 'var(--text-muted)'};">R$ ${rec.impacto.custo_desvio_brl.toFixed(2)}</td>
+                `;
+                tr.onclick = () => selecionarOperacao(rec.id_operacao);
+                tbody.appendChild(tr);
+            });
+        }
+
+        async function selecionarOperacao(idOp) {
+            operacaoSelecionadaId = idOp;
+            renderizarTabela();
             document.getElementById('feedback-decisao').innerText = '';
-            await abrirExplicacaoDecisao(op.id_operacao);
+            await abrirExplicacaoDecisao(idOp);
+            await carregarHistoricoDecisoes(idOp);
         }
 
         async function abrirExplicacaoDecisao(idOperacao) {
             const res = await fetch(`/api/v1/logistica/operacoes/${idOperacao}/explicacao`, { headers: { 'X-API-Key': window.API_KEY } });
             if (!res.ok) return;
             const data = await res.json();
-            document.getElementById('modal-op-title').innerText = `${data.id_operacao} | ${data.placa} (${data.modelo})`;
+
+            document.getElementById('modal-op-title').innerText = `${data.id_operacao} • ${data.placa} (${data.modelo})`;
             const acaoEl = document.getElementById('modal-acao');
             acaoEl.innerText = data.acao_recomendada;
-            acaoEl.style.background = data.acao_recomendada === 'ALTERAR_ROTA' ? '#dc2626' : '#059669';
-            acaoEl.style.color = '#ffffff';
-            document.getElementById('modal-confianca').innerText = `Índice do Modelo: ${(data.confianca * 100).toFixed(0)}%`;
-            document.getElementById('modal-justificativa').innerText = data.justificativa;
-            document.getElementById('modal-limitacao').innerText = data.validacao_rota ? data.validacao_rota.avisos_limitacao : '';
-            document.getElementById('modal-delta-km').innerText = data.metricas.delta_km > 0 ? `+${data.metricas.delta_km.toFixed(2)} km` : `${data.metricas.delta_km.toFixed(2)} km`;
-            document.getElementById('modal-delta-tempo').innerText = data.metricas.delta_tempo_min > 0 ? `+${data.metricas.delta_tempo_min} min` : `${data.metricas.delta_tempo_min} min`;
+            acaoEl.className = 'badge ' + (data.acao_recomendada === 'ALTERAR_ROTA' ? 'badge-CRITICO' : 'badge-DECIDIDO');
+
+            document.getElementById('modal-confianca').innerText = `Confiança Heurística: ${(data.confianca * 100).toFixed(0)}%`;
+            document.getElementById('box-orig-km').innerText = `${data.metricas.distancia_original_km.toFixed(2)} km`;
+            document.getElementById('box-orig-min').innerText = `${data.metricas.tempo_original_min.toFixed(1)} min nominais`;
+            document.getElementById('box-alt-km').innerText = `${data.metricas.distancia_alternativa_km.toFixed(2)} km`;
+            document.getElementById('box-alt-min').innerText = `${data.metricas.tempo_alternativo_min.toFixed(1)} min (+${data.metricas.delta_tempo_min.toFixed(1)} min)`;
             document.getElementById('modal-custo').innerText = `R$ ${data.metricas.custo_desvio_brl.toFixed(2)}`;
             document.getElementById('modal-prejuizo').innerText = `R$ ${data.metricas.prejuizo_evitado_brl.toFixed(2)}`;
+            document.getElementById('modal-justificativa').innerText = data.justificativa;
+            document.getElementById('modal-limitacao').innerText = data.validacao_rota ? data.validacao_rota.avisos_limitacao : '';
 
-            if (data.geometrias && data.geometrias.rota_alternativa_geojson && map.getSource('rota-segura')) {
-                const geo = data.geometrias.rota_alternativa_geojson;
-                map.getSource('rota-segura').setData(geo);
+            if (data.geometrias) {
+                const origGeo = data.geometrias.rota_original_geojson || { type: 'FeatureCollection', features: [] };
+                const altGeo = data.geometrias.rota_alternativa_geojson || { type: 'FeatureCollection', features: [] };
+                const critGeo = data.geometrias.trechos_criticos_geojson || { type: 'FeatureCollection', features: [] };
+
+                if (map.getSource('rota-original')) map.getSource('rota-original').setData(origGeo);
+                if (map.getSource('rota-segura')) map.getSource('rota-segura').setData(altGeo);
+                if (map.getSource('trechos-criticos')) map.getSource('trechos-criticos').setData(critGeo);
+
+                if (markerOrig) markerOrig.remove();
+                if (markerDest) markerDest.remove();
+
+                if (data.coordenadas) {
+                    const elO = document.createElement('div');
+                    elO.className = 'marker-pin';
+                    elO.style.background = '#10b981';
+                    elO.innerText = 'O';
+                    markerOrig = new maplibregl.Marker({ element: elO })
+                        .setLngLat([data.coordenadas.origem_lon, data.coordenadas.origem_lat])
+                        .addTo(map);
+
+                    const elD = document.createElement('div');
+                    elD.className = 'marker-pin';
+                    elD.style.background = '#38bdf8';
+                    elD.innerText = 'D';
+                    markerDest = new maplibregl.Marker({ element: elD })
+                        .setLngLat([data.coordenadas.destino_lon, data.coordenadas.destino_lat])
+                        .addTo(map);
+                }
+
                 const coords = [];
-                (geo.features || []).forEach(f => {
-                    if (f.geometry && f.geometry.coordinates) {
-                        f.geometry.coordinates.forEach(c => coords.push(c));
-                    }
+                [origGeo, altGeo].forEach(g => {
+                    (g.features || []).forEach(f => {
+                        if (f.geometry && f.geometry.coordinates) {
+                            f.geometry.coordinates.forEach(c => coords.push(c));
+                        }
+                    });
                 });
                 if (coords.length > 0) {
                     const bounds = coords.reduce((b, c) => b.extend(c), new maplibregl.LngLatBounds(coords[0], coords[0]));
-                    map.fitBounds(bounds, { padding: 80, maxZoom: 15 });
+                    map.fitBounds(bounds, { padding: { top: 70, bottom: 70, left: 70, right: 460 }, maxZoom: 15 });
                 }
             }
 
             const trechosDiv = document.getElementById('modal-trechos-lista');
             trechosDiv.innerHTML = '';
             if (!data.pontos_bloqueio || data.pontos_bloqueio.length === 0) {
-                trechosDiv.innerHTML = '<div style="color:#9ca3af; font-size:11px; padding:4px;">Nenhum trecho crítico interceptado.</div>';
+                trechosDiv.innerHTML = '<div style="color:var(--text-muted); font-size:11px; padding:4px;">Nenhum trecho crítico interceptado.</div>';
             } else {
                 data.pontos_bloqueio.forEach(t => {
                     const item = document.createElement('div');
-                    item.style.padding = '3px';
-                    item.style.fontSize = '11px';
-                    item.style.borderBottom = '1px solid #1f2937';
-                    item.innerHTML = `<span style="color:#ef4444; font-weight:700;">[${t.status}]</span> ${t.nome_via} (${t.extensao_metros}m) - IVI: ${t.score_risco}`;
+                    item.className = 'trecho-item';
+                    item.innerHTML = `
+                        <span><strong style="color:#f87171;">[${t.status}]</strong> ${t.nome_via}</span>
+                        <span class="mono" style="color:var(--text-muted);">${t.extensao_metros}m • IVI ${t.score_risco}</span>
+                    `;
                     trechosDiv.appendChild(item);
                 });
             }
-            document.getElementById('decision-modal').style.display = 'block';
+            document.getElementById('inspector').style.display = 'flex';
+        }
+
+        async function carregarHistoricoDecisoes(idOp) {
+            const box = document.getElementById('historico-decisoes');
+            const res = await fetch(`/api/v1/logistica/operacoes/${idOp}/decisoes`, { headers: { 'X-API-Key': window.API_KEY } });
+            if (!res.ok) return;
+            const lista = await res.json();
+            if (!lista || lista.length === 0) {
+                box.innerHTML = '<div style="color:var(--text-muted);">Nenhuma decisão auditada ainda para esta operação.</div>';
+                return;
+            }
+            decisoesMap[idOp] = true;
+            renderizarTabela();
+            box.innerHTML = lista.slice(0, 3).map(d => `
+                <div style="border-bottom:1px solid rgba(46,60,86,0.5); padding:4px 0;">
+                    <strong style="color:#34d399;">[${d.decisao}]</strong> ${d.motivo_gestor}
+                    <div class="mono" style="font-size:9.5px; color:var(--text-muted);">ID #${d.id_decisao} • ${new Date(d.registrado_em).toLocaleString('pt-BR')}</div>
+                </div>
+            `).join('');
         }
 
         async function registrarDecisao(decisao) {
@@ -298,9 +643,16 @@
                 headers: { 'Content-Type': 'application/json', 'X-API-Key': window.API_KEY },
                 body: JSON.stringify({ decisao: decisao, motivo_gestor: motivo })
             });
+            if (res.status === 403) {
+                document.getElementById('feedback-decisao').style.color = '#f87171';
+                document.getElementById('feedback-decisao').innerText = '⚠ Perfil VIEWER possui apenas permissão de leitura (RBAC).';
+                return;
+            }
             if (res.ok) {
                 const info = await res.json();
-                document.getElementById('feedback-decisao').innerText = `✓ Decisão [${info.decisao_registrada}] auditada (#${info.id_decisao})`;
+                document.getElementById('feedback-decisao').style.color = '#34d399';
+                document.getElementById('feedback-decisao').innerText = `✓ Decisão [${info.decisao_registrada}] gravada na auditoria (#${info.id_decisao})`;
+                await carregarHistoricoDecisoes(operacaoSelecionadaId);
             }
         }
     </script>

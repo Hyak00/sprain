@@ -232,35 +232,76 @@ async def obter_explicacao_decisao(id_operacao: str, tenant_id: str = Depends(re
     """, id_operacao, tenant_id)
 
     trechos_criticos = await conn.fetch("""
-        SELECT t.id_trecho, t.name, t.length, t.classe_risco, t.ivi_score
+        SELECT t.id_trecho, t.name, t.length, t.classe_risco, t.ivi_score,
+               ST_AsGeoJSON(ST_Transform(t.geom, 4326)) AS geojson
         FROM operacao_rotas_trechos ort
         JOIN trechos_osm t ON t.id_trecho = ort.id_trecho
         WHERE ort.id_operacao = $1 AND t.classe_risco IN ('Alto', 'Critico', 'Muito Alto')
         ORDER BY t.ivi_score DESC;
     """, id_operacao)
 
-    dist_orig = float(op["distancia_planejada_km"] or 0.0)
-    delta_km = float(rec["km_adicionais"]) if rec and rec["km_adicionais"] is not None else 0.0
+    trechos_originais = await conn.fetch("""
+        SELECT t.id_trecho, t.name, t.length, t.classe_risco, t.ivi_score,
+               ST_AsGeoJSON(ST_Transform(t.geom, 4326)) AS geojson
+        FROM operacao_rotas_trechos ort
+        JOIN trechos_osm t ON t.id_trecho = ort.id_trecho
+        WHERE ort.id_operacao = $1
+        ORDER BY ort.seq;
+    """, id_operacao)
+
+    dist_orig = round(float(op["distancia_planejada_km"] or 0.0), 2)
+    delta_km = round(float(rec["km_adicionais"]), 2) if rec and rec["km_adicionais"] is not None else 0.0
     dist_alt = round(dist_orig + delta_km, 2)
 
-    tempo_orig = float(op["tempo_planejado_min"] or 0.0)
-    delta_tempo = float(rec["minutos_adicionais"]) if rec and rec["minutos_adicionais"] is not None else 0.0
-    tempo_alt = round(tempo_orig + delta_tempo, 2)
+    tempo_orig = round(float(op["tempo_planejado_min"] or 0.0), 1)
+    delta_tempo = round(float(rec["minutos_adicionais"]), 1) if rec and rec["minutos_adicionais"] is not None else 0.0
+    tempo_alt = round(tempo_orig + delta_tempo, 1)
 
     custo_desvio = float(rec["custo_desvio"]) if rec and rec["custo_desvio"] is not None else round((delta_km * 4.50) + ((delta_tempo / 60.0) * 85.0), 2)
     prejuizo_evitado = float(rec["prejuizo_potencial_evitado"]) if rec and rec["prejuizo_potencial_evitado"] is not None else 0.0
 
+    def _limpar_nome_via(nome, id_t):
+        if not nome:
+            return f"Via Urbana #{id_t}"
+        limpo = "".join(c for c in str(nome) if c.isprintable() and ord(c) < 65533)
+        limpo = limpo.replace("[", "").replace("÷", "u").replace("û", "a").strip()
+        return limpo or f"Via Urbana #{id_t}"
+
     pontos_bloqueio = [
         {
             "id_trecho": r["id_trecho"],
-            "nome_via": r["name"] or f"Trecho ID {r['id_trecho']}",
+            "nome_via": _limpar_nome_via(r["name"], r["id_trecho"]),
             "status": r["classe_risco"],
             "extensao_metros": round(float(r["length"] or 0), 1),
-            "score_risco": float(r["ivi_score"] or 0),
-            "motivo": f"Vulnerabilidade historica IVI {r['ivi_score']}"
+            "score_risco": round(float(r["ivi_score"] or 0), 1),
+            "motivo": f"Vulnerabilidade fisica/hidrologica IVI {round(float(r['ivi_score'] or 0), 1)}"
         }
         for r in trechos_criticos
     ]
+
+    rota_original_fc = {
+        "type": "FeatureCollection",
+        "features": [
+            {
+                "type": "Feature",
+                "geometry": json.loads(r["geojson"]),
+                "properties": {"id_trecho": r["id_trecho"], "classe_risco": r["classe_risco"]}
+            }
+            for r in trechos_originais if r["geojson"]
+        ]
+    }
+
+    trechos_criticos_fc = {
+        "type": "FeatureCollection",
+        "features": [
+            {
+                "type": "Feature",
+                "geometry": json.loads(r["geojson"]),
+                "properties": {"id_trecho": r["id_trecho"], "nome_via": _limpar_nome_via(r["name"], r["id_trecho"]), "ivi_score": float(r["ivi_score"] or 0)}
+            }
+            for r in trechos_criticos if r["geojson"]
+        ]
+    }
 
     justificativa = rec["motivo"] if rec and rec["motivo"] else (
         f"A rota planejada intercepta {len(pontos_bloqueio)} trecho(s) classificados com severidade de alagamento. Recomendado desvio preventivo para resguardar o veiculo e a carga."
@@ -294,8 +335,18 @@ async def obter_explicacao_decisao(id_operacao: str, tenant_id: str = Depends(re
             "rota_alternativa_disponivel": bool(rec and rec["rota_alternativa_geojson"]),
             "avisos_limitacao": "Malha OSM urbana validada para conectividade; restricoes fisicas locais de balanca e altura devem ser conferidas pelo motorista."
         },
+        "coordenadas": {
+            "origem_nome": op["origem_nome"],
+            "origem_lat": float(op["origem_lat"]),
+            "origem_lon": float(op["origem_lon"]),
+            "destino_nome": op["destino_nome"],
+            "destino_lat": float(op["destino_lat"]),
+            "destino_lon": float(op["destino_lon"])
+        },
         "geometrias": {
-            "rota_alternativa_geojson": json.loads(rec["rota_alternativa_geojson"]) if rec and rec["rota_alternativa_geojson"] else None
+            "rota_original_geojson": rota_original_fc,
+            "rota_alternativa_geojson": json.loads(rec["rota_alternativa_geojson"]) if rec and rec["rota_alternativa_geojson"] else None,
+            "trechos_criticos_geojson": trechos_criticos_fc
         }
     }
 
