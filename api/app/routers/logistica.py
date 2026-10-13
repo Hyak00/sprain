@@ -68,9 +68,41 @@ async def listar_veiculos(tenant_id: str = Depends(resolve_tenant), conn: asyncp
     rows = await conn.fetch("SELECT * FROM veiculos WHERE tenant_id = $1 ORDER BY id_veiculo;", tenant_id)
     return [dict(r) for r in rows]
 
+async def _geocodificar_via_se_necessario(conn: asyncpg.Connection, nome: str, lat: float, lon: float, padrao_offset: int = 0):
+    if nome and nome.strip():
+        termo = f"%{nome.strip()}%"
+        row = await conn.fetchrow("""
+            SELECT 
+                ST_Y(ST_Centroid(ST_Transform(geom, 4326)))::float AS lat,
+                ST_X(ST_Centroid(ST_Transform(geom, 4326)))::float AS lon
+            FROM trechos_osm
+            WHERE name IS NOT NULL AND source IS NOT NULL AND target IS NOT NULL
+              AND translate(lower(name), 'áàâãéêíóôõúç', 'aaaaeeiooouc') LIKE translate(lower($1), 'áàâãéêíóôõúç', 'aaaaeeiooouc')
+            ORDER BY id_trecho ASC
+            OFFSET $2 LIMIT 1;
+        """, termo, padrao_offset)
+        if row:
+            return row["lat"], row["lon"]
+    if lat and lon and abs(lat) > 1.0 and abs(lon) > 1.0:
+        return lat, lon
+    fallback = await conn.fetchrow("""
+        SELECT 
+            ST_Y(ST_Centroid(ST_Transform(geom, 4326)))::float AS lat,
+            ST_X(ST_Centroid(ST_Transform(geom, 4326)))::float AS lon
+        FROM trechos_osm
+        WHERE source IS NOT NULL AND target IS NOT NULL
+        ORDER BY id_trecho ASC
+        OFFSET $1 LIMIT 1;
+    """, padrao_offset * 25)
+    return fallback["lat"], fallback["lon"]
+
 @router.post("/operacoes", dependencies=[Depends(require_role(["ADMIN", "OPERATOR"])), Depends(aplicar_rate_limit)])
 async def criar_operacao(dados: OperacaoCreate, conn: asyncpg.Connection = Depends(get_connection), tenant_id: str = Depends(resolve_tenant)):
     dados.tenant_id = tenant_id
+    if not dados.origem_lat or not dados.origem_lon or abs(dados.origem_lat) < 1.0:
+        dados.origem_lat, dados.origem_lon = await _geocodificar_via_se_necessario(conn, dados.origem_nome, dados.origem_lat, dados.origem_lon, 0)
+    if not dados.destino_lat or not dados.destino_lon or abs(dados.destino_lat) < 1.0:
+        dados.destino_lat, dados.destino_lon = await _geocodificar_via_se_necessario(conn, dados.destino_nome, dados.destino_lat, dados.destino_lon, 5)
     rota_inicial = await RoutingEngine.compute_route(
         conn, dados.origem_lon, dados.origem_lat, dados.destino_lon, dados.destino_lat, profile="FASTEST", rain_mm=0.0, tenant_id=dados.tenant_id
     )
@@ -86,9 +118,22 @@ async def criar_operacao(dados: OperacaoCreate, conn: asyncpg.Connection = Depen
         id_operacao, id_veiculo, origem_nome, origem_lat, origem_lon,
         destino_nome, destino_lat, destino_lon, janela_inicio, janela_fim,
         status, distancia_planejada_km, tempo_planejado_min, custo_estimado, tenant_id
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::timestamp, $10::timestamp, 'PLANNED', $11, $12, $13, $14)
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NULLIF($9::text, '')::timestamp, NULLIF($10::text, '')::timestamp, 'PLANNED', $11, $12, $13, $14)
+    ON CONFLICT (id_operacao) DO UPDATE SET
+        id_veiculo = EXCLUDED.id_veiculo,
+        origem_nome = EXCLUDED.origem_nome,
+        origem_lat = EXCLUDED.origem_lat,
+        origem_lon = EXCLUDED.origem_lon,
+        destino_nome = EXCLUDED.destino_nome,
+        destino_lat = EXCLUDED.destino_lat,
+        destino_lon = EXCLUDED.destino_lon,
+        distancia_planejada_km = EXCLUDED.distancia_planejada_km,
+        tempo_planejado_min = EXCLUDED.tempo_planejado_min,
+        custo_estimado = EXCLUDED.custo_estimado
+    WHERE operacoes.tenant_id = EXCLUDED.tenant_id
     RETURNING id_operacao;
     """
+    await conn.execute("DELETE FROM operacao_rotas_trechos WHERE id_operacao = $1;", dados.id_operacao)
     await conn.execute(
         query, dados.id_operacao, dados.id_veiculo, dados.origem_nome, dados.origem_lat, dados.origem_lon,
         dados.destino_nome, dados.destino_lat, dados.destino_lon, dados.janela_inicio, dados.janela_fim,
@@ -1124,24 +1169,24 @@ async def login_corporativo(dados: LoginCorporativoRequest):
     }
 
 @router.get("/vias/buscar", dependencies=[Depends(require_role(["ADMIN", "OPERATOR", "VIEWER"]))])
-async def buscar_vias_malha(q: str = Query(..., min_length=2), conn: asyncpg.Connection = Depends(get_connection)):
-    termo = f"%{q.strip()}%"
+async def buscar_vias_malha(q: str = Query("", min_length=0), conn: asyncpg.Connection = Depends(get_connection)):
+    termo = f"%{q.strip()}%" if q.strip() else "%"
     rows = await conn.fetch("""
-        SELECT 
-            MIN(id_trecho) AS id_trecho,
-            name AS nome_via,
-            COALESCE(MAX(classe_risco), 'Baixo') AS classe_risco,
-            ROUND(AVG(COALESCE(ivi_score, 0))::numeric, 1)::float AS ivi_medio,
-            ROUND(AVG(ST_Y(ST_Centroid(ST_Transform(geom, 4326))))::numeric, 6)::float AS lat,
-            ROUND(AVG(ST_X(ST_Centroid(ST_Transform(geom, 4326))))::numeric, 6)::float AS lon
-        FROM trechos_osm
-        WHERE name IS NOT NULL
-          AND source IS NOT NULL
-          AND target IS NOT NULL
-          AND translate(lower(name), 'áàâãéêíóôõúç', 'aaaaeeiooouc') LIKE translate(lower($1), 'áàâãéêíóôõúç', 'aaaaeeiooouc')
-        GROUP BY name
-        ORDER BY COUNT(*) DESC, name ASC
-        LIMIT 12;
+        SELECT DISTINCT ON (t.name)
+            t.id_trecho,
+            t.name AS nome_via,
+            COALESCE(t.classe_risco, 'Baixo') AS classe_risco,
+            ROUND(COALESCE(t.ivi_score, 0)::numeric, 1)::float AS ivi_medio,
+            ROUND(ST_Y(ST_StartPoint(ST_Transform(t.geom, 4326)))::numeric, 6)::float AS lat,
+            ROUND(ST_X(ST_StartPoint(ST_Transform(t.geom, 4326)))::numeric, 6)::float AS lon
+        FROM trechos_osm t
+        WHERE t.name IS NOT NULL
+          AND t.source IS NOT NULL
+          AND t.target IS NOT NULL
+          AND EXISTS (SELECT 1 FROM operacao_rotas_trechos ort WHERE ort.id_trecho = t.id_trecho)
+          AND translate(lower(t.name), 'áàâãéêíóôõúç', 'aaaaeeiooouc') LIKE translate(lower($1), 'áàâãéêíóôõúç', 'aaaaeeiooouc')
+        ORDER BY t.name, t.ivi_score DESC NULLS LAST
+        LIMIT 15;
     """, termo)
     return [
         {

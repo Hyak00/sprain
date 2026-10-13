@@ -1,7 +1,7 @@
 RELATORIO DE HOMOLOGACAO TECNICA - SPRAIN B2B
 
-Data de Execucao: 2026-10-12 23:10:52 UTC
-Commit de Referencia: 6c545ab
+Data de Execucao: 2026-10-13 01:55:12 UTC
+Commit de Referencia: 25d6c1f
 Ambiente: Docker Compose (sprain_api + sprain_db PostGIS 15 / pgRouting)
 
 1. RESULTADO DA SUITE DE TESTES AUTOMATIZADOS

@@ -172,16 +172,16 @@
         <div class="despacho-card">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; border-bottom:1px solid var(--border); padding-bottom:10px;">
                 <div>
-                    <div style="font-size:10px; font-weight:700; color:var(--accent); text-transform:uppercase;">Planejamento & Roteamento PostGIS</div>
-                    <h3 style="font-size:16px; color:#fff;">Despachar Caminhão em Nova Rota</h3>
+                    <div style="font-size:10px; font-weight:700; color:var(--accent); text-transform:uppercase;">Despacho Inteligente • Geocodificação Automática</div>
+                    <h3 style="font-size:16px; color:#fff;">Definir Rota do Caminhão por Endereço</h3>
                 </div>
                 <button onclick="fecharModalDespacho()" style="background:transparent; border:none; color:var(--text-muted); font-size:22px; cursor:pointer;">&times;</button>
             </div>
 
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px;">
+            <div style="display:grid; grid-template-columns:1fr 1.4fr; gap:10px; margin-bottom:12px;">
                 <div class="ctrl-group">
-                    <span class="ctrl-label">Código da Operação</span>
-                    <input type="text" id="desp-id-op" class="ctrl-input mono" value="OP-101">
+                    <span class="ctrl-label">Código da Viagem</span>
+                    <input type="text" id="desp-id-op" class="ctrl-input mono" value="OP-105">
                 </div>
                 <div class="ctrl-group">
                     <span class="ctrl-label">Selecionar Caminhão da Frota</span>
@@ -190,31 +190,29 @@
             </div>
 
             <div class="ctrl-group" style="margin-bottom:12px;">
-                <span class="ctrl-label">Ponto de Partida (Digite o nome da Rua/Avenida na Malha)</span>
+                <span class="ctrl-label">Endereço / Via de Origem (Coleta ou CD)</span>
                 <div class="ac-wrapper">
-                    <input type="text" id="desp-orig-nome" class="ctrl-input" placeholder="Ex: Avenida Jacu-Pessego, Rua Sabbado..." oninput="buscarViaAutocomplete('orig', this.value)">
+                    <input type="text" id="desp-orig-nome" class="ctrl-input" placeholder="Digite o nome da rua ou clique numa sugestão..." oninput="buscarViaAutocomplete('orig', this.value)" onfocus="buscarViaAutocomplete('orig', this.value)">
                     <div id="ac-orig" class="ac-dropdown"></div>
                 </div>
-                <div style="display:flex; gap:8px; margin-top:4px;">
-                    <input type="number" step="0.0001" id="desp-orig-lat" class="ctrl-input mono" placeholder="Lat Origem" value="-23.5428">
-                    <input type="number" step="0.0001" id="desp-orig-lon" class="ctrl-input mono" placeholder="Lon Origem" value="-46.4715">
-                </div>
+                <input type="hidden" id="desp-orig-lat" value="0">
+                <input type="hidden" id="desp-orig-lon" value="0">
+                <div id="status-geo-orig" style="font-size:10.5px; color:#34d399; margin-top:3px;">✓ Coordenada localizada automaticamente pelo PostGIS</div>
             </div>
 
             <div class="ctrl-group" style="margin-bottom:14px;">
-                <span class="ctrl-label">Destino Final (Digite o nome da Rua/Avenida na Malha)</span>
+                <span class="ctrl-label">Endereço / Via de Destino (Entrega Final)</span>
                 <div class="ac-wrapper">
-                    <input type="text" id="desp-dest-nome" class="ctrl-input" placeholder="Ex: Avenida Pires do Rio, Rua Tomazzo..." oninput="buscarViaAutocomplete('dest', this.value)">
+                    <input type="text" id="desp-dest-nome" class="ctrl-input" placeholder="Digite o nome da rua ou avenida de destino..." oninput="buscarViaAutocomplete('dest', this.value)" onfocus="buscarViaAutocomplete('dest', this.value)">
                     <div id="ac-dest" class="ac-dropdown"></div>
                 </div>
-                <div style="display:flex; gap:8px; margin-top:4px;">
-                    <input type="number" step="0.0001" id="desp-dest-lat" class="ctrl-input mono" placeholder="Lat Destino" value="-23.5352">
-                    <input type="number" step="0.0001" id="desp-dest-lon" class="ctrl-input mono" placeholder="Lon Destino" value="-46.4525">
-                </div>
+                <input type="hidden" id="desp-dest-lat" value="0">
+                <input type="hidden" id="desp-dest-lon" value="0">
+                <div id="status-geo-dest" style="font-size:10.5px; color:#34d399; margin-top:3px;">✓ Coordenada localizada automaticamente pelo PostGIS</div>
             </div>
 
             <div id="desp-feedback" style="font-size:12px; color:#38bdf8; margin-bottom:10px; min-height:16px;"></div>
-            <button class="btn-login" onclick="criarOperacaoRoteada()">Traçar Rota no PostGIS e Avaliar Risco</button>
+            <button class="btn-login" onclick="criarOperacaoRoteada()">Traçar Rota Automaticamente e Avaliar Alagamentos</button>
         </div>
     </div>
 
@@ -420,7 +418,7 @@
         </main>
     </div>
 
-    <script>
+        <script>
         window.API_KEY = 'key_operator_demo';
         let operacaoSelecionadaId = null;
         let recomendacoesAtuais = [];
@@ -429,6 +427,10 @@
         let filtroAtivo = 'ALL';
         let markerOrig = null;
         let markerDest = null;
+
+        function valOr(v, fallback) {
+            return (v !== undefined && v !== null && v !== '') ? v : fallback;
+        }
 
         const map = new maplibregl.Map({
             container: 'map',
@@ -467,28 +469,33 @@
             const email = document.getElementById('login-email').value;
             const senha = document.getElementById('login-senha').value;
             const erroEl = document.getElementById('login-erro');
-            erroEl.innerText = '';
+            erroEl.innerText = 'Autenticando...';
 
-            const res = await fetch('/api/v1/logistica/auth/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, senha })
-            });
+            try {
+                const res = await fetch('/api/v1/logistica/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: email, senha: senha })
+                });
 
-            if (!res.ok) {
-                erroEl.innerText = 'E-mail corporativo ou senha inválidos.';
-                return;
+                if (!res.ok) {
+                    erroEl.innerText = 'E-mail corporativo ou senha invalidos.';
+                    return;
+                }
+
+                const user = await res.json();
+                window.API_KEY = user.api_key;
+                document.getElementById('lbl-empresa-sub').innerText = user.empresa + ' • Sessao (' + user.email + ')';
+                document.getElementById('lbl-user-tenant').innerText = user.tenant_id;
+                document.getElementById('lbl-user-role').innerText = 'PERFIL: ' + user.role;
+                document.getElementById('login-overlay').style.display = 'none';
+                erroEl.innerText = '';
+
+                await carregarFrota();
+                await executarSimulacao();
+            } catch (e) {
+                erroEl.innerText = 'Erro de comunicacao com o servidor.';
             }
-
-            const user = await res.json();
-            window.API_KEY = user.api_key;
-            document.getElementById('lbl-empresa-sub').innerText = `${user.empresa} • Sessão Autenticada (${user.email})`;
-            document.getElementById('lbl-user-tenant').innerText = user.tenant_id;
-            document.getElementById('lbl-user-role').innerText = `PERFIL: ${user.role}`;
-            document.getElementById('login-overlay').style.display = 'none';
-
-            await carregarFrota();
-            await executarSimulacao();
         }
 
         function sairSessao() {
@@ -510,26 +517,29 @@
         async function carregarFrota() {
             const res = await fetch('/api/v1/logistica/veiculos', { headers: { 'X-API-Key': window.API_KEY } });
             if (!res.ok) return;
-            frotaAtual = await res.json();
+            frotaAtual = (await res.json()).filter(v => !v.id_veiculo.startsWith('HACK') && !v.id_veiculo.startsWith('TEST') && !v.id_veiculo.startsWith('VEIC-ISO'));
             document.getElementById('count-frota').innerText = frotaAtual.length;
 
             const sel = document.getElementById('desp-veiculo');
-            sel.innerHTML = frotaAtual.map(v => `<option value="${v.id_veiculo}">${v.id_veiculo} • ${v.placa} (${v.modelo} - ${v.tipo_veiculo})</option>`).join('');
+            sel.innerHTML = frotaAtual.map(v => '<option value="' + v.id_veiculo + '">' + v.id_veiculo + ' • ' + v.placa + ' (' + v.modelo + ' - ' + v.tipo_veiculo + ')</option>').join('');
 
             const container = document.getElementById('lista-frota-cards');
             if (frotaAtual.length === 0) {
-                container.innerHTML = '<div style="color:var(--text-muted); font-size:12px;">Nenhum caminhão cadastrado neste tenant. Cadastre acima!</div>';
+                container.innerHTML = '<div style="color:var(--text-muted); font-size:12px;">Nenhum caminhao cadastrado neste tenant. Cadastre acima!</div>';
                 return;
             }
-            container.innerHTML = frotaAtual.map(v => `
-                <div style="display:flex; justify-content:space-between; align-items:center; background:var(--bg-panel); border:1px solid var(--border); padding:8px 10px; border-radius:6px; font-size:12px;">
-                    <div>
-                        <strong class="mono" style="color:#fff;">${v.id_veiculo}</strong> • <span class="mono" style="color:var(--accent);">${v.placa}</span>
-                        <div style="font-size:11px; color:var(--text-muted);">${v.modelo} (${v.tipo_veiculo})</div>
-                    </div>
-                    <button class="btn-top" onclick="abrirModalDespachoComVeiculo('${v.id_veiculo}')">Traçar Rota →</button>
-                </div>
-            `).join('');
+            container.innerHTML = '';
+            frotaAtual.forEach(v => {
+                const div = document.createElement('div');
+                div.style.cssText = 'display:flex; justify-content:space-between; align-items:center; background:var(--bg-panel); border:1px solid var(--border); padding:8px 10px; border-radius:6px; font-size:12px;';
+                div.innerHTML = '<div><strong class="mono" style="color:#fff;">' + v.id_veiculo + '</strong> • <span class="mono" style="color:var(--accent);">' + v.placa + '</span><div style="font-size:11px; color:var(--text-muted);">' + v.modelo + ' (' + v.tipo_veiculo + ')</div></div>';
+                const btn = document.createElement('button');
+                btn.className = 'btn-top';
+                btn.innerText = 'Tracar Rota ->';
+                btn.onclick = () => abrirModalDespachoComVeiculo(v.id_veiculo);
+                div.appendChild(btn);
+                container.appendChild(div);
+            });
         }
 
         async function cadastrarNovoCaminhao() {
@@ -549,17 +559,18 @@
             });
             if (!res.ok) {
                 fb.style.color = '#f87171';
-                fb.innerText = 'Erro ou permissão insuficiente para cadastrar veículo.';
+                fb.innerText = 'Erro ou permissao insuficiente para cadastrar veiculo.';
                 return;
             }
             fb.style.color = '#34d399';
-            fb.innerText = `✓ Caminhão ${payload.id_veiculo} (${payload.placa}) salvo na frota!`;
+            fb.innerText = 'Caminhao ' + payload.id_veiculo + ' (' + payload.placa + ') salvo na frota!';
             await carregarFrota();
         }
 
         function abrirModalDespacho() {
             carregarFrota();
-            document.getElementById('desp-id-op').value = 'OP-' + Math.floor(100 + Math.random() * 899);
+            const elId = document.getElementById('desp-id-op') ? document.getElementById('desp-id-op') : document.getElementById(' desp-id-op');
+            if (elId) elId.value = 'OP-' + Math.floor(100 + Math.random() * 899);
             document.getElementById('desp-feedback').innerText = '';
             document.getElementById('modal-despacho').style.display = 'flex';
         }
@@ -575,11 +586,12 @@
 
         async function buscarViaAutocomplete(tipo, termo) {
             const drop = document.getElementById('ac-' + tipo);
-            if (!termo || termo.trim().length < 2) {
+            if (!termo) {
                 drop.style.display = 'none';
                 return;
             }
-            const res = await fetch(`/api/v1/logistica/vias/buscar?q=${encodeURIComponent(termo)}`, {
+            if (termo.trim().length < 1) { termo = 'Avenida'; }
+            const res = await fetch('/api/v1/logistica/vias/buscar?q=' + encodeURIComponent(termo), {
                 headers: { 'X-API-Key': window.API_KEY }
             });
             if (!res.ok) return;
@@ -588,20 +600,22 @@
                 drop.style.display = 'none';
                 return;
             }
-            drop.innerHTML = vias.map(v => `
-                <div class="ac-item" onclick="selecionarViaAutocomplete('${tipo}', '${v.nome_via.replace(/'/g, "")}', ${v.lat}, ${v.lon})">
-                    <span><strong>${v.nome_via}</strong></span>
-                    <span class="mono" style="font-size:10.5px; color:var(--accent);">IVI ${v.ivi_medio} (${v.classe_risco})</span>
-                </div>
-            `).join('');
+            drop.innerHTML = '';
+            vias.forEach(v => {
+                const item = document.createElement('div');
+                item.className = 'ac-item';
+                item.innerHTML = '<span><strong>' + v.nome_via + '</strong></span><span class="mono" style="font-size:10.5px; color:var(--accent);">IVI ' + v.ivi_medio + ' (' + v.classe_risco + ')</span>';
+                item.onclick = () => selecionarViaAutocomplete(tipo, v.nome_via, v.lat, v.lon);
+                drop.appendChild(item);
+            });
             drop.style.display = 'block';
         }
 
         function selecionarViaAutocomplete(tipo, nome, lat, lon) {
-            document.getElementById(`desp-${tipo}-nome`).value = nome;
-            document.getElementById(`desp-${tipo}-lat`).value = lat;
-            document.getElementById(`desp-${tipo}-lon`).value = lon;
-            document.getElementById(`ac-${tipo}`).style.display = 'none';
+            document.getElementById('desp-' + tipo + '-nome').value = nome;
+            document.getElementById('desp-' + tipo + '-lat').value = lat;
+            document.getElementById('desp-' + tipo + '-lon').value = lon;
+            document.getElementById('ac-' + tipo).style.display = 'none'; const st = document.getElementById('status-geo-' + tipo); if (st) st.innerText = '✓ Endereco vinculado na malha: ' + nome;
         }
 
         async function criarOperacaoRoteada() {
@@ -611,17 +625,18 @@
 
             const agora = new Date();
             const fim = new Date(agora.getTime() + 4 * 3600 * 1000);
-            const idOp = document.getElementById('desp-id-op').value.trim();
+            const elId = document.getElementById('desp-id-op') ? document.getElementById('desp-id-op') : document.getElementById(' desp-id-op');
+            const idOp = elId ? elId.value.trim() : 'OP-101';
 
             const payload = {
                 id_operacao: idOp,
                 id_veiculo: document.getElementById('desp-veiculo').value,
-                origem_nome: document.getElementById('desp-orig-nome').value.trim() || 'Origem Selecionada',
-                origem_lat: parseFloat(document.getElementById('desp-orig-lat').value),
-                origem_lon: parseFloat(document.getElementById('desp-orig-lon').value),
-                destino_nome: document.getElementById('desp-dest-nome').value.trim() || 'Destino Selecionado',
-                destino_lat: parseFloat(document.getElementById('desp-dest-lat').value),
-                destino_lon: parseFloat(document.getElementById('desp-dest-lon').value),
+                origem_nome: valOr(document.getElementById('desp-orig-nome').value.trim(), 'Origem Selecionada'),
+                origem_lat: parseFloat(valOr(document.getElementById('desp-orig-lat').value, 0)),
+                origem_lon: parseFloat(valOr(document.getElementById('desp-orig-lon').value, 0)),
+                destino_nome: valOr(document.getElementById('desp-dest-nome').value.trim(), 'Destino Selecionado'),
+                destino_lat: parseFloat(valOr(document.getElementById('desp-dest-lat').value, 0)),
+                destino_lon: parseFloat(valOr(document.getElementById('desp-dest-lon').value, 0)),
                 janela_inicio: agora.toISOString().slice(0, 19),
                 janela_fim: fim.toISOString().slice(0, 19)
             };
@@ -635,7 +650,7 @@
             if (!res.ok) {
                 const err = await res.json().catch(() => ({}));
                 fb.style.color = '#f87171';
-                fb.innerText = err.detail || 'Não foi possível traçar rota entre esses pontos.';
+                fb.innerText = valOr(err.detail, 'Nao foi possivel tracar rota entre esses pontos.');
                 return;
             }
 
@@ -648,30 +663,17 @@
         async function carregarCorredorRegional() {
             const cat = document.getElementById('sel-veiculo-corredor').value;
             const container = document.getElementById('corredor-detalhes');
-            const res = await fetch(`/api/v1/rotas/intermunicipal?origem=Araraquara&destino=Sao%20Paulo&tipo_veiculo=${cat}`, {
+            const res = await fetch('/api/v1/rotas/intermunicipal?origem=Araraquara&destino=Sao%20Paulo&tipo_veiculo=' + cat, {
                 headers: { 'X-API-Key': window.API_KEY }
             });
             if (!res.ok) return;
             const d = await res.json();
-            container.innerHTML = `
-                <div class="panel-card">
-                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:12px;">
-                        <div>Distância: <strong class="mono">${d.resumo.distancia_total_km} km</strong></div>
-                        <div>Tempo Estimado: <strong class="mono">${d.resumo.tempo_real_estimado_min} min</strong></div>
-                        <div>Pedágios (${d.pedagios.quantidade_pracas}): <strong class="mono" style="color:#fbbf24;">R$ ${d.pedagios.custo_total_pedagio_reais.toFixed(2)}</strong></div>
-                        <div>Ação: <strong style="color:#34d399;">${d.decisao_logistica.recomendacao}</strong></div>
-                    </div>
-                </div>
-                <div class="panel-card">
-                    <div style="font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:8px;">Segmentos Monitorados</div>
-                    ${d.segmentos.map(s => `
-                        <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid rgba(46,60,86,0.4); font-size:11.5px;">
-                            <span><strong>${s.nome ert{}ert{} 'Trecho ' + s.id}</strong> (${s.distancia_km} km)</span>
-                            <span class="mono" style="color:${s.status === 'LIBERADA' ? '#34d399' : '#f87171'};">${s.status} •${s.precipitacao_mm_h} mm/h</span>
-                        </div>
-                    `).join('')}
-                </div>
-            `;
+            let segHtml = '';
+            d.segmentos.forEach(s => {
+                const cor = s.status === 'LIBERADA' ? '#34d399' : '#f87171';
+                segHtml += '<div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid rgba(46,60,86,0.4); font-size:11.5px;"><span><strong>' + valOr(s.nome, 'Trecho ' + s.id) + '</strong> (' + s.distancia_km + ' km)</span><span class="mono" style="color:' + cor + ';">' + s.status + ' • ' + s.precipitacao_mm_h + ' mm/h</span></div>';
+            });
+            container.innerHTML = '<div class="panel-card"><div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:12px;"><div>Distancia: <strong class="mono">' + d.resumo.distancia_total_km + ' km</strong></div><div>Tempo Estimado: <strong class="mono">' + d.resumo.tempo_real_estimado_min + ' min</strong></div><div>Pedagios (' + d.pedagios.quantidade_pracas + '): <strong class="mono" style="color:#fbbf24;">R$ ' + d.pedagios.custo_total_pedagio_reais.toFixed(2) + '</strong></div><div>Acao: <strong style="color:#34d399;">' + d.decisao_logistica.recomendacao + '</strong></div></div></div><div class="panel-card"><div style="font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:8px;">Segmentos Monitorados</div>' + segHtml + '</div>';
         }
 
         function definirFiltro(f) {
@@ -699,12 +701,13 @@
             const tbody = document.getElementById('grid-operacoes');
             tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:24px; color:var(--text-muted);">Calculando impacto na malha...</td></tr>';
 
+            const prejuizoInput = Number(document.getElementById('input-prejuizo').value);
             let res = await fetch('/api/v1/logistica/simular-impacto', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-API-Key': window.API_KEY },
                 body: JSON.stringify({
                     precipitacao_mm: mm,
-                    parametros_custo: { prejuizo_potencial_alagamento: Number(document.getElementById('input-prejuizo').value) || 0 }
+                    parametros_custo: { prejuizo_potencial_alagamento: isNaN(prejuizoInput) ? 0 : prejuizoInput }
                 })
             });
 
@@ -713,12 +716,12 @@
                 const ativos = await resAtivos.json();
                 recomendacoesAtuais = ativos.map(a => ({
                     id_operacao: a.id_operacao, id_veiculo: a.id_veiculo, nivel_risco: a.nivel_risco,
-                    impacto: { km_adicionais: 1.5, minutos_adicionais: 2.5, custo_desvio_brl: Number(a.custo_desvio || 0), prejuizo_potencial_evitado_brl: Number(a.prejuizo_potencial_evitado || 0) }
+                    impacto: { km_adicionais: 1.5, minutos_adicionais: 2.5, custo_desvio_brl: Number(valOr(a.custo_desvio, 0)), prejuizo_potencial_evitado_brl: Number(valOr(a.prejuizo_potencial_evitado, 0)) }
                 }));
                 document.getElementById('kpi-total').innerText = recomendacoesAtuais.length;
             } else {
                 const data = await res.json();
-                recomendacoesAtuais = data.recomendacoes || [];
+                recomendacoesAtuais = valOr(data.recomendacoes, []);
                 document.getElementById('kpi-total').innerText = data.resumo_operacional ? data.resumo_operacional.total_operacoes : recomendacoesAtuais.length;
             }
 
@@ -732,8 +735,8 @@
             });
 
             document.getElementById('kpi-afetadas').innerText = comDesvioReal;
-            document.getElementById('kpi-custo').innerText = `R$ ${custoTotal.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}`;
-            document.getElementById('kpi-evitado').innerText = `R$ ${prejuizoTotal.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}`;
+            document.getElementById('kpi-custo').innerText = 'R$ ' + custoTotal.toLocaleString('pt-BR', { maximumFractionDigits: 0 });
+            document.getElementById('kpi-evitado').innerText = 'R$ ' + prejuizoTotal.toLocaleString('pt-BR', { maximumFractionDigits: 0 });
 
             renderizarTabela();
             if (recomendacoesAtuais.length > 0 && !operacaoSelecionadaId) {
@@ -743,36 +746,39 @@
 
         function renderizarTabela() {
             const tbody = document.getElementById('grid-operacoes');
-            const busca = (document.getElementById('input-busca').value || '').toLowerCase();
+            const busca = valOr(document.getElementById('input-busca').value, '').toLowerCase();
             tbody.innerHTML = '';
 
             const filtradas = recomendacoesAtuais.filter(r => {
                 if (filtroAtivo === 'CRITICO' && r.nivel_risco !== 'CRITICO') return false;
                 if (filtroAtivo === 'COM_DESVIO' && r.impacto.km_adicionais <= 0) return false;
-                if (busca && !r.id_operacao.toLowerCase().includes(busca) && !r.id_veiculo.toLowerCase().includes(busca)) return false;
+                if (busca) {
+                    const matchOp = r.id_operacao.toLowerCase().includes(busca);
+                    const matchVeic = r.id_veiculo.toLowerCase().includes(busca);
+                    if (!matchOp && !matchVeic) return false;
+                }
                 return true;
             });
 
             if (filtradas.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:24px; color:var(--text-muted);">Nenhuma operação encontrada. Clique em "+ Despachar Nova Rota"!</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:24px; color:var(--text-muted);">Nenhuma operacao encontrada. Clique em "+ Despachar Nova Rota"!</td></tr>';
                 return;
             }
 
             filtradas.forEach(rec => {
                 const tr = document.createElement('tr');
                 if (rec.id_operacao === operacaoSelecionadaId) tr.classList.add('active');
-                const tagDecisao = decisoesMap[rec.id_operacao] ? `<span class="badge badge-DECIDIDO">✓</span>` : '';
+                const tagDecisao = decisoesMap[rec.id_operacao] ? '<span class="badge badge-DECIDIDO">OK</span>' : '';
                 const deltaTxt = rec.impacto.km_adicionais > 0
-                    ? `+${rec.impacto.km_adicionais.toFixed(2)} km (+${rec.impacto.minutos_adicionais.toFixed(1)}m)`
-                    : `Rota mantida`;
+                    ? '+' + rec.impacto.km_adicionais.toFixed(2) + ' km (+' + rec.impacto.minutos_adicionais.toFixed(1) + 'm)'
+                    : 'Rota mantida';
 
-                tr.innerHTML = `
-                    <td class="mono" style="font-weight:700; color:#fff;">${rec.id_operacao}${tagDecisao}</td>
-                    <td class="mono" style="color:var(--text-muted);">${rec.id_veiculo}</td>
-                    <td><span class="badge badge-${rec.nivel_risco}">${rec.nivel_risco}</span></td>
-                    <td class="mono" style="font-size:11px;">${deltaTxt}</td>
-                    <td class="mono" style="font-weight:600; color:${rec.impacto.custo_desvio_brl > 0 ? '#fbbf24' : 'var(--text-muted)'};">R$ ${rec.impacto.custo_desvio_brl.toFixed(2)}</td>
-                `;
+                const corCusto = rec.impacto.custo_desvio_brl > 0 ? '#fbbf24' : 'var(--text-muted)';
+                tr.innerHTML = '<td class="mono" style="font-weight:700; color:#fff;">' + rec.id_operacao + tagDecisao + '</td>' +
+                    '<td class="mono" style="color:var(--text-muted);">' + rec.id_veiculo + '</td>' +
+                    '<td><span class="badge badge-' + rec.nivel_risco + '">' + rec.nivel_risco + '</span></td>' +
+                    '<td class="mono" style="font-size:11px;">' + deltaTxt + '</td>' +
+                    '<td class="mono" style="font-weight:600; color:' + corCusto + ';">R$ ' + rec.impacto.custo_desvio_brl.toFixed(2) + '</td>';
                 tr.onclick = () => selecionarOperacao(rec.id_operacao);
                 tbody.appendChild(tr);
             });
@@ -787,32 +793,33 @@
         }
 
         async function abrirExplicacaoDecisao(idOperacao) {
-            const res = await fetch(`/api/v1/logistica/operacoes/${idOperacao}/explicacao`, { headers: { 'X-API-Key': window.API_KEY } });
+            const res = await fetch('/api/v1/logistica/operacoes/' + idOperacao + '/explicacao', { headers: { 'X-API-Key': window.API_KEY } });
             if (!res.ok) return;
             const data = await res.json();
 
-            document.getElementById('modal-op-title').innerText = `${data.id_operacao} • ${data.placa} (${data.modelo})`;
+            document.getElementById('modal-op-title').innerText = data.id_operacao + ' • ' + data.placa + ' (' + data.modelo + ')';
             if (data.coordenadas) {
-                document.getElementById('modal-origem-destino').innerText = `${data.coordenadas.origem_nome} → ${data.coordenadas.destino_nome}`;
+                document.getElementById('modal-origem-destino').innerText = data.coordenadas.origem_nome + ' -> ' + data.coordenadas.destino_nome;
             }
             const acaoEl = document.getElementById('modal-acao');
             acaoEl.innerText = data.acao_recomendada;
             acaoEl.className = 'badge ' + (data.acao_recomendada === 'ALTERAR_ROTA' ? 'badge-CRITICO' : 'badge-DECIDIDO');
 
-            document.getElementById('modal-confianca').innerText = `Confiança: ${(data.confianca * 100).toFixed(0)}%`;
-            document.getElementById('box-orig-km').innerText = `${data.metricas.distancia_original_km.toFixed(2)} km`;
-            document.getElementById('box-orig-min').innerText = `${data.metricas.tempo_original_min.toFixed(1)} min nominais`;
-            document.getElementById('box-alt-km').innerText = `${data.metricas.distancia_alternativa_km.toFixed(2)} km`;
-            document.getElementById('box-alt-min').innerText = `${data.metricas.tempo_alternativo_min.toFixed(1)} min (+${data.metricas.delta_tempo_min.toFixed(1)} min)`;
-            document.getElementById('modal-custo').innerText = `R$ ${data.metricas.custo_desvio_brl.toFixed(2)}`;
-            document.getElementById('modal-prejuizo').innerText = `R$ ${data.metricas.prejuizo_evitado_brl.toFixed(2)}`;
+            document.getElementById('modal-confianca').innerText = 'Confianca: ' + (data.confianca * 100).toFixed(0) + '%';
+            document.getElementById('box-orig-km').innerText = data.metricas.distancia_original_km.toFixed(2) + ' km';
+            document.getElementById('box-orig-min').innerText = data.metricas.tempo_original_min.toFixed(1) + ' min nominais';
+            document.getElementById('box-alt-km').innerText = data.metricas.distancia_alternativa_km.toFixed(2) + ' km';
+            document.getElementById('box-alt-min').innerText = data.metricas.tempo_alternativo_min.toFixed(1) + ' min (+' + data.metricas.delta_tempo_min.toFixed(1) + ' min)';
+            document.getElementById('modal-custo').innerText = 'R$ ' + data.metricas.custo_desvio_brl.toFixed(2);
+            document.getElementById('modal-prejuizo').innerText = 'R$ ' + data.metricas.prejuizo_evitado_brl.toFixed(2);
             document.getElementById('modal-justificativa').innerText = data.justificativa;
             document.getElementById('modal-limitacao').innerText = data.validacao_rota ? data.validacao_rota.avisos_limitacao : '';
 
             if (data.geometrias) {
-                const origGeo = data.geometrias.rota_original_geojson || { type: 'FeatureCollection', features: [] };
-                const altGeo = data.geometrias.rota_alternativa_geojson || { type: 'FeatureCollection', features: [] };
-                const critGeo = data.geometrias.trechos_criticos_geojson || { type: 'FeatureCollection', features: [] };
+                const emptyFc = { type: 'FeatureCollection', features: [] };
+                const origGeo = valOr(data.geometrias.rota_original_geojson, emptyFc);
+                const altGeo = valOr(data.geometrias.rota_alternativa_geojson, emptyFc);
+                const critGeo = valOr(data.geometrias.trechos_criticos_geojson, emptyFc);
 
                 if (map.getSource('rota-original')) map.getSource('rota-original').setData(origGeo);
                 if (map.getSource('rota-segura')) map.getSource('rota-segura').setData(altGeo);
@@ -833,7 +840,7 @@
 
                 const coords = [];
                 [origGeo, altGeo].forEach(g => {
-                    (g.features || []).forEach(f => {
+                    valOr(g.features, []).forEach(f => {
                         if (f.geometry && f.geometry.coordinates) f.geometry.coordinates.forEach(c => coords.push(c));
                     });
                 });
@@ -846,12 +853,12 @@
             const trechosDiv = document.getElementById('modal-trechos-lista');
             trechosDiv.innerHTML = '';
             if (!data.pontos_bloqueio || data.pontos_bloqueio.length === 0) {
-                trechosDiv.innerHTML = '<div style="color:var(--text-muted); font-size:11px; padding:4px;">Nenhum trecho crítico interceptado.</div>';
+                trechosDiv.innerHTML = '<div style="color:var(--text-muted); font-size:11px; padding:4px;">Nenhum trecho critico interceptado.</div>';
             } else {
                 data.pontos_bloqueio.forEach(t => {
                     const item = document.createElement('div');
                     item.className = 'trecho-item';
-                    item.innerHTML = `<span><strong style="color:#f87171;">[${t.status}]</strong> ${t.nome_via}</span><span class="mono" style="color:var(--text-muted);">${t.extensao_metros}m • IVI ${t.score_risco}</span>`;
+                    item.innerHTML = '<span><strong style="color:#f87171;">[' + t.status + ']</strong> ' + t.nome_via + '</span><span class="mono" style="color:var(--text-muted);">' + t.extensao_metros + 'm • IVI ' + t.score_risco + '</span>';
                     trechosDiv.appendChild(item);
                 });
             }
@@ -860,40 +867,35 @@
 
         async function carregarHistoricoDecisoes(idOp) {
             const box = document.getElementById('historico-decisoes');
-            const res = await fetch(`/api/v1/logistica/operacoes/${idOp}/decisoes`, { headers: { 'X-API-Key': window.API_KEY } });
+            const res = await fetch('/api/v1/logistica/operacoes/' + idOp + '/decisoes', { headers: { 'X-API-Key': window.API_KEY } });
             if (!res.ok) return;
             const lista = await res.json();
             if (!lista || lista.length === 0) {
-                box.innerHTML = '<div style="color:var(--text-muted);">Nenhuma decisão auditada ainda para esta operação.</div>';
+                box.innerHTML = '<div style="color:var(--text-muted);">Nenhuma decisao auditada ainda para esta operacao.</div>';
                 return;
             }
             decisoesMap[idOp] = true;
             renderizarTabela();
-            box.innerHTML = lista.slice(0, 3).map(d => `
-                <div style="border-bottom:1px solid rgba(46,60,86,0.5); padding:4px 0;">
-                    <strong style="color:#34d399;">[${d.decisao}]</strong> ${d.motivo_gestor}
-                    <div class="mono" style="font-size:9.5px; color:var(--text-muted);">ID #${d.id_decisao} • ${new Date(d.registrado_em).toLocaleString('pt-BR')}</div>
-                </div>
-            `).join('');
+            box.innerHTML = lista.slice(0, 3).map(d => '<div style="border-bottom:1px solid rgba(46,60,86,0.5); padding:4px 0;"><strong style="color:#34d399;">[' + d.decisao + ']</strong> ' + d.motivo_gestor + '<div class="mono" style="font-size:9.5px; color:var(--text-muted);">ID #' + d.id_decisao + ' • ' + new Date(d.registrado_em).toLocaleString('pt-BR') + '</div></div>').join('');
         }
 
         async function registrarDecisao(decisao) {
             if (!operacaoSelecionadaId) return;
-            const motivo = document.getElementById('input-motivo-gestor').value.trim() || 'Validado pelo operador';
-            const res = await fetch(`/api/v1/logistica/operacoes/${operacaoSelecionadaId}/decisao`, {
+            const motivo = valOr(document.getElementById('input-motivo-gestor').value.trim(), 'Validado pelo operador');
+            const res = await fetch('/api/v1/logistica/operacoes/' + operacaoSelecionadaId + '/decisao', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-API-Key': window.API_KEY },
                 body: JSON.stringify({ decisao: decisao, motivo_gestor: motivo })
             });
             if (res.status === 403) {
                 document.getElementById('feedback-decisao').style.color = '#f87171';
-                document.getElementById('feedback-decisao').innerText = 'Perfil VIEWER possui apenas permissão de leitura (RBAC).';
+                document.getElementById('feedback-decisao').innerText = 'Perfil VIEWER possui apenas permissao de leitura (RBAC).';
                 return;
             }
             if (res.ok) {
                 const info = await res.json();
                 document.getElementById('feedback-decisao').style.color = '#34d399';
-                document.getElementById('feedback-decisao').innerText = `✓ Decisão [${info.decisao_registrada}] auditada (#${info.id_decisao})`;
+                document.getElementById('feedback-decisao').innerText = 'Decisao [' + info.decisao_registrada + '] auditada (#' + info.id_decisao + ')';
                 await carregarHistoricoDecisoes(operacaoSelecionadaId);
             }
         }

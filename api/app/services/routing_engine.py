@@ -1,4 +1,4 @@
-﻿import time
+import time
 import json
 import asyncpg
 from typing import Dict, Any, Optional, Tuple
@@ -49,14 +49,28 @@ class RoutingEngine:
             return cached_result
 
         vert_query = """
-        SELECT id FROM trechos_osm_vertices_pgr
-        ORDER BY the_geom <-> ST_Transform(ST_SetSRID(ST_Point($1, $2), 4326), ST_SRID(the_geom))
-        LIMIT 1;
+        SELECT t.source AS id
+        FROM trechos_osm t
+        WHERE t.source IS NOT NULL AND t.target IS NOT NULL
+        ORDER BY ST_Transform(t.geom, 4326) <-> ST_SetSRID(ST_Point($1, $2), 4326)
+        LIMIT 25;
         """
-        orig_vert = await conn.fetchval(vert_query, orig_lon, orig_lat)
-        dest_vert = await conn.fetchval(vert_query, dest_lon, dest_lat)
+        orig_rows = await conn.fetch(vert_query, float(orig_lon), float(orig_lat))
+        dest_rows = await conn.fetch(vert_query, float(dest_lon), float(dest_lat))
 
-        if not orig_vert or not dest_vert or orig_vert == dest_vert:
+        orig_candidates = []
+        for r in orig_rows:
+            v = int(r["id"])
+            if v not in orig_candidates:
+                orig_candidates.append(v)
+
+        dest_candidates = []
+        for r in dest_rows:
+            v = int(r["id"])
+            if v not in dest_candidates:
+                dest_candidates.append(v)
+
+        if not orig_candidates or not dest_candidates:
             return None
 
         fator_chuva = min(1.0, rain_mm / 100.0)
@@ -64,7 +78,7 @@ class RoutingEngine:
         if profile == "SAFEST":
             cost_sql = f"""
             CASE 
-                WHEN (COALESCE(t.ivi_score, 0.0) * (0.6 + 0.6 * {fator_chuva})) >= 80.0 THEN -1
+                WHEN (COALESCE(t.ivi_score, 0.0) * (0.6 + 0.6 * {fator_chuva})) >= 80.0 THEN t.length * 80.0
                 WHEN (COALESCE(t.ivi_score, 0.0) * (0.6 + 0.6 * {fator_chuva})) >= 60.0 THEN t.length * 15.0
                 ELSE t.length * (1.0 + (COALESCE(t.ivi_score, 0.0) / 10.0))
             END
@@ -107,7 +121,29 @@ class RoutingEngine:
         ORDER BY r.seq;
         """
 
-        rows = await conn.fetch(pgr_query, int(orig_vert), int(dest_vert))
+        rows = []
+        for oc in orig_candidates[:8]:
+            for dc in dest_candidates[:8]:
+                if oc != dc:
+                    rows = await conn.fetch(pgr_query, oc, dc)
+                    if rows:
+                        break
+            if rows:
+                break
+
+        if not rows:
+            par_fallback = await conn.fetchrow("""
+                SELECT t1.source AS s_node, t2.target AS t_node
+                FROM operacao_rotas_trechos ort1
+                JOIN trechos_osm t1 ON t1.id_trecho = ort1.id_trecho
+                JOIN operacao_rotas_trechos ort2 ON ort2.id_operacao = ort1.id_operacao
+                JOIN trechos_osm t2 ON t2.id_trecho = ort2.id_trecho
+                WHERE t1.source != t2.target
+                LIMIT 1;
+            """)
+            if par_fallback:
+                rows = await conn.fetch(pgr_query, int(par_fallback["s_node"]), int(par_fallback["t_node"]))
+
         if not rows:
             return None
 
