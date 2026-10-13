@@ -1,4 +1,4 @@
-﻿import os
+import os
 import geobr
 import geopandas as gpd
 from sqlalchemy import create_engine, text

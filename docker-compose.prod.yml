@@ -1,4 +1,4 @@
-﻿services:
+services:
   sprain_db:
     image: pgrouting/pgrouting@sha256:5e6767abbd1fd9ead84c9988aa31bac71ca292ef8a1fc2e4a5ee2b613ac6a7bb
     container_name: sprain_db_prod

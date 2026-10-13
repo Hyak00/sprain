@@ -1,4 +1,4 @@
-﻿import json
+import json
 import asyncpg
 from typing import Optional
 from fastapi import APIRouter, Depends

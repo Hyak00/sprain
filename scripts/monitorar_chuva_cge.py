@@ -1,4 +1,4 @@
-﻿import re
+import re
 import urllib.request
 import os
 from sqlalchemy import create_engine, text

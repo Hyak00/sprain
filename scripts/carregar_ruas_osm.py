@@ -1,4 +1,4 @@
-﻿import os
+import os
 from typing import cast
 import geopandas as gpd
 import osmnx as ox

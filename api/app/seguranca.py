@@ -1,4 +1,4 @@
-﻿import os
+import os
 import secrets
 from fastapi import Header, HTTPException, Depends
 from typing import Optional, List

@@ -1,5 +1,5 @@
 import os
-﻿import sys
+import sys
 import asyncio
 from pathlib import Path
 from contextlib import asynccontextmanager

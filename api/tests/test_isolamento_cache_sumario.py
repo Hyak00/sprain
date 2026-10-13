@@ -1,4 +1,4 @@
-﻿import pytest
+import pytest
 import httpx
 from app.services.routing_engine import RoutingEngine
 

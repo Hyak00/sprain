@@ -1,4 +1,4 @@
-﻿
+
 === C:\Users\Win11\Desktop\sprain\plataforma-enchentes\plataforma-enchentes\.github\workflows\sprain_ci.yml ===
 name: SPRain CI Pipeline
 

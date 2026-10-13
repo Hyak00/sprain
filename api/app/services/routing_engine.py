@@ -1,4 +1,4 @@
-﻿import time
+import time
 import json
 import asyncpg
 from typing import Dict, Any, Optional, Tuple

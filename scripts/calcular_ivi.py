@@ -1,4 +1,4 @@
-﻿import os
+import os
 from sqlalchemy import create_engine, text
 
 URL_BANCO = os.getenv("URL_BANCO", "postgresql+psycopg2://enchentes:enchentes@localhost:5432/enchentes")

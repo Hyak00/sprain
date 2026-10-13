@@ -1,4 +1,4 @@
-﻿import os
+import os
 import folium
 import geopandas as gpd
 from sqlalchemy import create_engine

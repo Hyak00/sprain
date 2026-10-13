@@ -1,4 +1,4 @@
-﻿import os
+import os
 import geopandas as gpd
 import osmnx as ox
 from sqlalchemy import create_engine
