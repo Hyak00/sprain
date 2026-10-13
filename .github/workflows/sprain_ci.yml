@@ -18,8 +18,8 @@ jobs:
         run: |
           docker compose build api
           echo "ENVIRONMENT=testing" > .env
-          echo "API_KEYS=CHAVE_ZONA_LESTE_PILOTO" >> .env
-          echo "TENANT_API_KEYS=CHAVE_ZONA_LESTE_PILOTO:ADMIN:piloto_zl_logistics" >> .env
+          echo "API_KEYS=key_admin_demo,key_operator_demo,key_viewer_demo,key_admin_express" >> .env
+          echo "TENANT_API_KEYS=key_admin_demo:ADMIN:demo_corp;key_operator_demo:OPERATOR:demo_corp;key_viewer_demo:VIEWER:demo_corp;key_admin_express:ADMIN:log_express" >> .env
           echo "DB_USER=enchentes" >> .env
           echo "DB_PASSWORD=enchentes" >> .env
           echo "DB_NAME=enchentes" >> .env
