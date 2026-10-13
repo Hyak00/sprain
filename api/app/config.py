@@ -14,7 +14,10 @@ class Settings(BaseSettings):
 
     @property
     def chaves_validas(self) -> list[str]:
-        return [c.strip() for c in self.API_KEYS.split(",") if c.strip()]
+        chaves = [c.strip() for c in self.API_KEYS.split(",") if c.strip()]
+        if not chaves and os.getenv("ENVIRONMENT") == "production":
+            raise RuntimeError("CRÍTICO: Variável API_KEYS não definida. Recusando inicialização do servidor em ambiente de produção.")
+        return chaves
 
     @property
     def database_url(self) -> str:

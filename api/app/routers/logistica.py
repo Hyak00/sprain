@@ -1,4 +1,4 @@
-from fastapi import Request, APIRouter, Depends, HTTPException, Header, Query
+﻿from fastapi import Request, APIRouter, Depends, HTTPException, Header, Query
 from fastapi.responses import StreamingResponse
 import io
 import csv
@@ -1168,7 +1168,7 @@ async def buscar_vias_malha(q: str = Query("", min_length=0), conn: asyncpg.Conn
         for r in rows
     ]
 
-@router.get("/operacoes/{id_operacao}/rota-caminhao", dependencies=[Depends(require_role(["ADMIN", "OPERATOR", "VIEWER"]))])
+@router.get("/operacoes/{id_oaperacao}/rota-caminhao", dependencies=[Depends(require_role(["ADMIN", "OPERATOR", "VIEWER"]))])
 async def rota_operacao(id_operacao: str, tenant_id: str = Depends(resolve_tenant), conn=Depends(get_connection)):
     op = await conn.fetchrow("SELECT * FROM operacoes WHERE id_operacao=$1 AND tenant_id=$2",id_operacao,tenant_id)
     if op is None:
