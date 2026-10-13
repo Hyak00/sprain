@@ -30,3 +30,7 @@ docker exec -w /app/api sprain_api python -m pytest tests/ -v
 - `POST /api/v1/logistica/operacoes/{id_operacao}/decisao` — Registro formal da decisão do gestor operacional.
 - `GET /api/v1/rotas/intermunicipal` — Análise preditiva e financeira do corredor rodoviário SP-310 / SP-348.
 - `GET /api/v1/logistica/exportar-contingencia/csv` — Exportação tabular de contingência para TMS/ERP.
+
+## Caminhoes e infraestrutura na torre existente
+
+Consulte [o guia de integracao](docs/integracao-caminhoes.md) para medidas, custos, pedagios, pontes, dados de referencia e execucao da demonstracao. Login, abas, filtros, despacho e auditoria existentes foram preservados.

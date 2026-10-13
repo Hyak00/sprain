@@ -3,6 +3,7 @@ import asyncio
 from pathlib import Path
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
+from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -11,6 +12,8 @@ from app.services.security_headers import SecurityHeadersMiddleware
 from app.services.observabilidade import ObservabilidadeMiddleware
 from app.database import init_db_pool, close_db_pool
 from app.services.webhook_dispatcher import WebhookDispatcher
+from app.services.infraestrutura_viaria import garantir_schema as garantir_infraestrutura
+from app.routers import infraestrutura, malha
 from app.routers import (
     estatisticas,
     trechos,
@@ -43,6 +46,7 @@ async def lifespan(app: FastAPI):
     validar_configuracao_producao()
     await init_db_pool()
     await WebhookDispatcher.garantir_schema()
+    await garantir_infraestrutura()
     task_clima = asyncio.create_task(agendador_telemetria_corredor())
     try:
         yield
@@ -108,6 +112,8 @@ app.include_router(relatorios.router)
 app.include_router(monitoramento.router)
 app.include_router(logistica.router)
 app.include_router(health.router)
+app.include_router(infraestrutura.router)
+app.include_router(malha.router)
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 static_dir = BASE_DIR / "static"
@@ -118,3 +124,7 @@ if static_dir.exists():
 @app.get("/health", tags=["Healthchecks & Infraestrutura"])
 async def health_check():
     return {"status": "operacional", "modulo": "B2B Resilience Engine"}
+
+@app.get('/',include_in_schema=False)
+async def pagina_inicial():
+    return RedirectResponse('/static/b2b.html')

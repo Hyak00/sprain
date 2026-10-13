@@ -1,5 +1,16 @@
 ﻿from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
+from pydantic import model_validator
+from datetime import datetime, timezone
+from app.schemas_infraestrutura import VeiculoDimensoes
+
+class CustosCaminhao(BaseModel):
+    """Premissas informadas, nunca inferidas do peso ou do modelo do veiculo."""
+    custo_por_km: Optional[float] = Field(default=None, ge=0, allow_inf_nan=False)
+    custo_hora_motorista: Optional[float] = Field(default=None, ge=0, allow_inf_nan=False)
+    custo_operacional_veiculo_hora: Optional[float] = Field(default=None, ge=0, allow_inf_nan=False)
+    custo_atraso_hora: Optional[float] = Field(default=None, ge=0, allow_inf_nan=False)
+    prejuizo_potencial_alagamento: Optional[float] = Field(default=None, ge=0, allow_inf_nan=False)
 
 class VeiculoCreate(BaseModel):
     tenant_id: str = "demo_corp"
@@ -9,6 +20,8 @@ class VeiculoCreate(BaseModel):
     tipo_veiculo: str = "VUC"
     lat_atual: Optional[float] = None
     lon_atual: Optional[float] = None
+    dimensoes: Optional[VeiculoDimensoes] = None
+    custos_operacionais: Optional[CustosCaminhao] = None
 
 class OperacaoCreate(BaseModel):
     tenant_id: str = "demo_corp"
@@ -22,6 +35,25 @@ class OperacaoCreate(BaseModel):
     destino_lon: float = Field(..., ge=-180, le=180)
     janela_inicio: str
     janela_fim: str
+    dimensoes: Optional[VeiculoDimensoes] = None
+    custos_operacionais: Optional[CustosCaminhao] = None
+
+    @model_validator(mode='after')
+    def validar_janela(self):
+        valores=[]
+        for campo in ('janela_inicio','janela_fim'):
+            texto=getattr(self,campo)
+            if not texto:
+                valores.append(None)
+                continue
+            valor=datetime.fromisoformat(texto.replace('Z','+00:00'))
+            if valor.tzinfo:
+                valor=valor.astimezone(timezone.utc).replace(tzinfo=None)
+            setattr(self,campo,valor.isoformat())
+            valores.append(valor)
+        if all(valores) and valores[1]<=valores[0]:
+            raise ValueError('Fim da janela deve ser posterior ao inicio.')
+        return self
 
 class ParametrosFinanceiros(BaseModel):
     custo_por_km: float = 4.50

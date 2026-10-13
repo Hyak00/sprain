@@ -1,0 +1,268 @@
+{
+  "snapshot": "2026-10-12",
+  "licenca": "ODbL 1.0",
+  "atribuicao": "Contribuidores do OpenStreetMap",
+  "elements": [
+    {
+      "type": "node",
+      "id": 25983114,
+      "lat": -23.4185517,
+      "lon": -46.7991222,
+      "tags": {
+        "barrier": "toll_booth"
+      }
+    },
+    {
+      "type": "node",
+      "id": 25983119,
+      "lat": -23.4190383,
+      "lon": -46.7994577,
+      "tags": {
+        "barrier": "toll_booth"
+      }
+    },
+    {
+      "type": "node",
+      "id": 26008875,
+      "lat": -23.3472186,
+      "lon": -46.8132647,
+      "tags": {
+        "barrier": "toll_booth"
+      }
+    },
+    {
+      "type": "node",
+      "id": 31941072,
+      "lat": -23.0575877,
+      "lon": -47.0442307,
+      "tags": {
+        "barrier": "toll_booth"
+      }
+    },
+    {
+      "type": "node",
+      "id": 33554488,
+      "lat": -22.7706642,
+      "lon": -47.238717,
+      "tags": {
+        "barrier": "toll_booth"
+      }
+    },
+    {
+      "type": "node",
+      "id": 33558136,
+      "lat": -22.5100805,
+      "lon": -47.3976703,
+      "tags": {
+        "barrier": "toll_booth"
+      }
+    },
+    {
+      "type": "node",
+      "id": 289634458,
+      "lat": -23.0580855,
+      "lon": -47.044795,
+      "tags": {
+        "barrier": "toll_booth"
+      }
+    },
+    {
+      "type": "node",
+      "id": 289634460,
+      "lat": -22.8578279,
+      "lon": -47.3005987,
+      "tags": {
+        "barrier": "toll_booth"
+      }
+    },
+    {
+      "type": "node",
+      "id": 289634461,
+      "lat": -22.3740779,
+      "lon": -47.620443,
+      "tags": {
+        "barrier": "toll_booth"
+      }
+    },
+    {
+      "type": "node",
+      "id": 289634462,
+      "lat": -22.5558896,
+      "lon": -47.460732,
+      "tags": {
+        "barrier": "toll_booth"
+      }
+    },
+    {
+      "type": "node",
+      "id": 632018316,
+      "lat": -23.4181876,
+      "lon": -46.7989537,
+      "tags": {
+        "barrier": "toll_booth"
+      }
+    },
+    {
+      "type": "node",
+      "id": 638979520,
+      "lat": -21.9579973,
+      "lon": -47.4596776,
+      "tags": {
+        "barrier": "toll_booth"
+      }
+    },
+    {
+      "type": "node",
+      "id": 638979523,
+      "lat": -21.9578936,
+      "lon": -47.4593262,
+      "tags": {
+        "barrier": "toll_booth"
+      }
+    },
+    {
+      "type": "node",
+      "id": 703698334,
+      "lat": -22.1289046,
+      "lon": -47.8078683,
+      "tags": {
+        "barrier": "toll_booth"
+      }
+    },
+    {
+      "type": "node",
+      "id": 703698336,
+      "lat": -22.1290854,
+      "lon": -47.8082111,
+      "tags": {
+        "barrier": "toll_booth"
+      }
+    },
+    {
+      "type": "node",
+      "id": 974480212,
+      "lat": -21.7533407,
+      "lon": -48.2618482,
+      "tags": {
+        "barrier": "toll_booth"
+      }
+    },
+    {
+      "type": "node",
+      "id": 1456093880,
+      "lat": -23.020334,
+      "lon": -47.0187077,
+      "tags": {
+        "barrier": "toll_booth"
+      }
+    },
+    {
+      "type": "node",
+      "id": 1563445918,
+      "lat": -22.771032,
+      "lon": -47.2390727,
+      "tags": {
+        "barrier": "toll_booth"
+      }
+    },
+    {
+      "type": "node",
+      "id": 1688897898,
+      "lat": -21.7530329,
+      "lon": -48.2615614,
+      "tags": {
+        "barrier": "toll_booth"
+      }
+    },
+    {
+      "type": "node",
+      "id": 1701473764,
+      "lat": -22.5557831,
+      "lon": -47.4603357,
+      "tags": {
+        "barrier": "toll_booth"
+      }
+    },
+    {
+      "type": "node",
+      "id": 1809987097,
+      "lat": -21.6583776,
+      "lon": -47.6087971,
+      "tags": {
+        "barrier": "toll_booth"
+      }
+    },
+    {
+      "type": "node",
+      "id": 1809987100,
+      "lat": -21.6584319,
+      "lon": -47.6091761,
+      "tags": {
+        "barrier": "toll_booth"
+      }
+    },
+    {
+      "type": "node",
+      "id": 1827816642,
+      "lat": -22.50984,
+      "lon": -47.3970463,
+      "tags": {
+        "barrier": "toll_booth"
+      }
+    },
+    {
+      "type": "node",
+      "id": 1854791419,
+      "lat": -22.249846,
+      "lon": -47.3899445,
+      "tags": {
+        "barrier": "toll_booth"
+      }
+    },
+    {
+      "type": "node",
+      "id": 1854791421,
+      "lat": -22.2498625,
+      "lon": -47.3902205,
+      "tags": {
+        "barrier": "toll_booth"
+      }
+    },
+    {
+      "type": "node",
+      "id": 2349449098,
+      "lat": -22.8572703,
+      "lon": -47.3004713,
+      "tags": {
+        "barrier": "toll_booth"
+      }
+    },
+    {
+      "type": "node",
+      "id": 2352610237,
+      "lat": -22.3722416,
+      "lon": -47.6219717,
+      "tags": {
+        "barrier": "toll_booth"
+      }
+    },
+    {
+      "type": "node",
+      "id": 6661114507,
+      "lat": -23.3228864,
+      "lon": -46.8232379,
+      "tags": {
+        "barrier": "toll_booth"
+      }
+    },
+    {
+      "type": "node",
+      "id": 6661232489,
+      "lat": -23.0129165,
+      "lon": -47.0230798,
+      "tags": {
+        "barrier": "toll_booth"
+      }
+    }
+  ]
+}
