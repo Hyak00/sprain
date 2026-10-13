@@ -1,19 +1,19 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SPRain • Torre de Controle de Resiliência Logística B2B</title>
+    <title>SPRain • Plataforma Corporativa de Resiliência Logística</title>
     <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
     <link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-base: #090d16;
-            --bg-panel: #111827;
+            --bg-base: #070b14;
+            --bg-panel: #0f172a;
             --bg-card: #1e293b;
-            --bg-hover: #263349;
-            --border: #2e3c56;
+            --bg-hover: #26354d;
+            --border: #2e3f5c;
             --text-main: #f8fafc;
             --text-muted: #94a3b8;
             --accent: #38bdf8;
@@ -25,133 +25,224 @@
         body { display: flex; flex-direction: column; height: 100vh; background: var(--bg-base); color: var(--text-main); overflow: hidden; }
         .mono { font-family: 'JetBrains Mono', monospace; }
 
+        #login-overlay {
+            position: fixed; inset: 0; z-index: 99999;
+            background: radial-gradient(circle at 20% 20%, #0f2942 0%, #070b14 65%);
+            display: flex; align-items: center; justify-content: center; padding: 20px;
+        }
+        .login-card {
+            width: 440px; background: rgba(15, 23, 42, 0.95); border: 1px solid var(--border);
+            border-radius: 14px; padding: 32px; box-shadow: 0 25px 60px rgba(0,0,0,0.75);
+        }
+        .login-brand { display: flex; align-items: center; gap: 12px; margin-bottom: 22px; }
+        .login-logo { width: 42px; height: 42px; border-radius: 10px; background: linear-gradient(135deg, #0284c7, #38bdf8); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 18px; color: #fff; }
+        .login-field { margin-bottom: 14px; }
+        .login-field label { display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); margin-bottom: 5px; }
+        .login-input { width: 100%; background: var(--bg-base); border: 1px solid var(--border); color: #fff; padding: 10px 12px; border-radius: 8px; font-size: 13px; outline: none; }
+        .login-input:focus { border-color: var(--accent); }
+        .btn-login { width: 100%; background: linear-gradient(135deg, #0284c7, #0369a1); border: 1px solid #38bdf8; color: #fff; padding: 11px; border-radius: 8px; font-size: 13.5px; font-weight: 700; cursor: pointer; margin-top: 6px; }
+        .demo-accounts { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); }
+        .demo-btn { width: 100%; text-align: left; background: var(--bg-base); border: 1px solid var(--border); color: var(--text-main); padding: 8px 10px; border-radius: 6px; font-size: 11.5px; cursor: pointer; margin-top: 6px; display: flex; justify-content: space-between; align-items: center; }
+        .demo-btn:hover { border-color: var(--accent); background: rgba(56, 189, 248, 0.08); }
+
         .topbar { height: 58px; background: var(--bg-base); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 20px; z-index: 20; }
-        .brand-group { display: flex; align-items: center; gap: 14px; }
-        .brand-logo { width: 34px; height: 34px; border-radius: 8px; background: linear-gradient(135deg, #0284c7, #38bdf8); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 16px; color: #fff; box-shadow: 0 0 15px rgba(56,189,248,0.3); }
-        .brand-title { font-size: 15px; font-weight: 700; color: #fff; letter-spacing: -0.01em; }
+        .brand-group { display: flex; align-items: center; gap: 12px; }
+        .brand-logo { width: 34px; height: 34px; border-radius: 8px; background: linear-gradient(135deg, #0284c7, #38bdf8); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 15px; color: #fff; }
+        .brand-title { font-size: 14.5px; font-weight: 700; color: #fff; }
         .brand-sub { font-size: 11px; color: var(--text-muted); }
 
-        .nav-tabs { display: flex; gap: 6px; background: var(--bg-panel); padding: 4px; border-radius: 8px; border: 1px solid var(--border); }
-        .nav-tab { padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 600; color: var(--text-muted); cursor: pointer; border: none; background: transparent; transition: all 0.15s; }
-        .nav-tab.active { background: var(--bg-card); color: var(--accent); box-shadow: 0 1px 3px rgba(0,0,0,0.4); }
+        .nav-tabs { display: flex; gap: 5px; background: var(--bg-panel); padding: 4px; border-radius: 8px; border: 1px solid var(--border); }
+        .nav-tab { padding: 6px 12px; border-radius: 6px; font-size: 11.5px; font-weight: 600; color: var(--text-muted); cursor: pointer; border: none; background: transparent; }
+        .nav-tab.active { background: var(--bg-card); color: var(--accent); }
 
-        .top-controls { display: flex; align-items: center; gap: 12px; }
-        .pill-mode { background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.4); color: #fbbf24; padding: 5px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
-        .dot-pulse { width: 7px; height: 7px; border-radius: 50%; background: #fbbf24; animation: pulse 1.8s infinite; }
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.35; } 100% { opacity: 1; } }
-
-        .tenant-selector { background: var(--bg-panel); border: 1px solid var(--border); color: var(--text-main); padding: 6px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; outline: none; cursor: pointer; }
-        .btn-top { background: var(--bg-card); border: 1px solid var(--border); color: var(--text-main); padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; transition: 0.15s; }
-        .btn-top:hover { border-color: var(--accent); color: var(--accent); }
+        .top-controls { display: flex; align-items: center; gap: 10px; }
+        .corp-badge { background: var(--bg-panel); border: 1px solid var(--border); padding: 5px 10px; border-radius: 6px; font-size: 11px; display: flex; align-items: center; gap: 8px; }
+        .btn-action-top { background: #059669; border: 1px solid #10b981; color: #fff; padding: 6px 12px; border-radius: 6px; font-size: 11.5px; font-weight: 700; cursor: pointer; }
+        .btn-top { background: var(--bg-card); border: 1px solid var(--border); color: var(--text-main); padding: 6px 10px; border-radius: 6px; font-size: 11.5px; font-weight: 600; cursor: pointer; }
 
         .workspace { display: flex; flex: 1; height: calc(100vh - 58px); position: relative; }
-        #sidebar { width: 520px; background: var(--bg-panel); border-right: 1px solid var(--border); display: flex; flex-direction: column; z-index: 10; }
+        #sidebar { width: 530px; background: var(--bg-panel); border-right: 1px solid var(--border); display: flex; flex-direction: column; z-index: 10; }
 
-        .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--border); background: rgba(9, 13, 22, 0.5); }
-        .kpi-box { background: var(--bg-panel); border: 1px solid var(--border); border-radius: 8px; padding: 10px 8px; text-align: center; }
-        .kpi-value { font-size: 16px; font-weight: 700; color: #fff; }
-        .kpi-label { font-size: 10px; color: var(--text-muted); margin-top: 3px; text-transform: uppercase; letter-spacing: 0.03em; }
+        .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--border); background: rgba(7, 11, 20, 0.5); }
+        .kpi-box { background: var(--bg-panel); border: 1px solid var(--border); border-radius: 8px; padding: 9px 6px; text-align: center; }
+        .kpi-value { font-size: 15px; font-weight: 700; color: #fff; }
+        .kpi-label { font-size: 9.5px; color: var(--text-muted); margin-top: 2px; text-transform: uppercase; }
 
         .control-bar { padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 10px; }
         .control-row { display: flex; gap: 8px; align-items: center; }
         .ctrl-group { flex: 1; display: flex; flex-direction: column; gap: 3px; }
         .ctrl-label { font-size: 10px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; }
         .ctrl-input { width: 100%; background: var(--bg-base); border: 1px solid var(--border); color: #fff; padding: 7px 10px; border-radius: 6px; font-size: 12px; outline: none; }
-        .ctrl-input:focus { border-color: var(--accent); }
-        .btn-primary { background: #0284c7; border: 1px solid #38bdf8; color: #fff; padding: 8px 14px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap; margin-top: 14px; }
-        .btn-primary:hover { background: #0369a1; }
+        .btn-primary { background: #0284c7; border: 1px solid #38bdf8; color: #fff; padding: 8px 14px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; margin-top: 14px; }
 
         .filter-bar { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
         .filter-pills { display: flex; gap: 4px; }
-        .filter-pill { background: var(--bg-base); border: 1px solid var(--border); color: var(--text-muted); padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; cursor: pointer; }
+        .filter-pill { background: var(--bg-base); border: 1px solid var(--border); color: var(--text-muted); padding: 4px 9px; border-radius: 20px; font-size: 10.5px; font-weight: 600; cursor: pointer; }
         .filter-pill.active { background: rgba(56, 189, 248, 0.15); border-color: var(--accent); color: var(--accent); }
         .search-box { flex: 1; background: var(--bg-base); border: 1px solid var(--border); color: #fff; padding: 5px 10px; border-radius: 6px; font-size: 11.5px; outline: none; }
 
         #table-container { flex: 1; overflow-y: auto; }
         table { width: 100%; border-collapse: collapse; font-size: 12px; }
-        th { position: sticky; top: 0; background: var(--bg-base); color: var(--text-muted); font-weight: 600; text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--border); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.04em; z-index: 2; }
-        td { padding: 10px 12px; border-bottom: 1px solid rgba(46, 60, 86, 0.5); vertical-align: middle; }
-        tr { transition: background 0.12s; }
+        th { position: sticky; top: 0; background: var(--bg-base); color: var(--text-muted); font-weight: 600; text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--border); font-size: 10px; text-transform: uppercase; z-index: 2; }
+        td { padding: 10px 12px; border-bottom: 1px solid rgba(46, 63, 92, 0.45); }
         tr:hover { background: var(--bg-hover); cursor: pointer; }
         tr.active { background: rgba(56, 189, 248, 0.14); border-left: 3px solid var(--accent); }
 
-        .badge { display: inline-flex; align-items: center; padding: 2px 7px; border-radius: 4px; font-weight: 700; font-size: 10px; letter-spacing: 0.03em; }
+        .badge { display: inline-flex; align-items: center; padding: 2px 7px; border-radius: 4px; font-weight: 700; font-size: 10px; }
         .badge-CRITICO { background: rgba(239, 68, 68, 0.2); border: 1px solid #ef4444; color: #fca5a5; }
         .badge-RISCO { background: rgba(245, 158, 11, 0.2); border: 1px solid #f59e0b; color: #fcd34d; }
+        .badge-NORMAL { background: rgba(16, 185, 129, 0.2); border: 1px solid #10b981; color: #6ee7b7; }
         .badge-DECIDIDO { background: rgba(16, 185, 129, 0.2); border: 1px solid #10b981; color: #6ee7b7; margin-left: 4px; }
 
-        #corredor-panel { display: none; flex: 1; overflow-y: auto; padding: 16px; flex-direction: column; gap: 12px; }
-        .corredor-card { background: var(--bg-base); border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
+        #frota-panel, #corredor-panel { display: none; flex: 1; overflow-y: auto; padding: 14px; flex-direction: column; gap: 12px; }
+        .panel-card { background: var(--bg-base); border: 1px solid var(--border); border-radius: 8px; padding: 14px; }
 
         #map-container { flex: 1; position: relative; height: 100%; }
         #map { width: 100%; height: 100%; }
 
-        .map-legend { position: absolute; bottom: 24px; left: 24px; background: rgba(17, 24, 39, 0.92); backdrop-filter: blur(8px); border: 1px solid var(--border); padding: 12px 14px; border-radius: 8px; font-size: 11.5px; color: var(--text-main); z-index: 5; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
-        .legend-title { font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px; letter-spacing: 0.05em; }
-        .legend-row { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
-        .legend-row:last-child { margin-bottom: 0; }
+        .map-legend { position: absolute; bottom: 24px; left: 24px; background: rgba(15, 23, 42, 0.94); border: 1px solid var(--border); padding: 12px 14px; border-radius: 8px; font-size: 11px; z-index: 5; }
+        .legend-row { display: flex; align-items: center; gap: 10px; margin-top: 6px; }
         .line-sample { width: 22px; height: 4px; border-radius: 2px; }
         .line-dashed { width: 22px; height: 0; border-top: 3px dashed #ef4444; }
 
-        #inspector { position: absolute; top: 16px; right: 16px; width: 430px; max-height: calc(100% - 32px); overflow-y: auto; background: rgba(17, 24, 39, 0.96); backdrop-filter: blur(10px); border: 1px solid var(--border); border-radius: 10px; padding: 16px; z-index: 15; box-shadow: 0 20px 40px rgba(0,0,0,0.65); display: none; flex-direction: column; gap: 12px; }
-        .insp-header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid var(--border); padding-bottom: 10px; }
-        .insp-tag { font-size: 10px; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 0.05em; }
-        .insp-title { font-size: 15px; font-weight: 700; color: #fff; margin-top: 2px; }
-        .insp-close { background: transparent; border: none; color: var(--text-muted); font-size: 20px; cursor: pointer; line-height: 1; }
-
+        #inspector { position: absolute; top: 16px; right: 16px; width: 430px; max-height: calc(100% - 32px); overflow-y: auto; background: rgba(15, 23, 42, 0.97); border: 1px solid var(--border); border-radius: 10px; padding: 16px; z-index: 15; box-shadow: 0 20px 40px rgba(0,0,0,0.7); display: none; flex-direction: column; gap: 11px; }
+        .insp-header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
         .route-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
         .route-box { background: var(--bg-base); border: 1px solid var(--border); border-radius: 8px; padding: 10px; }
         .route-box.original { border-top: 3px solid var(--danger); }
         .route-box.alt { border-top: 3px solid var(--accent); }
-        .route-box-title { font-size: 10.5px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); margin-bottom: 6px; }
-        .route-stat { font-size: 13px; font-weight: 700; color: #fff; }
-        .route-sub { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
-
-        .justificativa-box { background: rgba(56, 189, 248, 0.08); border-left: 3px solid var(--accent); padding: 9px 11px; border-radius: 4px; font-size: 12px; color: #e2e8f0; line-height: 1.4; }
-        .disclaimer-box { background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); padding: 7px 10px; border-radius: 6px; font-size: 11px; color: #fde68a; line-height: 1.35; }
-
-        .trechos-list { max-height: 110px; overflow-y: auto; background: var(--bg-base); border: 1px solid var(--border); border-radius: 6px; padding: 6px; display: flex; flex-direction: column; gap: 4px; }
-        .trecho-item { display: flex; justify-content: space-between; align-items: center; padding: 5px 7px; background: var(--bg-panel); border-radius: 4px; font-size: 11px; }
-
-        .decision-box { border-top: 1px solid var(--border); padding-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+        .justificativa-box { background: rgba(56, 189, 248, 0.08); border-left: 3px solid var(--accent); padding: 8px 10px; border-radius: 4px; font-size: 11.5px; line-height: 1.4; }
+        .disclaimer-box { background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); padding: 6px 9px; border-radius: 6px; font-size: 10.5px; color: #fde68a; }
+        .trechos-list { max-height: 100px; overflow-y: auto; background: var(--bg-base); border: 1px solid var(--border); border-radius: 6px; padding: 6px; display: flex; flex-direction: column; gap: 4px; }
+        .trecho-item { display: flex; justify-content: space-between; padding: 4px 6px; background: var(--bg-panel); border-radius: 4px; font-size: 11px; }
         .btn-group { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
-        .btn-dec { border: none; padding: 8px 6px; border-radius: 6px; font-weight: 700; font-size: 11px; cursor: pointer; color: #fff; transition: opacity 0.15s; }
-        .btn-dec:hover { opacity: 0.9; }
-        .btn-approve { background: #059669; }
-        .btn-keep { background: #475569; }
-        .btn-wait { background: #d97706; }
-
-        .audit-log { background: var(--bg-base); border: 1px solid var(--border); border-radius: 6px; padding: 8px; font-size: 11px; max-height: 90px; overflow-y: auto; }
+        .btn-dec { border: none; padding: 8px 6px; border-radius: 6px; font-weight: 700; font-size: 11px; cursor: pointer; color: #fff; }
+        .audit-log { background: var(--bg-base); border: 1px solid var(--border); border-radius: 6px; padding: 8px; font-size: 11px; max-height: 85px; overflow-y: auto; }
         .marker-pin { width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 11px; color: #fff; border: 2px solid #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.6); }
+
+        #modal-despacho { position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 50000; display: none; align-items: center; justify-content: center; }
+        .despacho-card { width: 500px; background: var(--bg-panel); border: 1px solid var(--border); border-radius: 12px; padding: 22px; box-shadow: 0 25px 50px rgba(0,0,0,0.8); }
+        .ac-wrapper { position: relative; }
+        .ac-dropdown { position: absolute; top: 100%; left: 0; right: 0; background: #070b14; border: 1px solid var(--accent); border-radius: 6px; max-height: 160px; overflow-y: auto; z-index: 999; display: none; }
+        .ac-item { padding: 8px 10px; font-size: 12px; border-bottom: 1px solid var(--border); cursor: pointer; display: flex; justify-content: space-between; }
+        .ac-item:hover { background: var(--bg-hover); }
     </style>
 </head>
 <body>
+
+    <div id="login-overlay">
+        <div class="login-card">
+            <div class="login-brand">
+                <div class="login-logo">SP</div>
+                <div>
+                    <div style="font-size:17px; font-weight:800; color:#fff;">SPRain B2B • Portal do Cliente</div>
+                    <div style="font-size:12px; color:var(--text-muted);">Inteligência Climática e Roteamento de Frota</div>
+                </div>
+            </div>
+            <div class="login-field">
+                <label>E-mail Corporativo</label>
+                <input type="email" id="login-email" class="login-input" value="operacoes@democorp.com.br">
+            </div>
+            <div class="login-field">
+                <label>Senha de Acesso</label>
+                <input type="password" id="login-senha" class="login-input" value="sprain2026">
+            </div>
+            <div id="login-erro" style="color:#f87171; font-size:12px; margin-bottom:8px; min-height:16px;"></div>
+            <button class="btn-login" onclick="realizarLogin()">Entrar na Torre de Controle</button>
+
+            <div class="demo-accounts">
+                <div style="font-size:10.5px; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:4px;">Contas Homologadas (Acesso Rápido Demo):</div>
+                <button class="demo-btn" onclick="preencherLogin('operacoes@democorp.com.br', 'sprain2026')">
+                    <span><strong>TransPaulista S.A.</strong> (Mesa Operacional)</span>
+                    <span class="badge badge-NORMAL">OPERATOR</span>
+                </button>
+                <button class="demo-btn" onclick="preencherLogin('frota@logexpress.com.br', 'express2026')">
+                    <span><strong>LogExpress Ltda.</strong> (Segundo Tenant Isolado)</span>
+                    <span class="badge badge-CRITICO">ADMIN</span>
+                </button>
+                <button class="demo-btn" onclick="preencherLogin('auditoria@democorp.com.br', 'sprain2026')">
+                    <span><strong>TransPaulista S.A.</strong> (Auditoria Somente Leitura)</span>
+                    <span class="badge badge-RISCO">VIEWER</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-despacho">
+        <div class="despacho-card">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; border-bottom:1px solid var(--border); padding-bottom:10px;">
+                <div>
+                    <div style="font-size:10px; font-weight:700; color:var(--accent); text-transform:uppercase;">Planejamento & Roteamento PostGIS</div>
+                    <h3 style="font-size:16px; color:#fff;">Despachar Caminhão em Nova Rota</h3>
+                </div>
+                <button onclick="fecharModalDespacho()" style="background:transparent; border:none; color:var(--text-muted); font-size:22px; cursor:pointer;">&times;</button>
+            </div>
+
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px;">
+                <div class="ctrl-group">
+                    <span class="ctrl-label">Código da Operação</span>
+                    <input type="text" id="desp-id-op" class="ctrl-input mono" value="OP-101">
+                </div>
+                <div class="ctrl-group">
+                    <span class="ctrl-label">Selecionar Caminhão da Frota</span>
+                    <select id="desp-veiculo" class="ctrl-input mono"></select>
+                </div>
+            </div>
+
+            <div class="ctrl-group" style="margin-bottom:12px;">
+                <span class="ctrl-label">Ponto de Partida (Digite o nome da Rua/Avenida na Malha)</span>
+                <div class="ac-wrapper">
+                    <input type="text" id="desp-orig-nome" class="ctrl-input" placeholder="Ex: Avenida Jacu-Pessego, Rua Sabbado..." oninput="buscarViaAutocomplete('orig', this.value)">
+                    <div id="ac-orig" class="ac-dropdown"></div>
+                </div>
+                <div style="display:flex; gap:8px; margin-top:4px;">
+                    <input type="number" step="0.0001" id="desp-orig-lat" class="ctrl-input mono" placeholder="Lat Origem" value="-23.5428">
+                    <input type="number" step="0.0001" id="desp-orig-lon" class="ctrl-input mono" placeholder="Lon Origem" value="-46.4715">
+                </div>
+            </div>
+
+            <div class="ctrl-group" style="margin-bottom:14px;">
+                <span class="ctrl-label">Destino Final (Digite o nome da Rua/Avenida na Malha)</span>
+                <div class="ac-wrapper">
+                    <input type="text" id="desp-dest-nome" class="ctrl-input" placeholder="Ex: Avenida Pires do Rio, Rua Tomazzo..." oninput="buscarViaAutocomplete('dest', this.value)">
+                    <div id="ac-dest" class="ac-dropdown"></div>
+                </div>
+                <div style="display:flex; gap:8px; margin-top:4px;">
+                    <input type="number" step="0.0001" id="desp-dest-lat" class="ctrl-input mono" placeholder="Lat Destino" value="-23.5352">
+                    <input type="number" step="0.0001" id="desp-dest-lon" class="ctrl-input mono" placeholder="Lon Destino" value="-46.4525">
+                </div>
+            </div>
+
+            <div id="desp-feedback" style="font-size:12px; color:#38bdf8; margin-bottom:10px; min-height:16px;"></div>
+            <button class="btn-login" onclick="criarOperacaoRoteada()">Traçar Rota no PostGIS e Avaliar Risco</button>
+        </div>
+    </div>
+
     <header class="topbar">
         <div class="brand-group">
             <div class="brand-logo">SP</div>
             <div>
-                <div class="brand-title">SPRain • Inteligência Climática para Operações Logísticas</div>
-                <div class="brand-sub">Avaliação de Risco Viário, Rotas Alternativas e Auditoria Operacional</div>
+                <div class="brand-title">SPRain • Inteligência Climática Logística</div>
+                <div class="brand-sub" id="lbl-empresa-sub">TransPaulista Logística S.A.</div>
             </div>
         </div>
 
         <div class="nav-tabs">
-            <button class="nav-tab active" id="tab-urbano" onclick="alternarAba('URBANO')">Operações Urbanas (Zona Leste)</button>
-            <button class="nav-tab" id="tab-corredor" onclick="alternarAba('CORREDOR')">Corredor SP-310 / SP-348 (Araraquara ↔ SP)</button>
+            <button class="nav-tab active" id="tab-urbano" onclick="alternarAba('URBANO')">1. Rotas & Operações</button>
+            <button class="nav-tab" id="tab-frota" onclick="alternarAba('FROTA')">2. Minha Frota (Caminhões)</button>
+            <button class="nav-tab" id="tab-corredor" onclick="alternarAba('CORREDOR')">3. Corredor SP-310 / SP-348</button>
         </div>
 
         <div class="top-controls">
-            <div class="pill-mode">
-                <span class="dot-pulse"></span>
-                <span>SIMULAÇÃO CONTROLADA • <span id="lbl-timestamp">--:--</span></span>
+            <button class="btn-action-top" onclick="abrirModalDespacho()">+ Despachar Nova Rota</button>
+            <button class="btn-top" onclick="exportarCsv()">↓ Exportar CSV</button>
+            <div class="corp-badge">
+                <div>
+                    <div style="font-weight:700; color:#38bdf8;" id="lbl-user-tenant">demo_corp</div>
+                    <div style="font-size:9.5px; color:var(--text-muted);" id="lbl-user-role">OPERATOR</div>
+                </div>
+                <button onclick="sairSessao()" style="background:#1e293b; border:1px solid var(--border); color:#fca5a5; padding:4px 8px; border-radius:4px; font-size:10.5px; cursor:pointer; font-weight:600;">Trocar Conta</button>
             </div>
-            <select class="tenant-selector" id="sel-apikey" onchange="trocarCredencial()">
-                <option value="key_operator_demo" selected>Tenant: demo_corp (OPERADOR)</option>
-                <option value="key_admin_demo">Tenant: demo_corp (ADMIN)</option>
-                <option value="key_viewer_demo">Tenant: demo_corp (VIEWER - Leitura)</option>
-                <option value="key_admin_express">Tenant: log_express (Isolamento B2B)</option>
-            </select>
-            <button class="btn-top" onclick="exportarCsv()">↓ Exportar Contingência (CSV)</button>
         </div>
     </header>
 
@@ -180,28 +271,28 @@
                 <div class="control-bar">
                     <div class="control-row">
                         <div class="ctrl-group">
-                            <span class="ctrl-label">Cenário Pluviométrico</span>
+                            <span class="ctrl-label">Cenário de Chuva</span>
                             <select class="ctrl-input" id="sel-chuva">
-                                <option value="35">35 mm/h (Atenção Operacional)</option>
-                                <option value="60">60 mm/h (Chuva Severa)</option>
-                                <option value="85" selected>85 mm/h (Crítico - Alagamento)</option>
-                                <option value="120">120 mm/h (Evento Extremo)</option>
+                                <option value="35">35 mm/h (Atenção)</option>
+                                <option value="60">60 mm/h (Severo)</option>
+                                <option value="85" selected>85 mm/h (Crítico)</option>
+                                <option value="120">120 mm/h (Extremo)</option>
                             </select>
                         </div>
                         <div class="ctrl-group">
-                            <span class="ctrl-label">Premissa Custo Retenção (R$)</span>
+                            <span class="ctrl-label">Custo Retenção (R$)</span>
                             <input class="ctrl-input mono" id="input-prejuizo" type="number" min="0" step="100" value="2800">
                         </div>
-                        <button class="btn-primary" onclick="executarSimulacao()">Recalcular Malha</button>
+                        <button class="btn-primary" onclick="executarSimulacao()">Simular</button>
                     </div>
 
                     <div class="filter-bar">
                         <div class="filter-pills">
                             <button class="filter-pill active" id="flt-ALL" onclick="definirFiltro('ALL')">Todas</button>
                             <button class="filter-pill" id="flt-CRITICO" onclick="definirFiltro('CRITICO')">Críticas</button>
-                            <button class="filter-pill" id="flt-COM_DESVIO" onclick="definirFiltro('COM_DESVIO')">Com Desvio (>0 km)</button>
+                            <button class="filter-pill" id="flt-COM_DESVIO" onclick="definirFiltro('COM_DESVIO')">Com Desvio</button>
                         </div>
-                        <input type="text" class="search-box" id="input-busca" placeholder="Filtrar OP ou veículo..." oninput="renderizarTabela()">
+                        <input type="text" class="search-box" id="input-busca" placeholder="Buscar OP ou caminhão..." oninput="renderizarTabela()">
                     </div>
                 </div>
 
@@ -210,8 +301,8 @@
                         <thead>
                             <tr>
                                 <th>Operação</th>
-                                <th>Veículo</th>
-                                <th>Severidade</th>
+                                <th>Caminhão</th>
+                                <th>Risco</th>
                                 <th>Delta Rota</th>
                                 <th>Custo Desvio</th>
                             </tr>
@@ -221,12 +312,37 @@
                 </div>
             </div>
 
+            <div id="frota-panel">
+                <div class="panel-card">
+                    <div style="font-size:11px; font-weight:700; color:var(--accent); text-transform:uppercase; margin-bottom:8px;">Cadastrar Novo Caminhão na Frota</div>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px;">
+                        <input type="text" id="veic-id" class="ctrl-input mono" placeholder="ID (Ex: TRK-055)" value="TRK-055">
+                        <input type="text" id="veic-placa" class="ctrl-input mono" placeholder="Placa (Ex: BRA5E55)" value="BRA5E55">
+                        <input type="text" id="veic-modelo" class="ctrl-input" placeholder="Modelo (Ex: Volvo VM 270)" value="Volvo VM 270">
+                        <select id="veic-tipo" class="ctrl-input">
+                            <option value="VUC">VUC (Urbano Leve)</option>
+                            <option value="TRUCK_3_EIXOS" selected>TRUCK 3 Eixos (Restrição Pesado)</option>
+                            <option value="CARRETA_5_EIXOS">Carreta 5 Eixos (Restrição Pesado)</option>
+                        </select>
+                    </div>
+                    <button class="btn-action-top" style="width:100%; padding:9px;" onclick="cadastrarNovoCaminhao()">+ Salvar Caminhão na Frota do Tenant</button>
+                    <div id="veic-feedback" style="font-size:11.5px; color:#34d399; margin-top:6px;"></div>
+                </div>
+
+                <div class="panel-card" style="flex:1;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                        <span style="font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase;">Caminhões Cadastrados (<span id="count-frota">0</span>)</span>
+                        <span style="font-size:10.5px; color:var(--accent);">Clique em "Rota" para despachar</span>
+                    </div>
+                    <div id="lista-frota-cards" style="display:flex; flex-direction:column; gap:6px;"></div>
+                </div>
+            </div>
+
             <div id="corredor-panel">
-                <div class="corredor-card">
+                <div class="panel-card">
                     <div style="font-size:11px; color:var(--accent); font-weight:700; text-transform:uppercase;">Corredor Estruturante Regional</div>
                     <h3 style="font-size:15px; margin:4px 0;">Araraquara ↔ São Paulo (SP-310 / SP-330 / SP-348)</h3>
-                    <p style="font-size:12px; color:var(--text-muted);">Avaliação de impacto rodoviário, praças de pedágio ANTT/ARTESP e custo hora-parada.</p>
-                    <div style="display:flex; gap:8px; margin-top:10px;">
+                    <div style="margin-top:8px;">
                         <select class="ctrl-input" id="sel-veiculo-corredor" onchange="carregarCorredorRegional()">
                             <option value="VUC">Veículo: VUC (2 Eixos)</option>
                             <option value="TRUCK_3_EIXOS" selected>Veículo: Caminhão Truck (3 Eixos)</option>
@@ -242,64 +358,63 @@
             <div id="map"></div>
 
             <div class="map-legend">
-                <div class="legend-title">Camadas de Decisão Viária</div>
+                <div style="font-size:10px; font-weight:700; text-transform:uppercase; color:var(--text-muted);">Legenda Operacional</div>
                 <div class="legend-row"><div class="line-sample" style="background:#38bdf8;"></div> <span>Rota Alternativa Recomendada (SAFEST)</span></div>
-                <div class="legend-row"><div class="line-dashed"></div> <span>Rota Planejada Original (Intercepta Risco)</span></div>
-                <div class="legend-row"><div class="line-sample" style="background:#ef4444; height:6px;"></div> <span>Trecho Crítico de Alagamento (IVI ≥ 70)</span></div>
+                <div class="legend-row"><div class="line-dashed"></div> <span>Rota Original (Intercepta Alagamento)</span></div>
+                <div class="legend-row"><div class="line-sample" style="background:#ef4444; height:6px;"></div> <span>Trecho Crítico Bloqueado (IVI ≥ 70)</span></div>
             </div>
 
             <div id="inspector">
                 <div class="insp-header">
                     <div>
-                        <div class="insp-tag">Auditoria de Rota & Apoio à Decisão</div>
-                        <div class="insp-title" id="modal-op-title">OP-000</div>
+                        <div style="font-size:10px; font-weight:700; color:var(--accent); text-transform:uppercase;">Auditoria de Rota & Apoio à Decisão</div>
+                        <div style="font-size:15px; font-weight:700; color:#fff; margin-top:2px;" id="modal-op-title">OP-000</div>
+                        <div style="font-size:11px; color:var(--text-muted); margin-top:2px;" id="modal-origem-destino"></div>
                     </div>
-                    <button class="insp-close" onclick="document.getElementById('inspector').style.display='none'">&times;</button>
+                    <button onclick="document.getElementById('inspector').style.display='none'" style="background:transparent; border:none; color:var(--text-muted); font-size:20px; cursor:pointer;">&times;</button>
                 </div>
 
                 <div style="display:flex; justify-content:space-between; align-items:center; font-size:12px;">
-                    <div>Status: <span id="modal-acao" class="badge"></span></div>
+                    <div>Recomendação: <span id="modal-acao" class="badge"></span></div>
                     <div class="mono" style="color:var(--text-muted); font-size:11px;" id="modal-confianca"></div>
                 </div>
 
                 <div class="route-compare">
                     <div class="route-box original">
-                        <div class="route-box-title">Rota Original Planejada</div>
-                        <div class="route-stat mono" id="box-orig-km">0.00 km</div>
-                        <div class="route-sub mono" id="box-orig-min">0.0 min estimados</div>
+                        <div style="font-size:10px; font-weight:700; text-transform:uppercase; color:var(--text-muted);">Rota Original</div>
+                        <div class="mono" style="font-size:13px; font-weight:700; margin-top:4px;" id="box-orig-km">0.00 km</div>
+                        <div class="mono" style="font-size:11px; color:var(--text-muted);" id="box-orig-min">0.0 min</div>
                     </div>
                     <div class="route-box alt">
-                        <div class="route-box-title">Alternativa Recomendada</div>
-                        <div class="route-stat mono" id="box-alt-km">0.00 km</div>
-                        <div class="route-sub mono" id="box-alt-min">0.0 min (<span id="modal-delta-km"></span>)</div>
+                        <div style="font-size:10px; font-weight:700; text-transform:uppercase; color:var(--text-muted);">Rota Alternativa</div>
+                        <div class="mono" style="font-size:13px; font-weight:700; margin-top:4px;" id="box-alt-km">0.00 km</div>
+                        <div class="mono" style="font-size:11px; color:var(--text-muted);" id="box-alt-min">0.0 min</div>
                     </div>
                 </div>
 
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; background:var(--bg-base); padding:9px 12px; border-radius:8px; border:1px solid var(--border); font-size:12px;">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; background:var(--bg-base); padding:8px 12px; border-radius:8px; border:1px solid var(--border); font-size:12px;">
                     <div><span style="color:var(--text-muted);">Custo Desvio:</span> <strong class="mono" id="modal-custo" style="color:#fbbf24;"></strong></div>
-                    <div><span style="color:var(--text-muted);">Risco Evitado:</span> <strong class="mono" id="modal-prejuizo" style="color:#34d399;"></strong></div>
+                    <div><span style="color:var(--text-muted);">Risco Mitigado:</span> <strong class="mono" id="modal-prejuizo" style="color:#34d399;"></strong></div>
                 </div>
 
                 <div class="justificativa-box" id="modal-justificativa"></div>
                 <div class="disclaimer-box" id="modal-limitacao"></div>
 
                 <div>
-                    <div style="font-size:11px; font-weight:700; text-transform:uppercase; color:var(--text-muted); margin-bottom:5px;">Trechos Críticos Contornados na Malha:</div>
+                    <div style="font-size:10.5px; font-weight:700; text-transform:uppercase; color:var(--text-muted); margin-bottom:4px;">Trechos Críticos Evitados:</div>
                     <div class="trechos-list" id="modal-trechos-lista"></div>
                 </div>
 
-                <div class="decision-box">
-                    <div style="font-size:11px; font-weight:700; text-transform:uppercase; color:var(--accent);">Supervisão Humana • Registrar Decisão:</div>
+                <div style="border-top:1px solid var(--border); padding-top:8px; display:flex; flex-direction:column; gap:6px;">
+                    <div style="font-size:10.5px; font-weight:700; text-transform:uppercase; color:var(--accent);">Supervisão do Gestor:</div>
                     <input id="input-motivo-gestor" class="ctrl-input" type="text" value="Desvio preventivo validado pela mesa operacional">
                     <div class="btn-group">
-                        <button class="btn-dec btn-approve" onclick="registrarDecisao('APROVAR_DESVIO')">✓ Aprovar Desvio</button>
-                        <button class="btn-dec btn-keep" onclick="registrarDecisao('MANTER_ROTA_ORIGINAL')">Manter Original</button>
-                        <button class="btn-dec btn-wait" onclick="registrarDecisao('AGUARDAR_MELHORA')">Aguardar Janela</button>
+                        <button class="btn-dec" style="background:#059669;" onclick="registrarDecisao('APROVAR_DESVIO')">✓ Aprovar Desvio</button>
+                        <button class="btn-dec" style="background:#475569;" onclick="registrarDecisao('MANTER_ROTA_ORIGINAL')">Manter Original</button>
+                        <button class="btn-dec" style="background:#d97706;" onclick="registrarDecisao('AGUARDAR_MELHORA')">Aguardar</button>
                     </div>
-                    <div id="feedback-decisao" style="font-size:11.5px; color:#34d399; font-weight:600;"></div>
-                    <div class="audit-log" id="historico-decisoes">
-                        <div style="color:var(--text-muted);">Nenhuma decisão registrada nesta operação.</div>
-                    </div>
+                    <div id="feedback-decisao" style="font-size:11px; color:#34d399; font-weight:600;"></div>
+                    <div class="audit-log" id="historico-decisoes"></div>
                 </div>
             </div>
         </main>
@@ -309,6 +424,7 @@
         window.API_KEY = 'key_operator_demo';
         let operacaoSelecionadaId = null;
         let recomendacoesAtuais = [];
+        let frotaAtual = [];
         let decisoesMap = {};
         let filtroAtivo = 'ALL';
         let markerOrig = null;
@@ -322,84 +438,235 @@
         });
 
         map.on('load', () => {
-            map.addSource('rota-original', {
-                type: 'geojson',
-                data: { type: 'FeatureCollection', features: [] }
-            });
+            map.addSource('rota-original', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
             map.addLayer({
-                id: 'layer-rota-original',
-                type: 'line',
-                source: 'rota-original',
-                layout: { 'line-join': 'round', 'line-cap': 'round' },
+                id: 'layer-rota-original', type: 'line', source: 'rota-original',
                 paint: { 'line-color': '#ef4444', 'line-width': 3.5, 'line-dasharray': [2, 2], 'line-opacity': 0.75 }
             });
 
-            map.addSource('trechos-criticos', {
-                type: 'geojson',
-                data: { type: 'FeatureCollection', features: [] }
-            });
+            map.addSource('trechos-criticos', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
             map.addLayer({
-                id: 'layer-trechos-criticos',
-                type: 'line',
-                source: 'trechos-criticos',
-                layout: { 'line-join': 'round', 'line-cap': 'round' },
+                id: 'layer-trechos-criticos', type: 'line', source: 'trechos-criticos',
                 paint: { 'line-color': '#ef4444', 'line-width': 7, 'line-opacity': 0.95 }
             });
 
-            map.addSource('rota-segura', {
-                type: 'geojson',
-                data: { type: 'FeatureCollection', features: [] }
-            });
+            map.addSource('rota-segura', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
             map.addLayer({
-                id: 'layer-rota-segura',
-                type: 'line',
-                source: 'rota-segura',
-                layout: { 'line-join': 'round', 'line-cap': 'round' },
+                id: 'layer-rota-segura', type: 'line', source: 'rota-segura',
                 paint: { 'line-color': '#38bdf8', 'line-width': 5, 'line-opacity': 0.95 }
             });
-
-            executarSimulacao();
         });
 
-        function trocarCredencial() {
-            window.API_KEY = document.getElementById('sel-apikey').value;
+        function preencherLogin(email, senha) {
+            document.getElementById('login-email').value = email;
+            document.getElementById('login-senha').value = senha;
+            realizarLogin();
+        }
+
+        async function realizarLogin() {
+            const email = document.getElementById('login-email').value;
+            const senha = document.getElementById('login-senha').value;
+            const erroEl = document.getElementById('login-erro');
+            erroEl.innerText = '';
+
+            const res = await fetch('/api/v1/logistica/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, senha })
+            });
+
+            if (!res.ok) {
+                erroEl.innerText = 'E-mail corporativo ou senha inválidos.';
+                return;
+            }
+
+            const user = await res.json();
+            window.API_KEY = user.api_key;
+            document.getElementById('lbl-empresa-sub').innerText = `${user.empresa} • Sessão Autenticada (${user.email})`;
+            document.getElementById('lbl-user-tenant').innerText = user.tenant_id;
+            document.getElementById('lbl-user-role').innerText = `PERFIL: ${user.role}`;
+            document.getElementById('login-overlay').style.display = 'none';
+
+            await carregarFrota();
+            await executarSimulacao();
+        }
+
+        function sairSessao() {
             document.getElementById('inspector').style.display = 'none';
-            executarSimulacao();
+            document.getElementById('login-overlay').style.display = 'flex';
         }
 
         function alternarAba(aba) {
             document.getElementById('tab-urbano').classList.toggle('active', aba === 'URBANO');
+            document.getElementById('tab-frota').classList.toggle('active', aba === 'FROTA');
             document.getElementById('tab-corredor').classList.toggle('active', aba === 'CORREDOR');
             document.getElementById('urbano-panel').style.display = aba === 'URBANO' ? 'flex' : 'none';
+            document.getElementById('frota-panel').style.display = aba === 'FROTA' ? 'flex' : 'none';
             document.getElementById('corredor-panel').style.display = aba === 'CORREDOR' ? 'flex' : 'none';
-            if (aba === 'CORREDOR') {
-                carregarCorredorRegional();
+            if (aba === 'FROTA') carregarFrota();
+            if (aba === 'CORREDOR') carregarCorredorRegional();
+        }
+
+        async function carregarFrota() {
+            const res = await fetch('/api/v1/logistica/veiculos', { headers: { 'X-API-Key': window.API_KEY } });
+            if (!res.ok) return;
+            frotaAtual = await res.json();
+            document.getElementById('count-frota').innerText = frotaAtual.length;
+
+            const sel = document.getElementById('desp-veiculo');
+            sel.innerHTML = frotaAtual.map(v => `<option value="${v.id_veiculo}">${v.id_veiculo} • ${v.placa} (${v.modelo} - ${v.tipo_veiculo})</option>`).join('');
+
+            const container = document.getElementById('lista-frota-cards');
+            if (frotaAtual.length === 0) {
+                container.innerHTML = '<div style="color:var(--text-muted); font-size:12px;">Nenhum caminhão cadastrado neste tenant. Cadastre acima!</div>';
+                return;
             }
+            container.innerHTML = frotaAtual.map(v => `
+                <div style="display:flex; justify-content:space-between; align-items:center; background:var(--bg-panel); border:1px solid var(--border); padding:8px 10px; border-radius:6px; font-size:12px;">
+                    <div>
+                        <strong class="mono" style="color:#fff;">${v.id_veiculo}</strong> • <span class="mono" style="color:var(--accent);">${v.placa}</span>
+                        <div style="font-size:11px; color:var(--text-muted);">${v.modelo} (${v.tipo_veiculo})</div>
+                    </div>
+                    <button class="btn-top" onclick="abrirModalDespachoComVeiculo('${v.id_veiculo}')">Traçar Rota →</button>
+                </div>
+            `).join('');
+        }
+
+        async function cadastrarNovoCaminhao() {
+            const payload = {
+                id_veiculo: document.getElementById('veic-id').value.trim(),
+                placa: document.getElementById('veic-placa').value.trim(),
+                modelo: document.getElementById('veic-modelo').value.trim(),
+                tipo_veiculo: document.getElementById('veic-tipo').value,
+                lat_atual: -23.542,
+                lon_atual: -46.468
+            };
+            const fb = document.getElementById('veic-feedback');
+            const res = await fetch('/api/v1/logistica/veiculos', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-API-Key': window.API_KEY },
+                body: JSON.stringify(payload)
+            });
+            if (!res.ok) {
+                fb.style.color = '#f87171';
+                fb.innerText = 'Erro ou permissão insuficiente para cadastrar veículo.';
+                return;
+            }
+            fb.style.color = '#34d399';
+            fb.innerText = `✓ Caminhão ${payload.id_veiculo} (${payload.placa}) salvo na frota!`;
+            await carregarFrota();
+        }
+
+        function abrirModalDespacho() {
+            carregarFrota();
+            document.getElementById('desp-id-op').value = 'OP-' + Math.floor(100 + Math.random() * 899);
+            document.getElementById('desp-feedback').innerText = '';
+            document.getElementById('modal-despacho').style.display = 'flex';
+        }
+
+        function abrirModalDespachoComVeiculo(idVeic) {
+            abrirModalDespacho();
+            setTimeout(() => { document.getElementById('desp-veiculo').value = idVeic; }, 150);
+        }
+
+        function fecharModalDespacho() {
+            document.getElementById('modal-despacho').style.display = 'none';
+        }
+
+        async function buscarViaAutocomplete(tipo, termo) {
+            const drop = document.getElementById('ac-' + tipo);
+            if (!termo || termo.trim().length < 2) {
+                drop.style.display = 'none';
+                return;
+            }
+            const res = await fetch(`/api/v1/logistica/vias/buscar?q=${encodeURIComponent(termo)}`, {
+                headers: { 'X-API-Key': window.API_KEY }
+            });
+            if (!res.ok) return;
+            const vias = await res.json();
+            if (vias.length === 0) {
+                drop.style.display = 'none';
+                return;
+            }
+            drop.innerHTML = vias.map(v => `
+                <div class="ac-item" onclick="selecionarViaAutocomplete('${tipo}', '${v.nome_via.replace(/'/g, "")}', ${v.lat}, ${v.lon})">
+                    <span><strong>${v.nome_via}</strong></span>
+                    <span class="mono" style="font-size:10.5px; color:var(--accent);">IVI ${v.ivi_medio} (${v.classe_risco})</span>
+                </div>
+            `).join('');
+            drop.style.display = 'block';
+        }
+
+        function selecionarViaAutocomplete(tipo, nome, lat, lon) {
+            document.getElementById(`desp-${tipo}-nome`).value = nome;
+            document.getElementById(`desp-${tipo}-lat`).value = lat;
+            document.getElementById(`desp-${tipo}-lon`).value = lon;
+            document.getElementById(`ac-${tipo}`).style.display = 'none';
+        }
+
+        async function criarOperacaoRoteada() {
+            const fb = document.getElementById('desp-feedback');
+            fb.style.color = '#38bdf8';
+            fb.innerText = 'Calculando rota sobre a malha PostGIS...';
+
+            const agora = new Date();
+            const fim = new Date(agora.getTime() + 4 * 3600 * 1000);
+            const idOp = document.getElementById('desp-id-op').value.trim();
+
+            const payload = {
+                id_operacao: idOp,
+                id_veiculo: document.getElementById('desp-veiculo').value,
+                origem_nome: document.getElementById('desp-orig-nome').value.trim() || 'Origem Selecionada',
+                origem_lat: parseFloat(document.getElementById('desp-orig-lat').value),
+                origem_lon: parseFloat(document.getElementById('desp-orig-lon').value),
+                destino_nome: document.getElementById('desp-dest-nome').value.trim() || 'Destino Selecionado',
+                destino_lat: parseFloat(document.getElementById('desp-dest-lat').value),
+                destino_lon: parseFloat(document.getElementById('desp-dest-lon').value),
+                janela_inicio: agora.toISOString().slice(0, 19),
+                janela_fim: fim.toISOString().slice(0, 19)
+            };
+
+            const res = await fetch('/api/v1/logistica/operacoes', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-API-Key': window.API_KEY },
+                body: JSON.stringify(payload)
+            });
+
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                fb.style.color = '#f87171';
+                fb.innerText = err.detail || 'Não foi possível traçar rota entre esses pontos.';
+                return;
+            }
+
+            fecharModalDespacho();
+            alternarAba('URBANO');
+            await executarSimulacao();
+            await selecionarOperacao(idOp);
         }
 
         async function carregarCorredorRegional() {
             const cat = document.getElementById('sel-veiculo-corredor').value;
             const container = document.getElementById('corredor-detalhes');
-            container.innerHTML = '<div style="color:var(--text-muted); font-size:12px;">Consultando corredor SP-310 / SP-348...</div>';
             const res = await fetch(`/api/v1/rotas/intermunicipal?origem=Araraquara&destino=Sao%20Paulo&tipo_veiculo=${cat}`, {
                 headers: { 'X-API-Key': window.API_KEY }
             });
             if (!res.ok) return;
             const d = await res.json();
             container.innerHTML = `
-                <div class="corredor-card">
+                <div class="panel-card">
                     <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:12px;">
-                        <div>Distância Total: <strong class="mono">${d.resumo.distancia_total_km} km</strong></div>
+                        <div>Distância: <strong class="mono">${d.resumo.distancia_total_km} km</strong></div>
                         <div>Tempo Estimado: <strong class="mono">${d.resumo.tempo_real_estimado_min} min</strong></div>
-                        <div>Pedágios (${d.pedagios.quantidade_pracas} praças): <strong class="mono" style="color:#fbbf24;">R$ ${d.pedagios.custo_total_pedagio_reais.toFixed(2)}</strong></div>
-                        <div>Recomendação: <strong style="color:#34d399;">${d.decisao_logistica.recomendacao}</strong></div>
+                        <div>Pedágios (${d.pedagios.quantidade_pracas}): <strong class="mono" style="color:#fbbf24;">R$ ${d.pedagios.custo_total_pedagio_reais.toFixed(2)}</strong></div>
+                        <div>Ação: <strong style="color:#34d399;">${d.decisao_logistica.recomendacao}</strong></div>
                     </div>
                 </div>
-                <div class="corredor-card">
-                    <div style="font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:8px;">Segmentos Monitorados (Open-Meteo)</div>
+                <div class="panel-card">
+                    <div style="font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:8px;">Segmentos Monitorados</div>
                     ${d.segmentos.map(s => `
                         <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid rgba(46,60,86,0.4); font-size:11.5px;">
-                            <span><strong>${s.nome || 'Trecho ' + s.id}</strong> (${s.distancia_km} km)</span>
+                            <span><strong>${s.nome ert{}ert{} 'Trecho ' + s.id}</strong> (${s.distancia_km} km)</span>
                             <span class="mono" style="color:${s.status === 'LIBERADA' ? '#34d399' : '#f87171'};">${s.status} •${s.precipitacao_mm_h} mm/h</span>
                         </div>
                     `).join('')}
@@ -416,9 +683,7 @@
         }
 
         function exportarCsv() {
-            fetch('/api/v1/logistica/exportar-contingencia/csv', {
-                headers: { 'X-API-Key': window.API_KEY }
-            })
+            fetch('/api/v1/logistica/exportar-contingencia/csv', { headers: { 'X-API-Key': window.API_KEY } })
             .then(r => r.blob())
             .then(blob => {
                 const url = window.URL.createObjectURL(blob);
@@ -432,16 +697,14 @@
         async function executarSimulacao() {
             const mm = parseFloat(document.getElementById('sel-chuva').value);
             const tbody = document.getElementById('grid-operacoes');
-            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:24px; color:var(--text-muted);">Processando malha viária PostGIS...</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:24px; color:var(--text-muted);">Calculando impacto na malha...</td></tr>';
 
             let res = await fetch('/api/v1/logistica/simular-impacto', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-API-Key': window.API_KEY },
                 body: JSON.stringify({
                     precipitacao_mm: mm,
-                    parametros_custo: {
-                        prejuizo_potencial_alagamento: Number(document.getElementById('input-prejuizo').value) || 0
-                    }
+                    parametros_custo: { prejuizo_potencial_alagamento: Number(document.getElementById('input-prejuizo').value) || 0 }
                 })
             });
 
@@ -449,15 +712,8 @@
                 const resAtivos = await fetch('/api/v1/logistica/alertas/ativos', { headers: { 'X-API-Key': window.API_KEY } });
                 const ativos = await resAtivos.json();
                 recomendacoesAtuais = ativos.map(a => ({
-                    id_operacao: a.id_operacao,
-                    id_veiculo: a.id_veiculo,
-                    nivel_risco: a.nivel_risco,
-                    impacto: {
-                        km_adicionais: 1.5,
-                        minutos_adicionais: 2.5,
-                        custo_desvio_brl: Number(a.custo_desvio || 0),
-                        prejuizo_potencial_evitado_brl: Number(a.prejuizo_potencial_evitado || 0)
-                    }
+                    id_operacao: a.id_operacao, id_veiculo: a.id_veiculo, nivel_risco: a.nivel_risco,
+                    impacto: { km_adicionais: 1.5, minutos_adicionais: 2.5, custo_desvio_brl: Number(a.custo_desvio || 0), prejuizo_potencial_evitado_brl: Number(a.prejuizo_potencial_evitado || 0) }
                 }));
                 document.getElementById('kpi-total').innerText = recomendacoesAtuais.length;
             } else {
@@ -467,12 +723,8 @@
             }
 
             recomendacoesAtuais.sort((a, b) => b.impacto.custo_desvio_brl - a.impacto.custo_desvio_brl);
-            document.getElementById('lbl-timestamp').innerText = new Date().toLocaleTimeString('pt-BR');
 
-            let custoTotal = 0;
-            let prejuizoTotal = 0;
-            let comDesvioReal = 0;
-
+            let custoTotal = 0, prejuizoTotal = 0, comDesvioReal = 0;
             recomendacoesAtuais.forEach(rec => {
                 custoTotal += rec.impacto.custo_desvio_brl;
                 prejuizoTotal += rec.impacto.prejuizo_potencial_evitado_brl;
@@ -480,11 +732,11 @@
             });
 
             document.getElementById('kpi-afetadas').innerText = comDesvioReal;
-            document.getElementById('kpi-custo').innerText = `R$ ${custoTotal.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
-            document.getElementById('kpi-evitado').innerText = `R$ ${prejuizoTotal.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+            document.getElementById('kpi-custo').innerText = `R$ ${custoTotal.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}`;
+            document.getElementById('kpi-evitado').innerText = `R$ ${prejuizoTotal.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}`;
 
             renderizarTabela();
-            if (recomendacoesAtuais.length > 0) {
+            if (recomendacoesAtuais.length > 0 && !operacaoSelecionadaId) {
                 selecionarOperacao(recomendacoesAtuais[0].id_operacao);
             }
         }
@@ -502,7 +754,7 @@
             });
 
             if (filtradas.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:24px; color:var(--text-muted);">Nenhuma operação encontrada para este filtro/tenant.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:24px; color:var(--text-muted);">Nenhuma operação encontrada. Clique em "+ Despachar Nova Rota"!</td></tr>';
                 return;
             }
 
@@ -540,11 +792,14 @@
             const data = await res.json();
 
             document.getElementById('modal-op-title').innerText = `${data.id_operacao} • ${data.placa} (${data.modelo})`;
+            if (data.coordenadas) {
+                document.getElementById('modal-origem-destino').innerText = `${data.coordenadas.origem_nome} → ${data.coordenadas.destino_nome}`;
+            }
             const acaoEl = document.getElementById('modal-acao');
             acaoEl.innerText = data.acao_recomendada;
             acaoEl.className = 'badge ' + (data.acao_recomendada === 'ALTERAR_ROTA' ? 'badge-CRITICO' : 'badge-DECIDIDO');
 
-            document.getElementById('modal-confianca').innerText = `Confiança Heurística: ${(data.confianca * 100).toFixed(0)}%`;
+            document.getElementById('modal-confianca').innerText = `Confiança: ${(data.confianca * 100).toFixed(0)}%`;
             document.getElementById('box-orig-km').innerText = `${data.metricas.distancia_original_km.toFixed(2)} km`;
             document.getElementById('box-orig-min').innerText = `${data.metricas.tempo_original_min.toFixed(1)} min nominais`;
             document.getElementById('box-alt-km').innerText = `${data.metricas.distancia_alternativa_km.toFixed(2)} km`;
@@ -568,28 +823,18 @@
 
                 if (data.coordenadas) {
                     const elO = document.createElement('div');
-                    elO.className = 'marker-pin';
-                    elO.style.background = '#10b981';
-                    elO.innerText = 'O';
-                    markerOrig = new maplibregl.Marker({ element: elO })
-                        .setLngLat([data.coordenadas.origem_lon, data.coordenadas.origem_lat])
-                        .addTo(map);
+                    elO.className = 'marker-pin'; elO.style.background = '#10b981'; elO.innerText = 'O';
+                    markerOrig = new maplibregl.Marker({ element: elO }).setLngLat([data.coordenadas.origem_lon, data.coordenadas.origem_lat]).addTo(map);
 
                     const elD = document.createElement('div');
-                    elD.className = 'marker-pin';
-                    elD.style.background = '#38bdf8';
-                    elD.innerText = 'D';
-                    markerDest = new maplibregl.Marker({ element: elD })
-                        .setLngLat([data.coordenadas.destino_lon, data.coordenadas.destino_lat])
-                        .addTo(map);
+                    elD.className = 'marker-pin'; elD.style.background = '#38bdf8'; elD.innerText = 'D';
+                    markerDest = new maplibregl.Marker({ element: elD }).setLngLat([data.coordenadas.destino_lon, data.coordenadas.destino_lat]).addTo(map);
                 }
 
                 const coords = [];
                 [origGeo, altGeo].forEach(g => {
                     (g.features || []).forEach(f => {
-                        if (f.geometry && f.geometry.coordinates) {
-                            f.geometry.coordinates.forEach(c => coords.push(c));
-                        }
+                        if (f.geometry && f.geometry.coordinates) f.geometry.coordinates.forEach(c => coords.push(c));
                     });
                 });
                 if (coords.length > 0) {
@@ -606,10 +851,7 @@
                 data.pontos_bloqueio.forEach(t => {
                     const item = document.createElement('div');
                     item.className = 'trecho-item';
-                    item.innerHTML = `
-                        <span><strong style="color:#f87171;">[${t.status}]</strong> ${t.nome_via}</span>
-                        <span class="mono" style="color:var(--text-muted);">${t.extensao_metros}m • IVI ${t.score_risco}</span>
-                    `;
+                    item.innerHTML = `<span><strong style="color:#f87171;">[${t.status}]</strong> ${t.nome_via}</span><span class="mono" style="color:var(--text-muted);">${t.extensao_metros}m • IVI ${t.score_risco}</span>`;
                     trechosDiv.appendChild(item);
                 });
             }
@@ -645,13 +887,13 @@
             });
             if (res.status === 403) {
                 document.getElementById('feedback-decisao').style.color = '#f87171';
-                document.getElementById('feedback-decisao').innerText = '⚠ Perfil VIEWER possui apenas permissão de leitura (RBAC).';
+                document.getElementById('feedback-decisao').innerText = 'Perfil VIEWER possui apenas permissão de leitura (RBAC).';
                 return;
             }
             if (res.ok) {
                 const info = await res.json();
                 document.getElementById('feedback-decisao').style.color = '#34d399';
-                document.getElementById('feedback-decisao').innerText = `✓ Decisão [${info.decisao_registrada}] gravada na auditoria (#${info.id_decisao})`;
+                document.getElementById('feedback-decisao').innerText = `✓ Decisão [${info.decisao_registrada}] auditada (#${info.id_decisao})`;
                 await carregarHistoricoDecisoes(operacaoSelecionadaId);
             }
         }

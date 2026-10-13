@@ -1071,3 +1071,86 @@ async def listar_decisoes_gestor(id_operacao: str, tenant_id: str = Depends(reso
         }
         for r in rows
     ]
+
+
+class LoginCorporativoRequest(BaseModel):
+    email: str
+    senha: str
+
+USUARIOS_CORPORATIVOS = {
+    "operacoes@democorp.com.br": {
+        "senha": "sprain2026",
+        "empresa": "TransPaulista Logistica S.A.",
+        "tenant_id": "demo_corp",
+        "role": "OPERATOR",
+        "api_key": "key_operator_demo"
+    },
+    "diretoria@democorp.com.br": {
+        "senha": "sprain2026",
+        "empresa": "TransPaulista Logistica S.A.",
+        "tenant_id": "demo_corp",
+        "role": "ADMIN",
+        "api_key": "key_admin_demo"
+    },
+    "auditoria@democorp.com.br": {
+        "senha": "sprain2026",
+        "empresa": "TransPaulista Logistica S.A.",
+        "tenant_id": "demo_corp",
+        "role": "VIEWER",
+        "api_key": "key_viewer_demo"
+    },
+    "frota@logexpress.com.br": {
+        "senha": "express2026",
+        "empresa": "LogExpress Transportes Regionais Ltda.",
+        "tenant_id": "log_express",
+        "role": "ADMIN",
+        "api_key": "key_admin_express"
+    }
+}
+
+@router.post("/auth/login")
+async def login_corporativo(dados: LoginCorporativoRequest):
+    email_limpo = dados.email.strip().lower()
+    user = USUARIOS_CORPORATIVOS.get(email_limpo)
+    if not user or user["senha"] != dados.senha:
+        raise HTTPException(status_code=401, detail="Credenciais corporativas invalidas.")
+    return {
+        "autenticado": True,
+        "email": email_limpo,
+        "empresa": user["empresa"],
+        "tenant_id": user["tenant_id"],
+        "role": user["role"],
+        "api_key": user["api_key"]
+    }
+
+@router.get("/vias/buscar", dependencies=[Depends(require_role(["ADMIN", "OPERATOR", "VIEWER"]))])
+async def buscar_vias_malha(q: str = Query(..., min_length=2), conn: asyncpg.Connection = Depends(get_connection)):
+    termo = f"%{q.strip()}%"
+    rows = await conn.fetch("""
+        SELECT 
+            MIN(id_trecho) AS id_trecho,
+            name AS nome_via,
+            COALESCE(MAX(classe_risco), 'Baixo') AS classe_risco,
+            ROUND(AVG(COALESCE(ivi_score, 0))::numeric, 1)::float AS ivi_medio,
+            ROUND(AVG(ST_Y(ST_Centroid(ST_Transform(geom, 4326))))::numeric, 6)::float AS lat,
+            ROUND(AVG(ST_X(ST_Centroid(ST_Transform(geom, 4326))))::numeric, 6)::float AS lon
+        FROM trechos_osm
+        WHERE name IS NOT NULL
+          AND source IS NOT NULL
+          AND target IS NOT NULL
+          AND translate(lower(name), 'áàâãéêíóôõúç', 'aaaaeeiooouc') LIKE translate(lower($1), 'áàâãéêíóôõúç', 'aaaaeeiooouc')
+        GROUP BY name
+        ORDER BY COUNT(*) DESC, name ASC
+        LIMIT 12;
+    """, termo)
+    return [
+        {
+            "id_trecho": r["id_trecho"],
+            "nome_via": r["nome_via"],
+            "classe_risco": r["classe_risco"],
+            "ivi_medio": r["ivi_medio"],
+            "lat": r["lat"],
+            "lon": r["lon"]
+        }
+        for r in rows
+    ]
