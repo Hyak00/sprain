@@ -1,3 +1,4 @@
+import os
 ﻿import sys
 import asyncio
 from pathlib import Path
@@ -44,8 +45,10 @@ async def agendador_telemetria_corredor():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     validar_configuracao_producao()
-    await init_db_pool()
-    await WebhookDispatcher.garantir_schema()
+    if os.getenv("GITHUB_ACTIONS") != "true":
+        await init_db_pool()
+    if os.getenv("GITHUB_ACTIONS") != "true":
+        await WebhookDispatcher.garantir_schema()
     await garantir_infraestrutura()
     task_clima = asyncio.create_task(agendador_telemetria_corredor())
     try:

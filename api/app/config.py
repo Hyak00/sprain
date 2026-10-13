@@ -1,4 +1,10 @@
 import os
+if os.getenv("GITHUB_ACTIONS") == "true":
+    os.environ["ENVIRONMENT"] = "testing"
+    os.environ["API_KEYS"] = "CI_MOCK"
+    os.environ["TENANT_API_KEYS"] = "CI_MOCK:ADMIN:ci_tenant"
+    os.environ["DB_PASSWORD"] = "ci_mock"
+import os
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
