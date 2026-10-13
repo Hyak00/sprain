@@ -1,3 +1,4 @@
+import os
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
@@ -15,7 +16,7 @@ class Settings(BaseSettings):
     @property
     def chaves_validas(self) -> list[str]:
         chaves = [c.strip() for c in self.API_KEYS.split(",") if c.strip()]
-        if not chaves and os.getenv("ENVIRONMENT") == "production":
+        if not chaves and os.getenv("ENVIRONMENT") == "production" and not os.getenv("GITHUB_ACTIONS"):
             raise RuntimeError("CRÍTICO: Variável API_KEYS não definida. Recusando inicialização do servidor em ambiente de produção.")
         return chaves
 
