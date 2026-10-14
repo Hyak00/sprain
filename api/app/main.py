@@ -14,7 +14,8 @@ from app.services.observabilidade import ObservabilidadeMiddleware
 from app.database import init_db_pool, close_db_pool
 from app.services.webhook_dispatcher import WebhookDispatcher
 from app.services.infraestrutura_viaria import garantir_schema as garantir_infraestrutura
-from app.routers import infraestrutura, malha
+from app.services.dados_publicos import garantir_schema as garantir_dados_publicos
+from app.routers import infraestrutura, malha, dados_publicos
 from app.routers import (
     estatisticas,
     trechos,
@@ -50,6 +51,7 @@ async def lifespan(app: FastAPI):
     if os.getenv("GITHUB_ACTIONS") != "true":
         await WebhookDispatcher.garantir_schema()
     await garantir_infraestrutura()
+    await garantir_dados_publicos()
     task_clima = asyncio.create_task(agendador_telemetria_corredor())
     try:
         yield
@@ -117,6 +119,7 @@ app.include_router(logistica.router)
 app.include_router(health.router)
 app.include_router(infraestrutura.router)
 app.include_router(malha.router)
+app.include_router(dados_publicos.router)
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 static_dir = BASE_DIR / "static"

@@ -36,5 +36,21 @@ services:
       db:
         condition: service_healthy
 
+  dados-publicos:
+    build: .
+    profiles: ["dados"]
+    restart: unless-stopped
+    command: ["python", "-B", "/app/scripts/worker_dados_publicos.py"]
+    environment:
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_USER: ${DB_USER:-enchentes}
+      DB_PASSWORD: ${DB_PASSWORD:-enchentes}
+      DB_NAME: ${DB_NAME:-enchentes}
+      DADOS_PUBLICOS_INTERVALO_HORAS: ${DADOS_PUBLICOS_INTERVALO_HORAS:-24}
+    depends_on:
+      db:
+        condition: service_healthy
+
 volumes:
   pgdata:
