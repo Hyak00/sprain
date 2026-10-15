@@ -5,6 +5,7 @@ window.InfraCaminhoes = (() => {
         ['comprimento_m','Comprimento (m)',100],['peso_total_t','Peso com carga (t)',300],['eixos','Eixos',15]];
     const custos = [['custo_por_km','Custo por km (R$)'],['custo_hora_motorista','Motorista / hora (R$)'],
         ['custo_operacional_veiculo_hora','Veículo / hora (R$)'],['prejuizo_potencial_alagamento','Perda potencial por alagamento (R$)']];
+    custos.push(['consumo_km_l','Consumo com carga (km/L)'],['preco_combustivel_litro','Preco de referencia do diesel (R$/L)'],['custo_por_km_sem_combustivel','Custo por km SEM combustivel (R$)']);
     custos.push(['custo_atraso_hora','Custo contratual por hora de atraso (R$)']);
     const money = n => n == null ? 'A confirmar' : Number(n).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
     let epoch=0;
@@ -30,20 +31,25 @@ window.InfraCaminhoes = (() => {
             label.appendChild(input);
         });
         texto(box,'p','Custos próprios substituem as premissas gerais para este caminhão/viagem. Perda potencial é uma premissa, não uma perda real nem economia garantida.');
+        const data=texto(box,'label','Data de coleta do preco (quando pesquisado)');const input=document.createElement('input');input.type='date';input.id=id+'-combustivel_data_coleta';input.className='ctrl-input';data.appendChild(input);
+        texto(box,'p','Custos opcionais: em branco, o sistema estima consumo e custo do diesel com a referencia ANP de SP. Informe o consumo real para melhorar a estimativa. O custo total por km informado tem prioridade; nao soma combustivel novamente.');
         parent.appendChild(box); return box;
     }
     function ler(id) {
         const values = lista => Object.fromEntries(lista.map(([k])=>[k,document.getElementById(id+'-'+k).value])
             .filter(([,v])=>v!=='').map(([k,v])=>[k,Number(v)]));
         const dims=values(medidas), cs=values(custos);
+        const data=document.getElementById(id+'-combustivel_data_coleta').value;
+        if(data)cs.combustivel_data_coleta=data;
         if(Object.keys(dims).length && Object.keys(dims).length!==5) throw new Error('Informe as cinco medidas do caminhão, ou deixe todas vazias para usar o cadastro.');
-        for(const [k,v] of Object.entries({...dims,...cs})) {
+        for(const [k,v] of Object.entries({...dims,...cs}).filter(([k])=>k!=='combustivel_data_coleta')) {
             const input=document.getElementById(id+'-'+k);
             if(!Number.isFinite(v)||!input.checkValidity()) throw new Error('Confira o valor de '+input.parentElement.firstChild.textContent+'.');
         }
         return {...(Object.keys(dims).length?{dimensoes:dims}:{}),...(Object.keys(cs).length?{custos_operacionais:cs}:{})};
     }
     function preencher(id,v={}) {
+        document.getElementById(id+'-combustivel_data_coleta').value=v.custos_operacionais?.combustivel_data_coleta||'';
         [...medidas,...custos].forEach(([k])=>document.getElementById(id+'-'+k).value=
             v.dimensoes?.[k]??v.custos_operacionais?.[k]??'');
     }
@@ -68,6 +74,7 @@ window.InfraCaminhoes = (() => {
         sel.value=anterior;
     }
     function limpar() {
+        window.DadosViagem?.limpar();
         epoch++; pontos={type:'FeatureCollection',features:[]};
         window.SESSION_EPOCH=epoch;
         limitesMapa={type:'FeatureCollection',features:[]};
@@ -92,6 +99,7 @@ window.InfraCaminhoes = (() => {
         parent.replaceChildren(); if(!info) return;
         texto(parent,parent.tagName==='DETAILS'?'summary':'strong','Pedágios, caminhão e restrições');
         const dims=info.dimensoes;
+        if(info.custo_planejado_conhecido_brl!=null)texto(parent,'p','Custo conhecido do planejamento salvo: '+money(info.custo_planejado_conhecido_brl)+'. Tarifas pendentes podem alterar esse valor.');
         texto(parent,'p',dims?`${dims.altura_m} m de altura · ${dims.largura_m} m de largura · ${dims.comprimento_m} m de comprimento · ${dims.peso_total_t} t com carga · ${dims.eixos} eixos`:
             'Medidas do caminhão não informadas. Não há liberação automática de pontes.');
         [['Original',info.original],['Alternativa',info.alternativa]].forEach(([nome,rota])=>{
@@ -108,6 +116,7 @@ window.InfraCaminhoes = (() => {
         });
         const f=info.financeiro;
         if(f) {
+            if(f.combustivel){const c=f.combustivel;texto(parent,'p',c.aviso+' Custo variavel por km: '+money(c.custo_por_km_aplicado));if(c.consumo_km_l)texto(parent,'p',`${c.consumo_estimado?'Consumo estimado por referencia estatistica':'Consumo informado'}: ${c.consumo_km_l} km/L · diesel ${money(c.preco_litro)}/L · coleta ${c.data_coleta||'premissa informada'}. Os custos horarios do motorista e veiculo sao calculados separadamente.`);}
             texto(parent,'p','Diferença de pedágios conhecidos: '+money(f.delta_pedagios_conhecidos_brl));
             texto(parent,'p','Economia líquida potencial, após custo do desvio: '+money(f.economia_liquida_potencial_brl));
             if(f.trechos_risco_residual_alternativa) texto(parent,'p',`${f.trechos_risco_residual_alternativa} trecho(s) continuam com risco climático no modelo da alternativa. Não foi atribuída perda por alagamento evitada a esse desvio.`);
@@ -117,7 +126,9 @@ window.InfraCaminhoes = (() => {
         mapa(info);
     }
     async function corredor(lista) {
+        window.DadosViagem?.limpar();
         const atual=epoch;
+        const atualizacao=corredorAtualizacao;
         const container=document.getElementById('corredor-detalhes');
         const avisoBase=document.createElement('div');avisoBase.className='panel-card';
         avisoBase.textContent='Demonstração fixa anterior: segmentos e valores de exemplo. A avaliação abaixo usa as medidas e as referências da malha real.';
@@ -141,13 +152,17 @@ window.InfraCaminhoes = (() => {
             body:JSON.stringify({origem_lon:-48.1867913,origem_lat:-21.8126273,
                 destino_lon:-46.7561156,destino_lat:-23.444725,veiculo:dims,perfil:'FASTEST',
                 custos_operacionais:{...(veiculo?.custos_operacionais||{}),...(extra.custos_operacionais||{})}})});
-        const data=await res.json(); if(atual!==epoch) return;
+        const data=await res.json(); if(atual!==epoch || atualizacao!==corredorAtualizacao || document.getElementById('corredor-panel').style.display==='none') return;
         if(!res.ok) {texto(avisoBase,'p',typeof data.detail==='string'?data.detail:'Não foi possível avaliar a rota para essas medidas.');mapa(null);return;}
         const card=document.createElement('div'); card.className='panel-card';container.appendChild(card);
         texto(card,'strong','Corredor de referência avaliado para este caminhão');
         texto(card,'p',`${data.rota.distancia_km} km · ${data.rota.tempo_min} min estimados. Pontos de referência rodoviários; confirme os endereços reais no despacho.`);
         texto(card,'p','Custo de viagem com premissas e tarifas conhecidas: '+money(data.custos?.custo_original_conhecido_brl)+'. Estimativa parcial; tarifas pendentes não estão incluídas.');
+        texto(card,'p','Custo medio conhecido por km, incluindo tempo e pedagios conhecidos: '+money(data.custos?.custo_medio_original_conhecido_por_km_brl)+'/km.');
+        if(data.custos?.combustivel){const c=data.custos.combustivel;texto(card,'p',`Custo variavel: ${money(c.custo_por_km_aplicado)}/km · consumo ${c.consumo_km_l||'incluido no custo total'} km/L · ${c.consumo_estimado?'estimativa estatistica; ajuste com consumo real':'premissa informada'}`);texto(card,'p',c.aviso);}
         const detalhe=document.createElement('div');card.appendChild(detalhe);
+        const dados=document.createElement('details');dados.className='infra-complemento';card.appendChild(dados);
+        window.DadosViagem?.exibir([data.rota.geojson],dados);
         mostrar(detalhe,{dimensoes:dims,original:data.rota.infraestrutura});
         if(map.getSource('rota-segura')) map.getSource('rota-segura').setData(data.rota.geojson);
         if(markerOrig) markerOrig.remove();if(markerDest)markerDest.remove();

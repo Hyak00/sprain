@@ -46,10 +46,8 @@ async def agendador_telemetria_corredor():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     validar_configuracao_producao()
-    if os.getenv("GITHUB_ACTIONS") != "true":
-        await init_db_pool()
-    if os.getenv("GITHUB_ACTIONS") != "true":
-        await WebhookDispatcher.garantir_schema()
+    await init_db_pool()
+    await WebhookDispatcher.garantir_schema()
     await garantir_infraestrutura()
     await garantir_dados_publicos()
     task_clima = asyncio.create_task(agendador_telemetria_corredor())

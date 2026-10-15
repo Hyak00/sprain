@@ -1,7 +1,7 @@
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
 from pydantic import model_validator
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from app.schemas_infraestrutura import VeiculoDimensoes
 
 class CustosCaminhao(BaseModel):
@@ -11,6 +11,16 @@ class CustosCaminhao(BaseModel):
     custo_operacional_veiculo_hora: Optional[float] = Field(default=None, ge=0, allow_inf_nan=False)
     custo_atraso_hora: Optional[float] = Field(default=None, ge=0, allow_inf_nan=False)
     prejuizo_potencial_alagamento: Optional[float] = Field(default=None, ge=0, allow_inf_nan=False)
+    consumo_km_l: Optional[float] = Field(default=None, gt=0, le=100, allow_inf_nan=False)
+    preco_combustivel_litro: Optional[float] = Field(default=None, gt=0, le=100, allow_inf_nan=False)
+    custo_por_km_sem_combustivel: Optional[float] = Field(default=None, ge=0, allow_inf_nan=False)
+    combustivel_data_coleta: Optional[date] = None
+
+    @model_validator(mode='after')
+    def validar_combustivel(self):
+        if self.combustivel_data_coleta and self.combustivel_data_coleta > date.today():
+            raise ValueError('Data de coleta do combustivel nao pode ser futura.')
+        return self
 
 class VeiculoCreate(BaseModel):
     tenant_id: str = "demo_corp"

@@ -56,6 +56,7 @@ def feature(ponto, avaliacao=None):
             )},
             "tarifa_por_eixo": float(ponto["tarifa_por_eixo"]) if ponto["tarifa_por_eixo"] is not None else None,
             "origem_dados": ponto.get("origem_dados", "CADASTRO_MANUAL"),
+            "grupo_cobranca": ponto.get('grupo_cobranca'),
             **(avaliacao or {}),
         },
     }
@@ -85,7 +86,15 @@ def resumir_rota(pontos, ids_trechos, dimensoes):
     ordem = {edge:seq for seq,edge in enumerate(ids_trechos)}
     caminho = sorted((p for p in pontos if p["id_trecho"] in ids),key=lambda p:ordem[p["id_trecho"]])
     avaliacoes = {p["id"]: avaliar_ponto(p, veiculo) for p in caminho}
-    pedagios = [avaliacoes[p["id"]] for p in caminho if p["tipo"] == "PEDAGIO"]
+    grupos = {}
+    for p in caminho:
+        if p['tipo'] == 'PEDAGIO':
+            grupos.setdefault(p.get('grupo_cobranca') or ('ponto', p['id']), []).append(avaliacoes[p['id']])
+    pedagios = []
+    for pontos_grupo in grupos.values():
+        tarifas = {p['custo_estimado_reais'] for p in pontos_grupo}
+        # Divergencia ou uma cabine sem tarifa confirmada torna o grupo pendente.
+        pedagios.append({'custo_estimado_reais': tarifas.pop() if len(tarifas) == 1 else None})
     conhecidos = [Decimal(str(p["custo_estimado_reais"])) for p in pedagios
                   if p["custo_estimado_reais"] is not None]
     return {

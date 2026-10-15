@@ -1,10 +1,4 @@
 import os
-if os.getenv("GITHUB_ACTIONS") == "true":
-    os.environ["ENVIRONMENT"] = "testing"
-    os.environ["API_KEYS"] = "CI_MOCK"
-    os.environ["TENANT_API_KEYS"] = "CI_MOCK:ADMIN:ci_tenant"
-    os.environ["DB_PASSWORD"] = "ci_mock"
-import os
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
@@ -22,7 +16,7 @@ class Settings(BaseSettings):
     @property
     def chaves_validas(self) -> list[str]:
         chaves = [c.strip() for c in self.API_KEYS.split(",") if c.strip()]
-        if not chaves and os.getenv("ENVIRONMENT") == "production" and not os.getenv("GITHUB_ACTIONS"):
+        if not chaves and os.getenv("ENVIRONMENT") == "production":
             raise RuntimeError("CRÍTICO: Variável API_KEYS não definida. Recusando inicialização do servidor em ambiente de produção.")
         return chaves
 

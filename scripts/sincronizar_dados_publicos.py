@@ -115,6 +115,9 @@ def ler_artesp(dados: bytes, url_fonte: str) -> tuple[list[dict], dict]:
             "veiculos": veiculos, "latitude": latitude, "longitude": longitude,
             "url_fonte": url_fonte,
         })
+    unicos = {r['id_fonte']: r for r in registros}
+    resumo['duplicados'] = len(registros) - len(unicos)
+    registros = list(unicos.values())
     resumo["tombamentos_com_caminhao"] = len(registros)
     return registros, resumo
 
@@ -505,7 +508,7 @@ def aplicar(fonte: str, url: str, dados: bytes, registros: list[dict]):
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("fonte", choices=("artesp", "anp", "anp-cadastro", "ssp-roubo", "roubo-carga", "coordenadas-postos", "todas"))
+    parser.add_argument("fonte", choices=("artesp", "anp", "anp-semanal", "anp-cadastro", "ssp-roubo", "roubo-carga", "coordenadas-postos", "todas"))
     parser.add_argument("--anos", nargs="+", type=int, help="Anos ARTESP; padrao: atual e dois anteriores")
     parser.add_argument("--anos-ssp", nargs="+", type=int, help="Anos SSP; padrao: atual e anterior")
     parser.add_argument("--arquivo", type=Path, help="CSV local para uma unica fonte")
@@ -540,6 +543,10 @@ def main() -> None:
             for url in fontes_anp(date.today().year):
                 produto = "DIESEL" if "diesel" in url.lower() else "GASOLINA"
                 tarefas.append((f"ANP_{produto}", url, baixar(url)))
+        if args.fonte in ("anp-semanal", "todas"):
+            from anp_semanal import CATALOGO, descobrir_url
+            url = descobrir_url(baixar(CATALOGO).decode('utf-8'))
+            tarefas.append(('ANP_SEMANAL', url, baixar(url)))
         if args.fonte in ("anp-cadastro", "todas"):
             tarefas.append(("ANP_CADASTRO", ANP_CADASTRO, baixar_cadastro_anp()))
         if args.fonte in ("ssp-roubo", "todas"):
@@ -554,6 +561,11 @@ def main() -> None:
             registros, resumo = ler_artesp(dados, url)
         elif fonte == "ANP_CADASTRO":
             registros, resumo = ler_anp_cadastro(dados)
+        elif fonte == 'ANP_SEMANAL':
+            from anp_semanal import para_csv
+            registros, resumo = ler_anp(para_csv(dados), url)
+            if not registros or resumo['invalidos']:
+                raise ValueError('Planilha semanal ANP vazia ou com linhas invalidas; importacao cancelada.')
         elif fonte.startswith("ANP"):
             registros, resumo = ler_anp(dados, url)
         elif fonte == "COORDENADAS_POSTOS":

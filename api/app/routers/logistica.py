@@ -20,6 +20,7 @@ from app.schemas import (
     ParametrosFinanceiros
 )
 from app.services.routing_engine import RoutingEngine
+from app.services.custo_combustivel import custo_quilometrico, resolver_custos
 from app.services.viagem_caminhao import ContextoViagens, dados_viagem, objeto, gravar_recomendacao
 from app.services.infraestrutura_viaria import dimensoes_veiculo
 from app.schemas_infraestrutura import VeiculoDimensoes
@@ -121,7 +122,8 @@ async def criar_operacao(dados: OperacaoCreate, conn: asyncpg.Connection = Depen
     dims=dados.dimensoes.model_dump() if dados.dimensoes else cadastradas
     frota=await conn.fetchrow("SELECT tipo_veiculo,custos_operacionais FROM veiculos WHERE id_veiculo=$1 AND tenant_id=$2",dados.id_veiculo,tenant_id)
     custos=(objeto(frota['custos_operacionais']) if frota else {}) | (
-        dados.custos_operacionais.model_dump(exclude_none=True) if dados.custos_operacionais else {})
+        dados.custos_operacionais.model_dump(mode="json", exclude_none=True) if dados.custos_operacionais else {})
+    custos=await resolver_custos(conn,custos,dims)
     dono=await conn.fetchval("SELECT tenant_id FROM operacoes WHERE id_operacao=$1",dados.id_operacao)
     if dono and dono!=tenant_id:
         raise HTTPException(403,"Operacao pertence a outra empresa.")
@@ -135,7 +137,7 @@ async def criar_operacao(dados: OperacaoCreate, conn: asyncpg.Connection = Depen
     dist_km = rota_inicial["distancia_km"]
     tempo_min = rota_inicial["tempo_min"]
     premissas=ParametrosFinanceiros().model_dump() | custos
-    custo_estimado=(dist_km*premissas['custo_por_km']+(tempo_min/60)*(premissas['custo_hora_motorista']+premissas['custo_operacional_veiculo_hora'])
+    custo_estimado=(dist_km*custo_quilometrico(premissas)['custo_por_km_aplicado']+(tempo_min/60)*(premissas['custo_hora_motorista']+premissas['custo_operacional_veiculo_hora'])
                     +rota_inicial['infraestrutura']['pedagios']['subtotal_conhecido_reais'])
 
     query = """
@@ -309,6 +311,7 @@ async def obter_explicacao_decisao(id_operacao: str, tenant_id: str = Depends(re
         'alternativa':snapshot.get('alternativa',{}).get('infraestrutura') if snapshot.get('alternativa') else None,
         'financeiro':snapshot.get('financeiro'),'dimensoes':dados_viagem(contexto.ops[0])[0],
         'aviso':'Custos da recomendacao sao uma fotografia do recalculo; cadastros atuais da rota original podem ter mudado.'}
+    infraestrutura['custo_planejado_conhecido_brl']=float(op['custo_estimado'] or 0)
     if snapshot.get('alternativa'):
         dist_alt=snapshot['alternativa']['distancia_km']
         tempo_alt=snapshot['alternativa']['tempo_min']
@@ -796,12 +799,15 @@ async def tomar_decisao_economica(dados: DecisaoEconomicaRequest, conn: asyncpg.
     cadastradas=await dimensoes_veiculo(conn,tenant_id,dados.id_veiculo)
     dims=dados.dimensoes.model_dump() if dados.dimensoes else cadastradas
     custos=objeto(await conn.fetchval('SELECT custos_operacionais FROM veiculos WHERE id_veiculo=$1 AND tenant_id=$2',dados.id_veiculo,tenant_id))
+    custos=await resolver_custos(conn,custos,dims)
     parametros=dados.parametros.model_dump()
     mapeamento={'custo_por_km':'custo_por_km','custo_hora_motorista':'custo_hora_motorista',
                 'custo_operacional_veiculo_hora':'custo_hora_veiculo'}
     for origem,destino in mapeamento.items():
         if origem in custos and destino not in dados.parametros.model_fields_set:
             parametros[destino]=custos[origem]
+    if all(custos.get(k) is not None for k in ('consumo_km_l', 'preco_combustivel_litro', 'custo_por_km_sem_combustivel')) and not {'custo_por_km','consumo_km_l','preco_diesel_litro'} & dados.parametros.model_fields_set:
+        parametros['custo_por_km'] = custo_quilometrico(custos)['custo_por_km_aplicado']
     rota_direta = await RoutingEngine.compute_route(
         conn, dados.origem_lon, dados.origem_lat, dados.destino_lon, dados.destino_lat, profile="FASTEST", rain_mm=0.0, tenant_id=dados.tenant_id, vehicle_dimensions=dims
     )
@@ -1200,8 +1206,8 @@ async def atualizar_planejamento_caminhao(id_operacao: str,dados: PlanejamentoCa
             tenant_id=tenant_id,vehicle_dimensions=dados.dimensoes.model_dump(),profile=dados.perfil)
         if rota is None:
             raise HTTPException(422,"Nao existe rota disponivel para essas medidas na malha cadastrada.")
-        premissas=ParametrosFinanceiros().model_dump() | objeto(op['custos_operacionais'])
-        custo=(rota['distancia_km']*premissas['custo_por_km']+(rota['tempo_min']/60)*(premissas['custo_hora_motorista']+premissas['custo_operacional_veiculo_hora'])
+        premissas=ParametrosFinanceiros().model_dump() | await resolver_custos(conn,objeto(op['custos_operacionais']),dados.dimensoes.model_dump())
+        custo=(rota['distancia_km']*custo_quilometrico(premissas)['custo_por_km_aplicado']+(rota['tempo_min']/60)*(premissas['custo_hora_motorista']+premissas['custo_operacional_veiculo_hora'])
                +rota['infraestrutura']['pedagios']['subtotal_conhecido_reais'])
         await conn.execute("""UPDATE operacoes SET dimensoes=$3::jsonb,distancia_planejada_km=$4,
             tempo_planejado_min=$5,custo_estimado=$6,perfil_rota=$7 WHERE id_operacao=$1 AND tenant_id=$2""",

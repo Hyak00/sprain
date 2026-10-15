@@ -29,6 +29,7 @@ window.CadastroInfra = (()=>{
         const i=campo(k,n,'number');i.step='any';i.min=k==='tarifa_por_eixo'?0:0.01;
     });
     campo('fonte','Fonte confirmada (documento ou link)').required=true;
+    campo('grupo_cobranca','Grupo da mesma praca (opcional, evita contar cabines duas vezes)');
     ['verificado_em','valido_ate'].forEach(k=>campo(k,k==='verificado_em'?'Consulta realizada em':'Revisar até','datetime-local').required=true);
     const salvar=el('button',form,'Salvar cadastro confirmado');salvar.type='submit';salvar.className='btn-top';
     const historico=el('button',painel,'Ver histórico');historico.type='button';historico.className='btn-top';
@@ -82,6 +83,7 @@ window.CadastroInfra = (()=>{
             else if(i.type==='number')payload[k]=i.value===''?null:Number(i.value);
             else payload[k]=i.value.trim();
         });
+        if(!payload.grupo_cobranca)payload.grupo_cobranca=null;
         if(tipo.value==='PEDAGIO')['altura_max_m','largura_max_m','comprimento_max_m','peso_max_t'].forEach(k=>payload[k]=null);
         else payload.tarifa_por_eixo=null;
         await request('infraestrutura/pontos'+(id===null?'':'/'+id),id===null?'POST':'PUT',payload);

@@ -1,6 +1,5 @@
 """Consultas de dados historicos; nenhuma estimativa e apresentada como dado ao vivo."""
 
-import json
 import math
 from datetime import date, timedelta
 from typing import Any
@@ -153,50 +152,33 @@ class ConsultaRota(BaseModel):
     raio_tombamento_m: int = Field(500, ge=50, le=5000)
     raio_posto_m: int = Field(3000, ge=100, le=10000)
     produto: str = Field("DIESEL S10", min_length=2, max_length=50)
+    incluir_postos_nao_verificados: bool = False
 
     @model_validator(mode="after")
     def validar_rota(self):
-        coordenadas = self.rota.get("coordinates")
-        if (set(self.rota) != {"type", "coordinates"} or self.rota.get("type") != "LineString"
-                or not isinstance(coordenadas, list) or not 2 <= len(coordenadas) <= 2000):
-            raise ValueError("Informe uma LineString GeoJSON com 2 a 2000 pontos.")
-        for ponto in coordenadas:
-            if (not isinstance(ponto, list) or len(ponto) != 2
-                    or not all(isinstance(v, (int, float)) and not isinstance(v, bool)
-                               and math.isfinite(v) for v in ponto)
-                    or not -180 <= ponto[0] <= 180 or not -90 <= ponto[1] <= 90):
-                raise ValueError("Coordenadas GeoJSON invalidas.")
+        tipo = self.rota.get('type')
+        coordenadas = self.rota.get('coordinates')
+        if set(self.rota) != {'type', 'coordinates'} or tipo not in ('LineString', 'MultiLineString'):
+            raise ValueError('Informe LineString ou MultiLineString GeoJSON.')
+        if not isinstance(coordenadas, list):
+            raise ValueError('Coordenadas devem ser listas.')
+        linhas = [coordenadas] if tipo == 'LineString' else coordenadas
+        if not linhas or sum(len(linha) for linha in linhas if isinstance(linha, list)) > 100000:
+            raise ValueError('Rota vazia ou com mais de 100000 pontos.')
+        for linha in linhas:
+            if not isinstance(linha, list) or len(linha) < 2:
+                raise ValueError('Cada segmento precisa de ao menos dois pontos.')
+            for ponto in linha:
+                if (not isinstance(ponto, list) or len(ponto) != 2
+                        or not all(isinstance(v, (int, float)) and not isinstance(v, bool)
+                                   and math.isfinite(v) for v in ponto)
+                        or not -180 <= ponto[0] <= 180 or not -90 <= ponto[1] <= 90):
+                    raise ValueError('Coordenadas GeoJSON invalidas.')
         return self
 
 
 @router.post("/consultar-rota")
 async def consultar_rota(dados: ConsultaRota, conn=Depends(get_connection)):
-    geojson = json.dumps(dados.rota, separators=(",", ":"))
-    acidentes = await conn.fetch("""WITH rota AS (SELECT ST_SetSRID(ST_GeomFromGeoJSON($1::text),4326) AS geom)
-        SELECT a.id_fonte,a.data_ocorrencia,a.rodovia,a.km,a.municipio,a.caminhoes_envolvidos,
-        a.url_fonte,ROUND(ST_Distance(a.geom::geography,rota.geom::geography))::integer AS distancia_rota_m,
-        ST_X(a.geom) AS longitude,ST_Y(a.geom) AS latitude
-        FROM tombamentos_caminhao a,rota
-        WHERE a.ativo AND a.data_ocorrencia >= CURRENT_DATE - INTERVAL '3 years'
-        AND ST_DWithin(a.geom::geography,rota.geom::geography,$2)
-        ORDER BY distancia_rota_m,a.data_ocorrencia DESC LIMIT 201""", geojson, dados.raio_tombamento_m)
-    postos = await conn.fetch("""WITH rota AS (SELECT ST_SetSRID(ST_GeomFromGeoJSON($1::text),4326) AS geom)
-        SELECT p.cnpj,p.nome,p.municipio,p.endereco,p.localizacao_fonte,
-        ST_X(p.geom) AS longitude,ST_Y(p.geom) AS latitude,
-        ROUND(ST_Distance(p.geom::geography,rota.geom::geography))::integer AS distancia_rota_m,
-        preco.data_coleta,preco.preco_litro,preco.url_fonte
-        FROM postos_combustivel p CROSS JOIN rota
-        JOIN LATERAL (SELECT data_coleta,preco_litro,url_fonte FROM precos_combustivel
-            WHERE cnpj=p.cnpj AND produto=$3 ORDER BY data_coleta DESC LIMIT 1) preco ON true
-        WHERE p.geom IS NOT NULL AND p.localizacao_verificada_em IS NOT NULL
-          AND ST_DWithin(p.geom::geography,rota.geom::geography,$2)
-        ORDER BY distancia_rota_m LIMIT 201""", geojson, dados.raio_posto_m, dados.produto.upper())
-    lista_postos = []
-    for linha in postos[:200]:
-        item = dict(linha)
-        item["preco_litro"] = float(item["preco_litro"])
-        lista_postos.append(item)
-    return {"tombamentos": [dict(linha) for linha in acidentes[:200]],
-            "postos": lista_postos, "truncado": len(acidentes) > 200 or len(postos) > 200,
-            "roubo_carga": "Consultar agregados por area; sem pontos confiaveis para cruzamento com a rota.",
-            "interpretacao": "Proximidade e historico nao representam risco individual nem disponibilidade/preco atual de combustivel."}
+    from app.services.contexto_rota import consultar_geometria
+    return await consultar_geometria(conn, dados.rota, dados.raio_tombamento_m, dados.raio_posto_m,
+                                    dados.produto, dados.incluir_postos_nao_verificados)
