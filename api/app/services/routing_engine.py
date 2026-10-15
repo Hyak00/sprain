@@ -48,44 +48,38 @@ class RoutingEngine:
         vehicle_dimensions: Optional[dict] = None,
         infra_context: Optional[dict] = None,
     ) -> Optional[Dict[str, Any]]:
-        pontos = infra_context['pontos'] if infra_context is not None else await conn.fetch(SELECT_PONTOS, tenant_id)
+        pontos = infra_context.get("pontos", await conn.fetch(SELECT_PONTOS, tenant_id)) if infra_context else await conn.fetch(SELECT_PONTOS, tenant_id)
         if vehicle_dimensions:
             tipo_veiculo = "CARRETA_5_EIXOS" if vehicle_dimensions["eixos"] >= 5 else ("TRUCK_3_EIXOS" if vehicle_dimensions["eixos"]>=3 else "VUC")
         veiculo = SimpleNamespace(**vehicle_dimensions) if vehicle_dimensions else None
-        # Sem dimensoes, nenhuma ponte cadastrada e automaticamente considerada transponivel.
+        
         restritos = [p["id_trecho"] for p in pontos if p["tipo"] == "PONTE" and (
             veiculo is None or avaliar_ponto(p, veiculo)["status"] == "BLOQUEADO"
         )]
-        limites_malha = infra_context['limites'] if infra_context is not None else await conn.fetch("""SELECT t.id_trecho,t.limites_malha FROM trechos_osm t
-            WHERE (t.tenant_malha IS NULL OR t.tenant_malha=$1) AND t.limites_malha IS NOT NULL
-            AND t.limites_malha<>'{}'::jsonb AND (t.importacao_malha_id IS NULL OR EXISTS(
-                SELECT 1 FROM malha_importacoes m WHERE m.id=t.importacao_malha_id AND m.ativo))""",tenant_id)
+        
+        limites_malha = infra_context.get("limites", await conn.fetch("SELECT t.id_trecho,t.limites_malha FROM trechos_osm t WHERE (t.tenant_malha IS NULL OR t.tenant_malha=$1) AND t.limites_malha IS NOT NULL AND t.limites_malha<>'{}'::jsonb AND (t.importacao_malha_id IS NULL OR EXISTS(SELECT 1 FROM malha_importacoes m WHERE m.id=t.importacao_malha_id AND m.ativo))", tenant_id)) if infra_context else await conn.fetch("SELECT t.id_trecho,t.limites_malha FROM trechos_osm t WHERE (t.tenant_malha IS NULL OR t.tenant_malha=$1) AND t.limites_malha IS NOT NULL AND t.limites_malha<>'{}'::jsonb AND (t.importacao_malha_id IS NULL OR EXISTS(SELECT 1 FROM malha_importacoes m WHERE m.id=t.importacao_malha_id AND m.ativo))", tenant_id)
+        
         for trecho in limites_malha:
             limites = json.loads(trecho["limites_malha"])
-            if not vehicle_dimensions or any(vehicle_dimensions[medida] > limites[limite]
-                for medida,limite in LIMITES.items() if limite in limites):
+            if not vehicle_dimensions or any(vehicle_dimensions[medida] > limites[limite] for medida,limite in LIMITES.items() if limite in limites):
                 restritos.append(trecho["id_trecho"])
+        
+        alertas = await conn.fetch("SELECT trechos_afetados, confianca, status_evento FROM alertas_operacionais WHERE expiracao_em > now() AND status_evento != 'DESCARTADO'")
+        for a in alertas:
+            if a["status_evento"] == "CONFIRMADO":
+                restritos.extend(a["trechos_afetados"])
+
         blocked_edge_ids = (blocked_edge_ids or []) + restritos
         cache_key = cls._make_cache_key(orig_lon, orig_lat, dest_lon, dest_lat, profile, rain_mm, tipo_veiculo, tenant_id)
         blocked_edge_ids = sorted(set(int(edge) for edge in (blocked_edge_ids or [])))
         cache_key += ":blocked=" + ",".join(str(edge) for edge in blocked_edge_ids)
         cache_key += ":dimensions=" + json.dumps(vehicle_dimensions, sort_keys=True)
+        
         cached_result = cls._get_from_cache(cache_key)
         if cached_result is not None:
-            return {**cached_result, "infraestrutura": {**cached_result['infraestrutura'],
-                **resumir_rota(pontos, cached_result["ids_trechos"], vehicle_dimensions)}}
+            return {**cached_result, "infraestrutura": {**cached_result["infraestrutura"], **resumir_rota(pontos, cached_result["ids_trechos"], vehicle_dimensions)}}
 
-        vert_query = """
-        SELECT v.id, ST_DWithin(ST_Transform(v.the_geom,4326)::geography,
-            ST_SetSRID(ST_Point($1,$2),4326)::geography,150) AS coberto
-        FROM trechos_osm_vertices_pgr v
-        WHERE EXISTS (SELECT 1 FROM trechos_osm t WHERE (t.source=v.id OR t.target=v.id)
-            AND (t.tenant_malha IS NULL OR t.tenant_malha=$3)
-            AND (t.importacao_malha_id IS NULL OR EXISTS(SELECT 1 FROM malha_importacoes m
-                 WHERE m.id=t.importacao_malha_id AND m.ativo)))
-        ORDER BY v.the_geom <-> ST_Transform(ST_SetSRID(ST_Point($1, $2), 4326), 31983)
-        LIMIT 1;
-        """
+        vert_query = "SELECT v.id, ST_DWithin(ST_Transform(v.the_geom,4326)::geography, ST_SetSRID(ST_Point($1,$2),4326)::geography,150) AS coberto FROM trechos_osm_vertices_pgr v WHERE EXISTS (SELECT 1 FROM trechos_osm t WHERE (t.source=v.id OR t.target=v.id) AND (t.tenant_malha IS NULL OR t.tenant_malha=$3) AND (t.importacao_malha_id IS NULL OR EXISTS(SELECT 1 FROM malha_importacoes m WHERE m.id=t.importacao_malha_id AND m.ativo))) ORDER BY v.the_geom <-> ST_Transform(ST_SetSRID(ST_Point($1, $2), 4326), 31983) LIMIT 1;"
         origem = await conn.fetchrow(vert_query, orig_lon, orig_lat, tenant_id)
         destino = await conn.fetchrow(vert_query, dest_lon, dest_lat, tenant_id)
         if not origem or not destino or not origem["coberto"] or not destino["coberto"]:
@@ -98,27 +92,16 @@ class RoutingEngine:
         fator_chuva = min(1.0, rain_mm / 100.0)
 
         if profile == "SAFEST":
-            cost_sql = f"""
-            CASE 
-                WHEN (COALESCE(t.ivi_score, 0.0) * (0.6 + 0.6 * {fator_chuva})) >= 80.0 THEN t.length * 80.0
-                WHEN (COALESCE(t.ivi_score, 0.0) * (0.6 + 0.6 * {fator_chuva})) >= 60.0 THEN t.length * 15.0
-                ELSE t.length * (1.0 + (COALESCE(t.ivi_score, 0.0) / 10.0))
-            END
-            """
+            cost_sql = f"CASE WHEN (COALESCE(t.ivi_score, 0.0) * (0.6 + 0.6 * {fator_chuva})) >= 80.0 THEN t.length * 80.0 WHEN (COALESCE(t.ivi_score, 0.0) * (0.6 + 0.6 * {fator_chuva})) >= 60.0 THEN t.length * 15.0 ELSE t.length * (1.0 + (COALESCE(t.ivi_score, 0.0) / 10.0)) END"
         elif profile == "BALANCED":
-            cost_sql = f"""
-            t.length * (1.0 + ((COALESCE(t.ivi_score, 0.0) * (0.5 + 0.5 * {fator_chuva})) / 20.0))
-            """
+            cost_sql = f"t.length * (1.0 + ((COALESCE(t.ivi_score, 0.0) * (0.5 + 0.5 * {fator_chuva})) / 20.0))"
         elif profile == "SHORTEST":
             cost_sql = "t.length"
         else:
-            cost_sql = """
-            t.length / CASE 
-                WHEN t.highway IN ('primary', 'trunk') THEN 40.0
-                WHEN t.highway IN ('secondary', 'tertiary') THEN 30.0
-                ELSE 20.0
-            END
-            """
+            cost_sql = "t.length / CASE WHEN t.highway IN ('primary', 'trunk') THEN 40.0 WHEN t.highway IN ('secondary', 'tertiary') THEN 30.0 ELSE 20.0 END"
+
+        penalidade_alerta = " * (1.0 + COALESCE((SELECT MAX(a.confianca) * 10.0 FROM alertas_operacionais a WHERE a.expiracao_em > now() AND a.status_evento = 'INCERTO' AND t.id_trecho = ANY(a.trechos_afetados)), 0.0))"
+        cost_sql += penalidade_alerta
 
         restricao = ""
         if tipo_veiculo in ["TRUCK_3_EIXOS", "CARRETA_5_EIXOS"]:
@@ -128,35 +111,10 @@ class RoutingEngine:
         if blocked_edge_ids:
             filtro_bloqueios = " AND t.id_trecho NOT IN (" + ",".join(str(edge) for edge in blocked_edge_ids) + ")"
         empresa_sql = "'" + tenant_id.replace("'", "''") + "'"
-        arestas_sql = f"""SELECT t.id_trecho AS id, t.source::bigint, t.target::bigint,
-            CASE WHEN t.sentido='INVERSO' THEN -1 ELSE (({cost_sql}){restricao})::float END AS cost,
-            CASE WHEN t.sentido='DIRETO' THEN -1 ELSE (({cost_sql}){restricao})::float END AS reverse_cost
-            FROM trechos_osm t WHERE t.source IS NOT NULL AND t.target IS NOT NULL
-            AND (t.tenant_malha IS NULL OR t.tenant_malha={empresa_sql})
-            AND (t.importacao_malha_id IS NULL OR EXISTS(SELECT 1 FROM malha_importacoes m
-                WHERE m.id=t.importacao_malha_id AND m.ativo)){filtro_bloqueios}"""
+        
+        arestas_sql = f"SELECT t.id_trecho AS id, t.source::bigint, t.target::bigint, CASE WHEN t.sentido='INVERSO' THEN -1 ELSE (({cost_sql}){restricao})::float END AS cost, CASE WHEN t.sentido='DIRETO' THEN -1 ELSE (({cost_sql}){restricao})::float END AS reverse_cost FROM trechos_osm t WHERE t.source IS NOT NULL AND t.target IS NOT NULL AND (t.tenant_malha IS NULL OR t.tenant_malha={empresa_sql}) AND (t.importacao_malha_id IS NULL OR EXISTS(SELECT 1 FROM malha_importacoes m WHERE m.id=t.importacao_malha_id AND m.ativo)){filtro_bloqueios}"
 
-        pgr_query = f"""
-        SELECT 
-            r.seq, 
-            r.node, 
-            r.edge, 
-            r.cost, 
-            t.id_trecho, 
-            t.name, 
-            t.length, 
-            t.ivi_score,
-            t.sentido,
-            t.limites_malha, t.fonte_malha, t.limites_verificado_em,t.limites_valido_ate,
-            ST_AsGeoJSON(ST_Transform(t.geom, 4326)) AS geojson
-        FROM pgr_dijkstra(
-            $3::text,
-            $1::bigint, $2::bigint, true
-        ) r
-        LEFT JOIN trechos_osm t ON t.id_trecho = r.edge
-        WHERE r.edge != -1
-        ORDER BY r.seq;
-        """
+        pgr_query = "SELECT r.seq, r.node, r.edge, r.cost, t.id_trecho, t.name, t.length, t.ivi_score, t.sentido, t.limites_malha, t.fonte_malha, t.limites_verificado_em, t.limites_valido_ate, ST_AsGeoJSON(ST_Transform(t.geom, 4326)) AS geojson FROM pgr_dijkstra($3::text, $1::bigint, $2::bigint, true) r LEFT JOIN trechos_osm t ON t.id_trecho = r.edge WHERE r.edge != -1 ORDER BY r.seq;"
 
         rows = await conn.fetch(pgr_query, int(orig_vert), int(dest_vert), arestas_sql)
         if not rows:
@@ -178,12 +136,12 @@ class RoutingEngine:
                         "id_trecho": row["id_trecho"],
                         "name": row["name"],
                         "length": l,
-                        "ivi_score":float(row['ivi_score'] or 0),
+                        "ivi_score":float(row["ivi_score"] or 0),
                         "sentido_cadastrado": row["sentido"],
                         "limites_importados": json.loads(row["limites_malha"]) if row["limites_malha"] else {},
                         "fonte_malha": row["fonte_malha"],
-                        "verificado_em":row['limites_verificado_em'],
-                        "valido_ate":row['limites_valido_ate'],
+                        "verificado_em":row["limites_verificado_em"],
+                        "valido_ate":row["limites_valido_ate"],
                         "status_limite":"CONFERENCIA_NECESSARIA"
                     }
                 })
@@ -202,8 +160,7 @@ class RoutingEngine:
                 "features": features
             }
         }
-        result['infraestrutura']['limites_mapa']={'type':'FeatureCollection',
-            'features':[f for f in features if f['properties']['limites_importados']]}
+        result["infraestrutura"]["limites_mapa"]={"type":"FeatureCollection", "features":[f for f in features if f["properties"]["limites_importados"]]}
 
         cls._set_cache(cache_key, result)
         return result
