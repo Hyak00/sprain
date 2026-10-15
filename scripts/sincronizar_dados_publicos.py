@@ -8,6 +8,7 @@ import math
 import os
 import re
 import sys
+import time as sys_time
 import urllib.parse
 import urllib.error
 import urllib.request
@@ -27,8 +28,18 @@ def baixar(url: str) -> bytes:
     if urllib.parse.urlparse(url).scheme != "https":
         raise ValueError("A fonte remota deve usar HTTPS.")
     pedido = urllib.request.Request(url, headers={"User-Agent": "SPRain-dados-publicos/1.0"})
-    with urllib.request.urlopen(pedido, timeout=45) as resposta:
-        dados = resposta.read(MAX_DOWNLOAD + 1)
+    for tentativa in range(3):
+        try:
+            with urllib.request.urlopen(pedido, timeout=45) as resposta:
+                dados = resposta.read(MAX_DOWNLOAD + 1)
+            break
+        except urllib.error.HTTPError as exc:
+            if exc.code < 500 or tentativa == 2:
+                raise
+        except (urllib.error.URLError, TimeoutError, ConnectionError):
+            if tentativa == 2:
+                raise
+        sys_time.sleep(5 * (tentativa + 1))
     if len(dados) > MAX_DOWNLOAD:
         raise ValueError("Arquivo excede limite.")
     return dados
@@ -424,7 +435,7 @@ def conectar():
                             user=os.environ["DB_USER"], password=os.environ["DB_PASSWORD"],
                             dbname=os.environ["DB_NAME"], connect_timeout=10)
 
-def aplicar(fonte: str, url: str, dados: bytes, registros: list[dict]):
+def aplicar(fonte: str, url: str, dados: bytes, registros: list[dict], resumo: dict):
     from psycopg2.extras import execute_values
     sha = hashlib.sha256(dados).hexdigest()
     with conectar() as conn:
@@ -520,10 +531,11 @@ def aplicar(fonte: str, url: str, dados: bytes, registros: list[dict]):
             else:
                 raise ValueError("Fonte inesperada")
             cursor.execute("INSERT INTO fontes_dados_externos "
-                "(nome,url,hash_sha256,registros_importados) VALUES (%s,%s,%s,%s) "
+                "(nome,url,hash_sha256,registros_importados,resumo_importacao) VALUES (%s,%s,%s,%s,%s::jsonb) "
                 "ON CONFLICT (nome) DO UPDATE SET url=EXCLUDED.url,hash_sha256=EXCLUDED.hash_sha256,"
-                "registros_importados=EXCLUDED.registros_importados,ultimo_sucesso_em=now()",
-                (fonte, url, sha, len(registros)))
+                "registros_importados=EXCLUDED.registros_importados,"
+                "resumo_importacao=EXCLUDED.resumo_importacao,ultimo_sucesso_em=now()",
+                (fonte, url, sha, len(registros), json.dumps(resumo)))
     return {"fonte": fonte, "sem_alteracoes": False, "registros": len(registros)}
 
 def main() -> None:
@@ -576,7 +588,7 @@ def main() -> None:
         resultado = {"fonte": fonte, "url": url, "sha256": hashlib.sha256(dados).hexdigest(),
                      "resumo": resumo, "gravado": False}
         if args.aplicar:
-            resultado.update(aplicar(fonte, url, dados, registros))
+            resultado.update(aplicar(fonte, url, dados, registros, resumo))
             resultado["gravado"] = True
         resultados.append(resultado)
     print(json.dumps(resultados, ensure_ascii=False, default=str, indent=2))
