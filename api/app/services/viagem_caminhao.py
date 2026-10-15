@@ -7,6 +7,7 @@ from types import SimpleNamespace
 from app.schemas import ParametrosFinanceiros
 from app.services.infraestrutura_viaria import SELECT_PONTOS, LIMITES, avaliar_ponto, resumir_rota
 from app.services.routing_engine import RoutingEngine
+from app.services.estruturas_viarias import complementar_estruturas
 from app.services.custo_combustivel import custo_quilometrico, referencia_diesel, completar_custos
 
 
@@ -75,7 +76,7 @@ class ContextoViagens:
             WHERE o.tenant_id=$1 AND ($2::text IS NULL OR o.id_operacao=$2) ORDER BY o.id_operacao''',tenant,id_operacao)
         pontos = [dict(p) for p in await conn.fetch(SELECT_PONTOS, tenant)]
         trechos = await conn.fetch('''SELECT ort.id_operacao,t.id_trecho,t.length,t.ivi_score,
-            t.limites_malha,t.fonte_malha,t.limites_verificado_em,t.limites_valido_ate,
+            t.estrutura_malha,t.limites_malha,t.fonte_malha,t.limites_verificado_em,t.limites_valido_ate,
             ST_AsGeoJSON(ST_Transform(t.geom,4326)) AS geojson,
             (t.tenant_malha IS NULL OR t.tenant_malha=$1) AND
             (t.importacao_malha_id IS NULL OR EXISTS(SELECT 1 FROM malha_importacoes m
@@ -121,6 +122,7 @@ class ContextoViagens:
                             'fonte_malha':t['fonte_malha'],'verificado_em':t['limites_verificado_em'],
                             'valido_ate':t['limites_valido_ate'],
                             'status_limite':'BLOQUEADO' if t['id_trecho'] in bloqueios else 'CONFERENCIA_NECESSARIA'}})
+        complementar_estruturas(info,[{'geometry':json.loads(t['geojson']),'properties':{'estrutura_viaria':t['estrutura_malha'],'limites_importados':objeto(t['limites_malha'])}} for t in ts if t['geojson']])
         info['limites_trechos'] = limites
         info['trechos_incompativeis'] = sorted(bloqueios)
         info['limites_mapa']={'type':'FeatureCollection','features':limites_mapa}

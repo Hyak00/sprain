@@ -59,6 +59,22 @@ Outras concessionarias e limites oficiais de pontes permanecem pendentes quando 
 
 ## Validacao e limites da entrega
 
+### Fechamento do corredor em 14/10/2026
+
+As tarifas de Rio Claro e Itirapina foram conferidas nas imagens da [pagina oficial da Eixo SP](https://eixosp.com.br/tarifas/). Os manifestos `tarifas-eixo-p1-rio-claro.json` e `tarifas-eixo-p2-itirapina.json` guardam a tabela comercial exata de 2 a 9 eixos e o SHA-256 da fonte. Por exemplo, 5 eixos custam R$ 58,30 em Rio Claro e R$ 35,30 em Itirapina. Nao se multiplica a tarifa de passeio nem se arredonda uma tarifa por eixo inventada. Categoria nao publicada continua pendente. `tarifas_por_eixos` e opcional no cadastro/API e tem um campo adicional no painel ADMIN; o modelo linear anterior continua disponivel para fontes que o utilizem.
+
+O inventario versionado `estruturas-corredor-osm.json.gz` identifica 349 vias com pontes, viadutos ou tuneis. A anotacao e aplicada exclusivamente a segmentos ativos da empresa com a mesma referencia OSM; nao associa uma ponte a uma pista proxima por distancia nem confunde trafegar sobre a ponte com passar embaixo dela. A tela apresenta as estruturas pertencentes a rota, sua fonte e os limites ausentes. Nao altera geometria nem cria novas conexoes.
+
+```powershell
+python scripts/sincronizar_estruturas_corredor.py --tenant demo_corp --snapshot --aplicar
+# Consulta somente as vias OSM ja presentes na malha da empresa:
+python scripts/sincronizar_estruturas_corredor.py --tenant demo_corp --aplicar
+```
+
+`SPRAIN_INFRA_TENANT=demo_corp` no trabalhador de dados ativa a atualizacao diaria do inventario e de limites numericos publicados para essas vias. Cadastros conferidos manualmente sao preservados. Limites importados podem ficar mais restritivos; um aumento de limite ou desaparecimento de tag nao libera um trecho automaticamente. Interpretacoes desconhecidas/condicionais nao viram numeros. Falhas de rede preservam a base anterior. Anotacoes de mapa podem levar ate o TTL existente de cinco minutos para aparecer em rotas em cache; novos limites excedidos ja participam da chave de bloqueios do recalculo.
+
+Foi consultado tambem o [inventario oficial de OAE do DER-SP](https://dadosabertos.sp.gov.br/dataset/obras-de-arte-especiais-oae). A planilha publicada informa localizacao, comprimento e largura de referencia da obra. **Essas medidas nao sao comprimento maximo do caminhao, largura livre de passagem ou capacidade de carga**, e nao foram convertidas em restricoes. Nao foi localizada, nas fontes consultadas, uma base publica completa dos quatro limites operacionais para todas as estruturas do corredor. A cobertura permanece explicitamente parcial; o inventario nao concede autorizacao de trafego. Completar valores nao publicados depende de informacao do responsavel pela estrutura, nao de deducao a partir do tamanho da ponte.
+
 Suite anterior: 84 testes. Novos testes cobrem consumo/preco automaticos, prioridade do custo informado, preco vencido, economia sem dupla contagem, valores invalidos, geometria longa/descontinua, timeout por fonte, duplicata ARTESP, leitor semanal, configuracao com GITHUB_ACTIONS e cabines duplicadas. Fixtures SQL anteriores validam limites de pontes, chuva, indisponibilidade de alternativa e isolamento entre empresas.
 
 Foi usada a malha regional existente no teste de corredor (261,53 km), sem substituir dados de frota por medidas supostamente reais. A cobertura de pontes continua parcial. Antes de usar como orientacao operacional, confirmar inventario de restricoes, enderecos, tempos, tarifas faltantes e premissas da empresa. O tempo do roteador atual continua uma estimativa com velocidade de referencia de 35 km/h.

@@ -106,6 +106,7 @@ window.InfraCaminhoes = (() => {
             if(!rota) return;
             const p=rota.pedagios;
             texto(parent,'p',`${nome}: ${p.quantidade_cadastrada_na_rota} referência(s) de pedágio · subtotal ${p.quantidade_cadastrada_na_rota && p.tarifas_pendentes===p.quantidade_cadastrada_na_rota?'a confirmar':money(p.subtotal_conhecido_reais)} · ${p.tarifas_pendentes} tarifa(s) pendente(s). Cobertura parcial.`);
+            if(rota.estruturas_referencia?.length)texto(parent,'p',`${nome}: ${rota.estruturas_referencia.length} ponte(s), viaduto(s) ou tunel(is) identificados na propria via; ${rota.estruturas_sem_limites_completos} sem os quatro limites publicados. Conferir capacidade antes de autorizar a viagem.`);
             if(rota.trechos_incompativeis?.length) texto(parent,'p',`${rota.trechos_incompativeis.length} trecho(s) incompatível(is), indisponível(is) ou sem medidas suficientes.`);
             const limites=rota.limites_mapa?.features||[];
             const grupos=new Map();
@@ -204,7 +205,7 @@ window.InfraCaminhoes = (() => {
         map.on('click','infra-pontos',e=>{
             const f=e.features?.[0];if(!f) return;const p=f.properties,box=document.createElement('div');box.style.color='#111827';
             texto(box,'strong',p.nome);texto(box,'p',p.tipo+' · '+(p.status||'A conferir'));
-            texto(box,'p','Fonte: '+p.fonte);texto(box,'p','Revisar até: '+p.valido_ate);
+            texto(box,'p','Fonte: '+p.fonte);texto(box,'p','Revisar até: '+(p.valido_ate||'Nao informado; referencia OSM nao confirma limite'));
             if(p.tipo==='PEDAGIO') texto(box,'p','Custo conhecido: '+money(p.custo_estimado_reais));
             else medidas.slice(0,4).forEach(([k,nome])=>{const lim={altura_m:'altura_max_m',largura_m:'largura_max_m',comprimento_m:'comprimento_max_m',peso_total_t:'peso_max_t'}[k];texto(box,'p',nome+' máximo: '+(p[lim]??'Não informado'));});
             new maplibregl.Popup().setLngLat(e.lngLat).setDOMContent(box).addTo(map);

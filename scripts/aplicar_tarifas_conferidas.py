@@ -30,7 +30,7 @@ def planejar(manifesto, features, agora=None):
                 latitude=pontos[0]['geometry']['coordinates'][1],fonte=fonte,
                 verificado_em=manifesto['verificado_em'],valido_ate=manifesto['valido_ate'],
                 origem_dados='CADASTRO_MANUAL',grupo_cobranca=praca['grupo_cobranca'],
-                tarifa_por_eixo=praca['tarifa_por_eixo'])
+                tarifa_por_eixo=praca.get('tarifa_por_eixo'),tarifas_por_eixos=praca.get('tarifas_por_eixos'))
             alteracoes.append((p['id'],payload))
     return alteracoes, ignorados
 

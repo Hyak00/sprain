@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Literal
+from typing import Annotated
 
 import asyncpg
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -29,14 +30,18 @@ async def sessao(claims=Depends(get_current_user_claims)):
 async def pendencias(tenant_id=Depends(resolver_tenant_autenticado), conn=Depends(get_connection)):
     pontos = await conn.fetchrow("""SELECT
         COUNT(*) FILTER (WHERE tipo='PONTE')::int AS pontes_cadastradas,
-        COUNT(*) FILTER (WHERE tipo='PEDAGIO' AND (tarifa_por_eixo IS NULL
+        COUNT(*) FILTER (WHERE tipo='PEDAGIO' AND ((tarifa_por_eixo IS NULL AND (tarifas_por_eixos IS NULL OR tarifas_por_eixos='{}'::jsonb))
             OR origem_dados='REFERENCIA_OSM' OR valido_ate<=now() OR verificado_em>now()))::int AS pedagios_sem_tarifa_vigente,
         COUNT(*) FILTER (WHERE tipo='PONTE' AND (altura_max_m IS NULL OR largura_max_m IS NULL
             OR comprimento_max_m IS NULL OR peso_max_t IS NULL OR origem_dados='REFERENCIA_OSM'
             OR valido_ate<=now() OR verificado_em>now()))::int AS pontes_sem_limites_completos_vigentes
         FROM infraestrutura_viaria WHERE tenant_id=$1 AND ativo""", tenant_id)
     caminhoes = await conn.fetchval('SELECT COUNT(*) FROM veiculos WHERE tenant_id=$1 AND dimensoes IS NULL', tenant_id)
+    estruturas = await conn.fetchval("""SELECT COUNT(DISTINCT estrutura_malha->>'osm_way_id')
+        FROM trechos_osm t WHERE t.tenant_malha=$1 AND estrutura_malha IS NOT NULL
+        AND EXISTS(SELECT 1 FROM malha_importacoes m WHERE m.id=t.importacao_malha_id AND m.ativo)""",tenant_id)
     return {**dict(pontos), 'caminhoes_sem_medidas': caminhoes,
+            'estruturas_referencia': estruturas,
             'cobertura_completa': False,
             'aviso': 'Contagem do cadastro existente; nao mede cobertura de todas as pontes e pedagios da malha.'}
 
@@ -56,12 +61,18 @@ class PontoCadastro(BaseModel):
     comprimento_max_m: float | None = Field(None, gt=0, le=100)
     peso_max_t: float | None = Field(None, gt=0, le=300)
     tarifa_por_eixo: Decimal | None = Field(None, ge=0, max_digits=10, decimal_places=2)
+    tarifas_por_eixos: dict[int, Annotated[Decimal, Field(ge=0, max_digits=10, decimal_places=2)]] | None = None
     origem_dados: Literal["CADASTRO_MANUAL", "REFERENCIA_OSM"] = "CADASTRO_MANUAL"
     grupo_cobranca: str | None = Field(None, min_length=1, max_length=120,
         description='Identificador conferido da mesma praca; evita duplicar pontos de cabines na mesma viagem.')
 
     @model_validator(mode="after")
     def validar_cadastro(self):
+        if self.tarifas_por_eixos is not None:
+            if not self.tarifas_por_eixos or any(not 2 <= e <= 15 for e in self.tarifas_por_eixos):
+                raise ValueError('Tabela deve informar categorias de 2 a 15 eixos.')
+            if self.tipo != 'PEDAGIO' or self.origem_dados == 'REFERENCIA_OSM' or self.tarifa_por_eixo is not None:
+                raise ValueError('Tabela por categoria exige pedagio conferido, sem tarifa linear simultanea.')
         if self.verificado_em.utcoffset() is None or self.valido_ate.utcoffset() is None:
             raise ValueError("Datas devem informar o fuso horario.")
         if self.verificado_em > datetime.now(timezone.utc) or self.valido_ate <= self.verificado_em:
@@ -196,6 +207,9 @@ async def salvar_ponto(conn, dados, tenant_id, id_ponto=None):
             """, *valores, id_ponto)
         await conn.execute('UPDATE infraestrutura_viaria SET grupo_cobranca=$3 WHERE id=$1 AND tenant_id=$2',
                            id_ponto, tenant_id, dados.grupo_cobranca)
+        tabela = {str(k): str(v) for k,v in dados.tarifas_por_eixos.items()} if dados.tarifas_por_eixos else None
+        await conn.execute('UPDATE infraestrutura_viaria SET tarifas_por_eixos=$3::jsonb WHERE id=$1 AND tenant_id=$2',
+                           id_ponto, tenant_id, json.dumps(tabela) if tabela else None)
         await conn.execute("""INSERT INTO infraestrutura_revisoes(ponto_id,tenant_id,acao,cadastro)
             VALUES($1,$2,'SALVAR',$3::jsonb)""", id_ponto, tenant_id, dados.model_dump_json())
     RoutingEngine.clear_cache(tenant_id)

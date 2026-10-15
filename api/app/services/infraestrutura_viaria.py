@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from decimal import Decimal
 from types import SimpleNamespace
+import json
 
 from app import database
 
@@ -39,7 +40,16 @@ def avaliar_ponto(ponto, veiculo, agora=None):
         return {"status": status, "limites_excedidos": excedidos,
                 "limites_ausentes": ausentes, "dados_vigentes": vigente}
     tarifa = ponto["tarifa_por_eixo"]
-    custo = round(tarifa * veiculo.eixos, 2) if vigente and tarifa is not None and veiculo is not None and not referencia_osm else None
+    tabela = ponto.get('tarifas_por_eixos')
+    if isinstance(tabela, str):
+        tabela = json.loads(tabela)
+    custo = None
+    if vigente and veiculo is not None and not referencia_osm:
+        if tabela:
+            valor = tabela.get(str(veiculo.eixos), tabela.get(veiculo.eixos))
+            custo = Decimal(str(valor)) if valor is not None else None
+        elif tarifa is not None:
+            custo = round(tarifa * veiculo.eixos, 2)
     return {"status": "TARIFA_DISPONIVEL" if custo is not None else "TARIFA_A_CONFIRMAR",
             "custo_estimado_reais": float(custo) if custo is not None else None,
             "dados_vigentes": vigente}
@@ -57,6 +67,8 @@ def feature(ponto, avaliacao=None):
             "tarifa_por_eixo": float(ponto["tarifa_por_eixo"]) if ponto["tarifa_por_eixo"] is not None else None,
             "origem_dados": ponto.get("origem_dados", "CADASTRO_MANUAL"),
             "grupo_cobranca": ponto.get('grupo_cobranca'),
+            "tarifas_por_eixos": (json.loads(ponto['tarifas_por_eixos']) if isinstance(ponto.get('tarifas_por_eixos'),str)
+                                  else ponto.get('tarifas_por_eixos')),
             **(avaliacao or {}),
         },
     }

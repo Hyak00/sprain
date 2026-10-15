@@ -1,0 +1,28 @@
+{
+  "fonte": "https://eixosp.com.br/wp-content/uploads/2026/06/P2-Itirapina.png",
+  "sha256_documento": "2f2fb4faa01cf01b98903734d7668d2ef3c7d4cde78b973c5495a1f6143d9633",
+  "inicio_tarifa": "2026-06-04",
+  "verificado_em": "2026-10-14T20:00:00-03:00",
+  "valido_ate": "2026-10-21T20:00:00-03:00",
+  "categoria": "Comercial, pagamento manual, por categoria exata de eixos; sem desconto TAG. Categorias ausentes permanecem pendentes.",
+  "pracas": [
+    {
+      "nome": "Itirapina SP-310",
+      "grupo_cobranca": "EIXO-P2-Itirapina",
+      "tarifas_por_eixos": {
+        "2": "14.10",
+        "3": "21.10",
+        "4": "28.20",
+        "5": "35.30",
+        "6": "42.30",
+        "7": "49.40",
+        "8": "56.40",
+        "9": "63.50"
+      },
+      "nos_osm": [
+        703698334,
+        703698336
+      ]
+    }
+  ]
+}

@@ -28,6 +28,7 @@ window.CadastroInfra = (()=>{
         ['comprimento_max_m','Comprimento máximo (m)'],['peso_max_t','Peso máximo (t)']].forEach(([k,n])=>{
         const i=campo(k,n,'number');i.step='any';i.min=k==='tarifa_por_eixo'?0:0.01;
     });
+    campo('tarifas_por_eixos','Tabela por eixos (JSON opcional, exemplo: {"2":"23.30","5":"58.30"})');
     campo('fonte','Fonte confirmada (documento ou link)').required=true;
     campo('grupo_cobranca','Grupo da mesma praca (opcional, evita contar cabines duas vezes)');
     ['verificado_em','valido_ate'].forEach(k=>campo(k,k==='verificado_em'?'Consulta realizada em':'Revisar até','datetime-local').required=true);
@@ -46,6 +47,7 @@ window.CadastroInfra = (()=>{
                 v=new Date(d-d.getTimezoneOffset()*60000).toISOString().slice(0,16);
             }
             if(k==='fonte'&&p.origem_dados==='REFERENCIA_OSM')v='';
+            if(k==='tarifas_por_eixos' && v && typeof v==='object')v=JSON.stringify(v);
             i.value=v;
         });
         historico.disabled=desativar.disabled=id===null;
@@ -83,9 +85,10 @@ window.CadastroInfra = (()=>{
             else if(i.type==='number')payload[k]=i.value===''?null:Number(i.value);
             else payload[k]=i.value.trim();
         });
+        payload.tarifas_por_eixos=payload.tarifas_por_eixos?JSON.parse(payload.tarifas_por_eixos):null;
         if(!payload.grupo_cobranca)payload.grupo_cobranca=null;
         if(tipo.value==='PEDAGIO')['altura_max_m','largura_max_m','comprimento_max_m','peso_max_t'].forEach(k=>payload[k]=null);
-        else payload.tarifa_por_eixo=null;
+        else {payload.tarifa_por_eixo=null;payload.tarifas_por_eixos=null;}
         await request('infraestrutura/pontos'+(id===null?'':'/'+id),id===null?'POST':'PUT',payload);
         await carregarPontos();status.textContent='Cadastro salvo. Recalcule as operações para considerar a atualização.';
     });};
