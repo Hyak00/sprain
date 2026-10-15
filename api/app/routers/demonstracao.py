@@ -1,13 +1,15 @@
 import asyncpg
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from app.database import get_connection
-from app.seguranca import require_role
+from app.seguranca import require_role, is_production
 from app.services.routing_engine import RoutingEngine
 
 router = APIRouter(prefix="/api/v1/demonstracao", tags=["Dados de Demonstracao"], dependencies=[Depends(require_role(["ADMIN", "OPERATOR", "VIEWER"]))])
 
-@router.post("/cenario-historico-sp310")
+@router.post("/cenario-historico-sp310", dependencies=[Depends(require_role(["ADMIN"]))])
 async def gerar_cenario_historico_sp310(conn: asyncpg.Connection = Depends(get_connection)):
+    if is_production():
+        raise HTTPException(503, "Cenario de demonstracao indisponivel em producao.")
     orig_lon, orig_lat = -48.18, -21.79
     dest_lon, dest_lat = -47.89, -22.01
     

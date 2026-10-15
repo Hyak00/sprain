@@ -18,7 +18,8 @@ O repositório coletou 84 testes no commit inicial. Em dois contêineres Docker
 novos, sem portas publicadas e com banco próprio, os 84 passaram. Após as
 correções de segurança desta branch, a mesma suíte ampliada passou com 92
 testes. Nenhum teste foi direcionado ao banco ou à API de demonstração local.
-Após integrar o `main` de 15/10/2026, os 141 testes da suíte passaram;
+Após integrar o `main` de 15/10/2026 e acrescentar as regressões de isolamento,
+os 143 testes da suíte passaram;
 a validação usa a mesma rede e o mesmo banco descartáveis.
 O relatório `RELATORIO_HOMOLOGACAO.md` registra 56 testes de um commit anterior
 e não descreve a contagem atual.
@@ -33,6 +34,8 @@ e não descreve a contagem atual.
 | Alta | O reset global de ocorrências aceitava uma chave sem papel administrativo. | Exigência do papel administrador. |
 | Alta | Login de demonstração devolvia chaves inúteis em produção; `ENVIRONMENT` só no `.env` não era reconhecido pela validação. | Login demo recusado em produção e ambiente lido também da configuração. |
 | Média | CORS aceitava qualquer origem também em produção. | Em produção, apenas `CORS_ORIGINS` é aceito; sem configuração, chamadas entre origens diferentes ficam bloqueadas. |
+| Alta | Feedback de uma empresa podia descartar um alerta global para todas as empresas; a precisão exibida como específica da empresa somava dados globais. | Feedback não altera a fonte global e a precisão considera apenas a avaliação mais recente de cada evento da empresa autenticada. |
+| Média | Qualquer visualizador podia criar um evento global pelo cenário de demonstração, que usava uma empresa fixa. | Cenário restrito a administradores e indisponível em produção. |
 
 ## Trabalho restante antes de clientes reais
 

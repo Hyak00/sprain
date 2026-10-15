@@ -11,6 +11,7 @@ from app.config import Settings, settings
 from app.database import get_connection
 from app.main import app
 from app.routers import monitoramento
+from app.routers.demonstracao import gerar_cenario_historico_sp310
 from app.routers.trechos import get_trechos_geojson
 from app.seguranca import exigir_api_key, is_production
 
@@ -115,6 +116,22 @@ async def test_login_demo_recusado_em_producao(monkeypatch):
             "email": "operacoes@democorp.com.br", "senha": "sprain2026",
         })
     assert resposta.status_code == 503
+
+
+@pytest.mark.asyncio
+async def test_cenario_demo_exige_admin_e_nao_roda_em_producao(monkeypatch):
+    monkeypatch.setenv("ENVIRONMENT", "testing")
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://teste") as client:
+        sem_chave = await client.post("/api/v1/demonstracao/cenario-historico-sp310")
+        visualizador = await client.post("/api/v1/demonstracao/cenario-historico-sp310",
+                                         headers={"X-API-Key": "key_viewer_demo"})
+    assert sem_chave.status_code == 401
+    assert visualizador.status_code == 403
+
+    monkeypatch.setenv("ENVIRONMENT", "production")
+    with pytest.raises(HTTPException) as erro:
+        await gerar_cenario_historico_sp310()
+    assert erro.value.status_code == 503
 
 
 @pytest.mark.asyncio
