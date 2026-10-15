@@ -24,12 +24,24 @@ class EconomicDecisionEngine:
         horas_operacao = tempo_min / 60.0
         custo_tempo_operacional = round(horas_operacao * (custo_hora_veiculo + custo_hora_motorista), 2)
         
-        minutos_atraso_esperado = max(0.0, (tempo_min - janela_limite_min)) * probabilidade_atraso
-        custo_multa_atraso = round((minutos_atraso_esperado / 60.0) * multa_por_hora_atraso, 2)
-        
-        risco_bloqueio_carga = round(probabilidade_bloqueio * (valor_carga * 0.05 + 500.0), 2)
-        
-        custo_total = round(custo_combustivel + custo_tempo_operacional + custo_multa_atraso + risco_bloqueio_carga + custo_pedagio_conhecido, 2)
+        if probabilidade_atraso is not None:
+            minutos_atraso_esperado = max(0.0, (tempo_min - janela_limite_min)) * probabilidade_atraso
+            custo_multa_atraso = round((minutos_atraso_esperado / 60.0) * multa_por_hora_atraso, 2)
+        else:
+            custo_multa_atraso = None
+
+        if probabilidade_bloqueio is not None:
+            risco_bloqueio_carga = round(probabilidade_bloqueio * (valor_carga * 0.05 + 500.0), 2)
+        else:
+            risco_bloqueio_carga = None
+
+        componentes = [custo_combustivel, custo_tempo_operacional, custo_pedagio_conhecido]
+        if custo_multa_atraso is not None:
+            componentes.append(custo_multa_atraso)
+        if risco_bloqueio_carga is not None:
+            componentes.append(risco_bloqueio_carga)
+
+        custo_total = round(sum(componentes), 2)
         resultado_liquido = round(valor_frete - custo_total, 2)
         
         return {
@@ -56,8 +68,8 @@ class EconomicDecisionEngine:
         direta_eval = cls.evaluate_route_tradeoff(
             distancia_km=rota_direta["distancia_km"],
             tempo_min=rota_direta["tempo_min"],
-            probabilidade_atraso=rota_direta.get("probabilidade_atraso", 0.65),
-            probabilidade_bloqueio=rota_direta.get("probabilidade_bloqueio", 0.40),
+            probabilidade_atraso=rota_direta.get("probabilidade_atraso"),
+            probabilidade_bloqueio=rota_direta.get("probabilidade_bloqueio"),
             consumo_km_l=parametros.get("consumo_km_l", 3.0),
             preco_diesel_litro=parametros.get("preco_diesel_litro", 6.20),
             custo_hora_veiculo=parametros.get("custo_hora_veiculo", 50.0),
@@ -73,8 +85,8 @@ class EconomicDecisionEngine:
         segura_eval = cls.evaluate_route_tradeoff(
             distancia_km=rota_segura["distancia_km"],
             tempo_min=rota_segura["tempo_min"],
-            probabilidade_atraso=rota_segura.get("probabilidade_atraso", 0.10),
-            probabilidade_bloqueio=rota_segura.get("probabilidade_bloqueio", 0.02),
+            probabilidade_atraso=rota_segura.get("probabilidade_atraso"),
+            probabilidade_bloqueio=rota_segura.get("probabilidade_bloqueio"),
             consumo_km_l=parametros.get("consumo_km_l", 3.0),
             preco_diesel_litro=parametros.get("preco_diesel_litro", 6.20),
             custo_hora_veiculo=parametros.get("custo_hora_veiculo", 50.0),
