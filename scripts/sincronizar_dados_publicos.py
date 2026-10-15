@@ -56,6 +56,21 @@ def caminhoes_envolvidos(texto: str) -> int:
             total += int(quantidade)
     return total
 
+EQUIVALENCIAS_ARTESP = {
+    "BOM": "BOA",
+    "ANIZO": "GRANIZO",
+    "N\u00c3O IDENT": "N\u00c3O INFORMADO",
+    "N\u00c3O IDENTIFICADO": "N\u00c3O INFORMADO",
+    "NEBLINA/NEVOEIRO": "NEBLINA",
+}
+
+def _maiusculas(texto) -> str:
+    return (texto or "").strip().upper()
+
+def _padronizar(texto) -> str:
+    limpo = re.sub(r"^\d+\s+", "", _maiusculas(texto))
+    return EQUIVALENCIAS_ARTESP.get(limpo, limpo)
+
 def _data_artesp(texto: str) -> date:
     texto = texto.strip().split(" ")[0]
     if "/" in texto:
@@ -113,21 +128,21 @@ def ler_artesp(dados: bytes, url_fonte: str) -> tuple[list[dict], dict]:
             resumo["sem_coordenadas"] += 1
             continue
         rodovia = _rodovia_artesp(linha["RODOVIA"] or "")
-        sentido = (linha["SENTIDO"] or "").strip()
-        classe = (linha["CLASSE"] or "").strip()
-        subclasse = (linha["SUBCLASSE"] or "").strip()
+        sentido = _maiusculas(linha["SENTIDO"])
+        classe = _maiusculas(linha["CLASSE"])
+        subclasse = _maiusculas(linha["SUBCLASSE"])
         chave = _chave(data, hora, rodovia, km, sentido, classe, subclasse, veiculos, latitude, longitude)
         if chave in registros:
             resumo["duplicados"] += 1
             continue
         registros[chave] = {
             "id_fonte": chave, "data": data, "hora": hora, "rodovia": rodovia, "km": km,
-            "sentido": sentido, "municipio": (linha["MUNICIPIO"] or "").strip(),
+            "sentido": sentido, "municipio": _maiusculas(linha["MUNICIPIO"]),
             "classe": classe, "subclasse": subclasse, "caminhoes": caminhoes,
             "veiculos": veiculos, "url_fonte": url_fonte,
             "latitude": latitude, "longitude": longitude,
-            "condicao": (linha.get("CONDICAO_METERIOLOGICA") or "").strip() or None,
-            "visibilidade": (linha.get("VISIBILIDADE") or "").strip() or None,
+            "condicao": _padronizar(linha.get("CONDICAO_METERIOLOGICA")) or None,
+            "visibilidade": _padronizar(linha.get("VISIBILIDADE")) or None,
         }
     resumo["com_caminhao"] = len(registros)
     return list(registros.values()), resumo
@@ -344,7 +359,7 @@ class _Links(HTMLParser):
         if tag == "a":
             self.links.extend(valor for chave, valor in attrs if chave == "href" and valor)
 
-def fontes_artesp(anos: list[int]) -> list[str]:
+def fontes_artesp(anos: list[int]) -> list[tuple[int, str]]:
     catalogo = json.loads(baixar(ARTESP_CATALOGO))["result"]["resources"]
     urls = []
     for ano in anos:
@@ -352,7 +367,7 @@ def fontes_artesp(anos: list[int]) -> list[str]:
                       and r.get("format", "").upper() == "CSV"]
         if not candidatos:
             continue
-        urls.append(candidatos[0]["url"])
+        urls.append((ano, candidatos[0]["url"]))
     if not urls:
         raise ValueError("CSV de acidentes ARTESP ausente do catalogo para os anos informados.")
     return urls
@@ -530,7 +545,7 @@ def main() -> None:
     else:
         if args.fonte in ("artesp", "todas"):
             anos = args.anos or list(range(date.today().year - 2, date.today().year + 1))
-            for ano, url in zip(anos, fontes_artesp(anos)):
+            for ano, url in fontes_artesp(anos):
                 tarefas.append((f"ARTESP_{ano}", url, baixar(url)))
         if args.fonte in ("anp", "todas"):
             for url in fontes_anp(date.today().year):

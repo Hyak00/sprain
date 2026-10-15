@@ -1,6 +1,9 @@
 import os
 import psycopg2
 
+CHUVA = "(condicao_meteorologica IN ('CHUVA', 'GAROA', 'GRANIZO') OR condicao_meteorologica LIKE 'CHUVA %')"
+CANCELA = "COALESCE(subclasse, '') ILIKE '%CANCELA%'"
+
 def tabela(cabecalho, linhas, larguras):
     formato = " | ".join(f"{{:<{l}}}" for l in larguras)
     print(formato.format(*cabecalho))
@@ -9,7 +12,11 @@ def tabela(cabecalho, linhas, larguras):
 
 def secao(titulo):
     print("\n" + titulo)
-    print("-" * 60)
+    print("-" * 70)
+
+def consultar(cursor, sql):
+    cursor.execute(sql)
+    return cursor.fetchall()
 
 def main():
     conn = psycopg2.connect(
@@ -20,79 +27,114 @@ def main():
     cursor = conn.cursor()
 
     print("RELATORIO DE QUALIDADE DA IMPORTACAO ARTESP")
-    print("-" * 60)
-    cursor.execute("SELECT nome, registros_importados, ultimo_sucesso_em FROM fontes_dados_externos WHERE nome LIKE 'ARTESP%' ORDER BY nome")
-    for nome, importados, ultimo in cursor.fetchall():
+    print("-" * 70)
+    for nome, importados, ultimo in consultar(cursor, "SELECT nome, registros_importados, ultimo_sucesso_em FROM fontes_dados_externos WHERE nome LIKE 'ARTESP%' ORDER BY nome"):
         print(f"Fonte: {nome} | Importados: {importados} | Ultimo sucesso: {ultimo}")
 
     secao("COBERTURA POR ANO (ACIDENTES COM CAMINHAO)")
-    cursor.execute("""
+    tabela(("ANO", "ACIDENTES", "CAMINHOES", "TOMBAMENTOS", "MESES", "PRIMEIRA", "ULTIMA"), consultar(cursor, """
         SELECT EXTRACT(YEAR FROM data_ocorrencia)::int AS ano,
-               COUNT(*) AS acidentes,
-               SUM(caminhoes_envolvidos) AS caminhoes,
-               COUNT(*) FILTER (WHERE classe = 'TOMBAMENTO') AS tombamentos,
-               COUNT(DISTINCT DATE_TRUNC('month', data_ocorrencia)) AS meses,
+               COUNT(*),
+               SUM(caminhoes_envolvidos),
+               COUNT(*) FILTER (WHERE classe = 'TOMBAMENTO'),
+               COUNT(DISTINCT DATE_TRUNC('month', data_ocorrencia)),
                MIN(data_ocorrencia), MAX(data_ocorrencia)
         FROM tombamentos_caminhao
         WHERE ativo = true
         GROUP BY ano
         ORDER BY ano
-    """)
-    tabela(("ANO", "ACIDENTES", "CAMINHOES", "TOMBAMENTOS", "MESES", "PRIMEIRA", "ULTIMA"),
-           cursor.fetchall(), (6, 10, 10, 12, 6, 10, 10))
+    """), (6, 10, 10, 12, 6, 10, 10))
+
+    secao("CONDICAO METEOROLOGICA REGISTRADA NO ACIDENTE (TODAS AS RODOVIAS)")
+    tabela(("CONDICAO", "ACIDENTES", "PERCENTUAL"), consultar(cursor, """
+        SELECT COALESCE(condicao_meteorologica, 'SEM REGISTRO') AS condicao,
+               COUNT(*),
+               ROUND(100.0 * COUNT(*) / SUM(COUNT(*)) OVER (), 1)
+        FROM tombamentos_caminhao
+        WHERE ativo = true
+        GROUP BY condicao
+        ORDER BY COUNT(*) DESC
+    """), (16, 10, 10))
 
     secao("ACIDENTES COM CAMINHAO POR RODOVIA (10 MAIORES)")
-    cursor.execute("""
-        SELECT rodovia, COUNT(*) AS total,
-               COUNT(*) FILTER (WHERE classe = 'TOMBAMENTO') AS tombamentos,
+    tabela(("RODOVIA", "TOTAL", "TOMBAMENTOS", "PRIMEIRA", "ULTIMA", "KMS AFETADOS"), consultar(cursor, """
+        SELECT rodovia, COUNT(*),
+               COUNT(*) FILTER (WHERE classe = 'TOMBAMENTO'),
                MIN(data_ocorrencia), MAX(data_ocorrencia),
-               COUNT(DISTINCT km) AS kms_afetados
+               COUNT(DISTINCT km)
         FROM tombamentos_caminhao
         WHERE ativo = true
         GROUP BY rodovia
-        ORDER BY total DESC
+        ORDER BY COUNT(*) DESC
         LIMIT 10
-    """)
-    tabela(("RODOVIA", "TOTAL", "TOMBAMENTOS", "PRIMEIRA", "ULTIMA", "KMS AFETADOS"),
-           cursor.fetchall(), (10, 7, 12, 10, 10, 12))
+    """), (10, 7, 12, 10, 10, 12))
 
     secao("CORREDOR SP-310 E SP-255 POR CLASSE")
-    cursor.execute("""
-        SELECT rodovia, classe, COUNT(*) AS total
+    tabela(("RODOVIA", "CLASSE", "TOTAL"), consultar(cursor, """
+        SELECT rodovia, classe, COUNT(*)
         FROM tombamentos_caminhao
         WHERE ativo = true AND rodovia IN ('SP-310', 'SP-255')
         GROUP BY rodovia, classe
-        ORDER BY rodovia, total DESC
-    """)
-    tabela(("RODOVIA", "CLASSE", "TOTAL"), cursor.fetchall(), (10, 34, 7))
+        ORDER BY rodovia, COUNT(*) DESC
+    """), (10, 34, 7))
 
-    secao("TRECHOS CRITICOS GERAL (POR KM, ARREDONDADO A 0,1)")
-    cursor.execute("""
-        SELECT rodovia, ROUND(km::numeric, 1) AS km_arredondado, COUNT(*) AS repeticoes
+    secao("CORREDOR SP-310 E SP-255: ACIDENTES E TOMBAMENTOS SOB CHUVA")
+    tabela(("RODOVIA", "ACIDENTES", "SOB CHUVA", "% CHUVA", "TOMBAMENTOS", "TOMB. CHUVA", "% TOMB."), consultar(cursor, f"""
+        SELECT rodovia,
+               COUNT(*),
+               COUNT(*) FILTER (WHERE {CHUVA}),
+               ROUND(100.0 * COUNT(*) FILTER (WHERE {CHUVA}) / COUNT(*), 1),
+               COUNT(*) FILTER (WHERE classe = 'TOMBAMENTO'),
+               COUNT(*) FILTER (WHERE classe = 'TOMBAMENTO' AND {CHUVA}),
+               ROUND(100.0 * COUNT(*) FILTER (WHERE classe = 'TOMBAMENTO' AND {CHUVA})
+                     / NULLIF(COUNT(*) FILTER (WHERE classe = 'TOMBAMENTO'), 0), 1)
         FROM tombamentos_caminhao
-        WHERE ativo = true AND km IS NOT NULL
-        GROUP BY rodovia, km_arredondado
-        ORDER BY repeticoes DESC
-        LIMIT 5
-    """)
-    tabela(("RODOVIA", "KM", "REPETICOES"), cursor.fetchall(), (10, 8, 10))
+        WHERE ativo = true AND rodovia IN ('SP-310', 'SP-255')
+        GROUP BY rodovia
+        ORDER BY rodovia
+    """), (10, 10, 10, 8, 12, 12, 8))
 
-    secao("TRECHOS CRITICOS NO CORREDOR SP-310 E SP-255")
-    cursor.execute("""
-        SELECT rodovia, ROUND(km::numeric, 1) AS km_arredondado, COUNT(*) AS repeticoes
+    secao("TRECHOS CRITICOS GERAL (POR KM, SEM CANCELAS DE PEDAGIO)")
+    tabela(("RODOVIA", "KM", "REPETICOES"), consultar(cursor, f"""
+        SELECT rodovia, ROUND(km::numeric, 1) AS km_arredondado, COUNT(*)
         FROM tombamentos_caminhao
-        WHERE ativo = true AND km IS NOT NULL AND rodovia IN ('SP-310', 'SP-255')
+        WHERE ativo = true AND km IS NOT NULL AND NOT {CANCELA}
         GROUP BY rodovia, km_arredondado
-        ORDER BY repeticoes DESC
+        ORDER BY COUNT(*) DESC
         LIMIT 5
-    """)
-    tabela(("RODOVIA", "KM", "REPETICOES"), cursor.fetchall(), (10, 8, 10))
+    """), (10, 8, 10))
+
+    secao("TRECHOS CRITICOS NO CORREDOR SP-310 E SP-255 (SEM CANCELAS DE PEDAGIO)")
+    tabela(("RODOVIA", "KM", "REPETICOES"), consultar(cursor, f"""
+        SELECT rodovia, ROUND(km::numeric, 1) AS km_arredondado, COUNT(*)
+        FROM tombamentos_caminhao
+        WHERE ativo = true AND km IS NOT NULL AND NOT {CANCELA}
+              AND rodovia IN ('SP-310', 'SP-255')
+        GROUP BY rodovia, km_arredondado
+        ORDER BY COUNT(*) DESC
+        LIMIT 5
+    """), (10, 8, 10))
+
+    secao("ACIDENTES EM CANCELAS DE PEDAGIO (5 MAIORES CONCENTRACOES)")
+    tabela(("RODOVIA", "KM", "ACIDENTES"), consultar(cursor, f"""
+        SELECT rodovia, ROUND(km::numeric, 1) AS km_arredondado, COUNT(*)
+        FROM tombamentos_caminhao
+        WHERE ativo = true AND km IS NOT NULL AND {CANCELA}
+        GROUP BY rodovia, km_arredondado
+        ORDER BY COUNT(*) DESC
+        LIMIT 5
+    """), (10, 8, 10))
 
     print("\nLIMITACOES DA FONTE:")
     print("- Base de acidentes das concessionarias: nao traz alagamento nem interdicao.")
+    print("- A condicao meteorologica e a anotada no acidente; chuva nao confirma alagamento.")
+    print("- Percentual sob chuva sem horas de chuva por trecho nao mede risco por si so.")
+    print("- Trechos com poucos casos nao permitem conclusao; conferir as contagens.")
+    print("- O ano corrente cobre apenas os meses ja publicados pela ARTESP.")
     print("- Duracao mediana e maxima nao calculadas (campo ausente na origem).")
     print("- Caminhao identificado pelo campo de veiculos (caminhao, carreta, bitrem).")
     print("- Acidentes com veiculo nao informado ficam fora da contagem.")
+    print("- Cancelas de pedagio ficam fora do ranking de trechos criticos.")
     print("- Cobre apenas rodovias com concessionaria.")
     print("- Registros duplicados ou sem coordenada valida sao descartados na importacao.")
     conn.close()

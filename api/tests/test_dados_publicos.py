@@ -44,6 +44,17 @@ class FontesPublicasTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             ler_artesp(layout_antigo.encode(), "https://dadosabertos.artesp.sp.gov.br/teste.csv")
 
+    def test_artesp_padroniza_caixa_e_prefixos_numericos(self):
+        cabecalho = ("DATA,HORA,CONCESSIONARIA,RODOVIA,KM,SENTIDO,LATITUDE,LONGITUDE,CLASSE,SUBCLASSE,"
+                     "CAUSA_PROVAVEL,VEICULOS_ENVOLVIDOS,VISIBILIDADE,CONDICAO_METERIOLOGICA,MUNICIPIO\n")
+        linha = "2026-02-03,10:00:00,L30,SP310,217.0,Norte,-22.5,-47.9,Tombamento,Tombamento,NAO INFORMADO,Caminhao=1,1 Bom,2 Chuva,Itirapina\n"
+        registros, _ = ler_artesp((cabecalho + linha).encode(), "https://dadosabertos.artesp.sp.gov.br/teste.csv")
+        self.assertEqual(registros[0]["classe"], "TOMBAMENTO")
+        self.assertEqual(registros[0]["sentido"], "NORTE")
+        self.assertEqual(registros[0]["municipio"], "ITIRAPINA")
+        self.assertEqual(registros[0]["condicao"], "CHUVA")
+        self.assertEqual(registros[0]["visibilidade"], "BOA")
+
     def test_anp_mantem_produto_preco_e_data_por_posto(self):
         csv = ("Estado - Sigla;Municipio;Revenda;CNPJ da Revenda;Nome da Rua;Numero Rua;"
                "Produto;Data da Coleta;Valor de Venda;Bairro;Cep\n"
