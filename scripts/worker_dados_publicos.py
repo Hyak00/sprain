@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import os
 import subprocess
 import sys
@@ -9,6 +10,8 @@ import time
 import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 IMPORTADOR = Path(__file__).with_name("sincronizar_dados_publicos.py")
 FONTES = ("artesp", "anp", "anp-cadastro", "ssp-roubo")
@@ -35,22 +38,33 @@ def disparar_alerta(fonte: str, erro: str) -> None:
         print(f"Falha ao enviar alerta para webhook: {e}", file=sys.stderr, flush=True)
 
 def executar_rodada() -> bool:
-    sucesso = True
+    overall_success = True
     for fonte in FONTES:
-        resultado = subprocess.run(
-            [sys.executable, "-B", str(IMPORTADOR), fonte, "--aplicar"],
-            timeout=600,
-            capture_output=True,
-            text=True
-        )
-        if resultado.returncode:
-            sucesso = False
-            msg_erro = f"Erro na fonte {fonte}:\n{resultado.stderr}"
-            print(f"{datetime.now(timezone.utc).isoformat()} {msg_erro}", file=sys.stderr, flush=True)
-            disparar_alerta(fonte, resultado.stderr)
+        cmd = [sys.executable, "-B", str(IMPORTADOR), fonte, "--aplicar"]
+        try:
+            result = subprocess.run(cmd, timeout=600, capture_output=True, text=True, check=False)
+        except subprocess.TimeoutExpired as e:
+            logger.warning("Fonte timed out: %s: %s", fonte, e)
+            overall_success = False
+            disparar_alerta(fonte, str(e))
+            continue
+        except Exception as e:
+            logger.exception("Erro executando fonte %s: %s", fonte, e)
+            overall_success = False
+            disparar_alerta(fonte, str(e))
+            continue
+
+        rc = getattr(result, "returncode", 0)
+        if rc != 0:
+            logger.warning("Fonte %s retornou codigo %s", fonte, rc)
+            overall_success = False
+            err_msg = getattr(result, "stderr", "Erro desconhecido")
+            disparar_alerta(fonte, err_msg)
         else:
-            print(resultado.stdout.strip(), flush=True)
-    return sucesso
+            stdout = getattr(result, "stdout", "")
+            if stdout:
+                print(stdout.strip(), flush=True)
+    return overall_success
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
