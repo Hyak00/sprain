@@ -19,7 +19,7 @@ def main():
             COUNT(*) FILTER (WHERE t.classe = 'TOMBAMENTO') AS total_tombamentos,
             ROUND(AVG(COALESCE(e.ivi_score, 50.0))::numeric, 2) as ivi_medio_associado
         FROM tombamentos_caminhao t
-        LEFT JOIN trechos_osm e ON ST_DWithin(t.geom::geography, e.geom::geography, 100.0)
+        LEFT JOIN trechos_osm e ON ST_DWithin(ST_Transform(t.geom, 31983), e.geom, 100.0)
         WHERE t.ativo = true
         GROUP BY ano
         ORDER BY ano
@@ -39,7 +39,7 @@ def main():
             END AS categoria_risco_sistema,
             COUNT(*) AS qtd_ocorrencias
         FROM tombamentos_caminhao t
-        JOIN trechos_osm e ON ST_DWithin(t.geom::geography, e.geom::geography, 100.0)
+        JOIN trechos_osm e ON ST_DWithin(ST_Transform(t.geom, 31983), e.geom, 100.0)
         WHERE t.ativo = true
         GROUP BY categoria_risco_sistema
         ORDER BY qtd_ocorrencias DESC
@@ -50,7 +50,7 @@ def main():
     for row in cursor.fetchall():
         print(f"Categoria do Trecho: {row[0]:<20} | Ocorrencias Registradas: {row[1]}")
 
-    print("\nCONCLUSÃO DO BACKTEST:")
+    print("\nCONCLUSAO DO BACKTEST:")
     print("- O cruzamento historico comprova que a concentracao de acidentes e tombamentos")
     print("  correla-se fortemente com os trechos classificados com IVI medio/alto.")
     print("- A antecedencia do alerta e garantida pelo mapeamento estatico de vulnerabilidade")
