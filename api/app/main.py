@@ -15,7 +15,7 @@ from app.database import init_db_pool, close_db_pool
 from app.services.webhook_dispatcher import WebhookDispatcher
 from app.services.infraestrutura_viaria import garantir_schema as garantir_infraestrutura
 from app.services.dados_publicos import garantir_schema as garantir_dados_publicos
-from app.routers import infraestrutura, malha, dados_publicos, transito, indicadores, demonstracao
+from app.routers import infraestrutura, malha, dados_publicos, transito, indicadores, demonstracao, feedback_alertas, operacoes_cliente
 from app.routers import (
     estatisticas,
     trechos,
@@ -123,6 +123,8 @@ app.include_router(dados_publicos.router)
 app.include_router(transito.router)
 app.include_router(indicadores.router)
 app.include_router(demonstracao.router)
+app.include_router(feedback_alertas.router)
+app.include_router(operacoes_cliente.router)
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 static_dir = BASE_DIR / "static"
