@@ -765,10 +765,14 @@
             if(atualizacao!==corredorAtualizacao || sessao!==window.SESSION_EPOCH) return;
             let segHtml = '';
             d.segmentos.forEach(s => {
-                const cor = s.status === 'LIBERADA' ? '#34d399' : '#f87171';
-                segHtml += '<div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid rgba(46,60,86,0.4); font-size:11.5px;"><span><strong>' + valOr(s.nome, 'Trecho ' + s.id) + '</strong> (' + s.distancia_km + ' km)</span><span class="mono" style="color:' + cor + ';">' + s.status + ' • ' + s.precipitacao_mm_h + ' mm/h</span></div>';
+                const cor = s.status === 'LIBERADA' ? '#34d399' : '#94a3b8';
+                const st = valOr(s.status, 'sem dado');
+                const ch = (s.precipitacao_mm_h !== null && s.precipitacao_mm_h !== undefined) ? s.precipitacao_mm_h + ' mm/h' : 'sem dado';
+                segHtml += '<div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid rgba(46,60,86,0.4); font-size:11.5px;"><span><strong>' + valOr(s.nome, 'Trecho ' + s.id) + '</strong> (' + s.distancia_km + ' km)</span><span class="mono" style="color:' + cor + ';">' + st + ' - ' + ch + '</span></div>';
             });
-            container.innerHTML = '<div class="panel-card"><div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:12px;"><div>Distancia: <strong class="mono">' + d.resumo.distancia_total_km + ' km</strong></div><div>Tempo Estimado: <strong class="mono">' + d.resumo.tempo_real_estimado_min + ' min</strong></div><div>Pedagios (' + d.pedagios.quantidade_pracas + '): <strong class="mono" style="color:#fbbf24;">R$ ' + d.pedagios.custo_total_pedagio_reais.toFixed(2) + '</strong></div><div>Acao: <strong style="color:#34d399;">' + d.decisao_logistica.recomendacao + '</strong></div></div></div><div class="panel-card"><div style="font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:8px;">Segmentos Monitorados</div>' + segHtml + '</div>';
+            const tempoTxt = (d.resumo && d.resumo.tempo_real_estimado_min !== null && d.resumo.tempo_real_estimado_min !== undefined) ? d.resumo.tempo_real_estimado_min + ' min' : 'sem dado';
+            const acaoTxt = (d.decisao_logistica && d.decisao_logistica.recomendacao) ? d.decisao_logistica.recomendacao : 'sem dado';
+            container.innerHTML = '<div class="panel-card"><div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:12px;"><div>Distancia: <strong class="mono">' + d.resumo.distancia_total_km + ' km</strong></div><div>Tempo Estimado: <strong class="mono">' + tempoTxt + '</strong></div><div>Pedagios (' + d.pedagios.quantidade_pracas + '): <strong class="mono" style="color:#fbbf24;">R$ ' + d.pedagios.custo_total_pedagio_reais.toFixed(2) + '</strong></div><div>Acao: <strong style="color:#34d399;">' + acaoTxt + '</strong></div></div></div><div class="panel-card"><div style="font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:8px;">Segmentos Monitorados</div>' + segHtml + '</div>';
             await window.InfraCaminhoes.corredor(frotaAtual);
         }
 
