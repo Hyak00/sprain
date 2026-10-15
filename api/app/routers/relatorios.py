@@ -98,11 +98,9 @@ async def exportar_auditoria_intermunicipal(
             r.id_trecho,
             r.name,
             ROUND((r.length / 1000.0)::numeric, 1) AS distancia_km,
-            ROUND(((r.length / 1000.0) / 80.0 * 60.0)::numeric, 1) AS tempo_nominal_min,
             COALESCE(c.status_pista, 'LIBERADA') AS status_pista,
-            COALESCE(c.precipitacao_mm_h, 0.0) AS precipitacao_mm_h,
-            COALESCE(c.fator_atraso, 1.0) AS fator_atraso,
-            ROUND((((r.length / 1000.0) / 80.0 * 60.0) * COALESCE(c.fator_atraso, 1.0))::numeric, 1) AS tempo_real_min
+            c.precipitacao_mm_h,
+            c.fator_atraso
         FROM corredor_sp_araraquara r
         LEFT JOIN condicoes_corredor c ON c.id_trecho = r.id_trecho
         ORDER BY r.id_trecho;
@@ -110,31 +108,22 @@ async def exportar_auditoria_intermunicipal(
     rows = await conn.fetch(query_dados)
     
     total_km = sum(float(r["distancia_km"]) for r in rows)
-    tempo_nominal = sum(float(r["tempo_nominal_min"]) for r in rows)
-    tempo_real = sum(float(r["tempo_real_min"]) for r in rows)
     
     trechos_bloqueados = [r for r in rows if r["status_pista"] == "RISCO_CRITICO_ALAGAMENTO"]
     houve_alerta = len(trechos_bloqueados) > 0
     
-    adicional_km = 18.4 if houve_alerta else 0.0
-    tempo_desvio = (tempo_nominal + 15.0) if houve_alerta else tempo_real
-    economia_tempo = (tempo_real - tempo_desvio) if houve_alerta else 0.0
-    
-    custo_diesel_extra = adicional_km * (6.10 / 2.5)
-    economia_hora_parada = economia_tempo * (150.0 / 60.0)
-    beneficio_liquido = economia_hora_parada - custo_diesel_extra
-    
     dados_sumario = {
         "rota": f"{origem} -> {destino}",
         "distancia_nominal_km": round(total_km, 1),
-        "tempo_nominal_min": round(tempo_nominal, 1),
-        "tempo_estimado_sem_desvio_min": round(tempo_real, 1),
-        "tempo_com_desvio_min": round(tempo_desvio, 1),
-        "economia_tempo_min": round(economia_tempo, 1),
-        "custo_diesel_extra_brl": round(custo_diesel_extra, 2),
-        "economia_hora_parada_brl": round(economia_hora_parada, 2),
-        "beneficio_liquido_brl": round(beneficio_liquido, 2),
-        "status_operacional": "DESVIO_EXECUTADO" if houve_alerta else "ROTA_NORMAL"
+        "tempo_nominal_min": None,
+        "tempo_estimado_sem_desvio_min": None,
+        "tempo_com_desvio_min": None,
+        "economia_tempo_min": None,
+        "custo_diesel_extra_brl": None,
+        "economia_hora_parada_brl": None,
+        "beneficio_liquido_brl": None,
+        "status_operacional": "ALERTA_DETECTADO" if houve_alerta else "ROTA_NORMAL",
+        "motivo_indisponivel": "Tempo e custos dependem de velocidade calibrada por classe de via e consumo real por categoria; valores ficticios foram removidos."
     }
     
     if formato.lower() == "csv":
