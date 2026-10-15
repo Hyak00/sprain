@@ -9,7 +9,8 @@ Plataforma corporativa B2B que ajuda transportadoras a identificar riscos climá
 - **Apoio à Decisão Logística (`/static/b2b.html`):** Identificação de trechos vulneráveis (IVI), plotagem de rota alternativa recomendada, cálculo transparente de custo de desvio e registro auditável da decisão do gestor.
 - **Corredor Regional e Urbano:** 245,0 km mapeados no eixo Araraquara ↔ São Paulo (SP-310 / SP-330 / SP-348) com praças de pedágio por categoria e malha urbana indexada na Zona Leste de São Paulo (2.978 trechos).
 - **Governança Multi-Tenant e Segurança:** Segregação por `tenant_id` em banco, relatórios e cache; controle de acesso RBAC (`ADMIN`, `OPERATOR`, `VIEWER`); proteção SSRF e webhooks assinados via HMAC-SHA256.
-- **Homologação Comprovada:** 56 testes automatizados aprovados (ver `RELATORIO_HOMOLOGACAO.md`).
+- **Homologação:** a suíte automatizada roda no CI. O relatório de 56 testes é
+  um registro histórico; veja o [diagnóstico técnico atual](docs/diagnostico-pessoa2.md).
 
 ---
 

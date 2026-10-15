@@ -1,7 +1,7 @@
 import json
 import asyncpg
 from typing import Optional
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from fastapi.responses import JSONResponse
 
 from app.database import get_connection
@@ -11,7 +11,7 @@ router = APIRouter(prefix="/api/v1/trechos", tags=["Trechos Viarios"])
 @router.get("/geojson")
 async def get_trechos_geojson(
     classe: Optional[str] = None,
-    limit: int = 35000,
+    limit: int = Query(35000, ge=1, le=35000),
     conn: asyncpg.Connection = Depends(get_connection)
 ):
     query = """
@@ -40,7 +40,12 @@ async def get_trechos_geojson(
         FROM (
             SELECT id_trecho, name, highway, ivi_score, classe_risco, altitude_media, distancia_agua_m, total_alagamentos, geom
             FROM trechos_osm
-            WHERE ($1::text IS NULL OR LOWER(classe_risco) = LOWER($1))
+            WHERE tenant_malha IS NULL
+              AND (importacao_malha_id IS NULL OR EXISTS (
+                  SELECT 1 FROM malha_importacoes m
+                  WHERE m.id = importacao_malha_id AND m.ativo
+              ))
+              AND ($1::text IS NULL OR LOWER(classe_risco) = LOWER($1))
             ORDER BY id_trecho
             LIMIT $2
         ) t

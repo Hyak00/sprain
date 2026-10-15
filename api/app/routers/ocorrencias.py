@@ -7,7 +7,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from app.schemas import AlertaRapidoCreate, OcorrenciaTextoCreate
 from app.nlp import extrair_dados_ocorrencia
 from app.database import get_connection
-from app.seguranca import exigir_api_key
+from app.seguranca import exigir_api_key, require_role
 
 router = APIRouter(prefix="/api/v1/ocorrencias", tags=["Ocorrencias"])
 
@@ -86,7 +86,7 @@ async def listar_ocorrencias_ativas(conn: asyncpg.Connection = Depends(get_conne
         "expiracao_em": r["expiracao_em"].isoformat(), "trechos_afetados": r["trechos_afetados"]
     } for r in rows]
 
-@router.post("/resetar-todas", dependencies=[Depends(exigir_api_key)])
+@router.post("/resetar-todas", dependencies=[Depends(require_role(["ADMIN"]))])
 async def resetar_todas_ocorrencias(conn: asyncpg.Connection = Depends(get_connection)):
     await conn.execute("UPDATE estado_operacional_trechos SET status = 'TRANSITAVEL', severidade = 'BAIXA', relato_origem = 'Reset', registrado_em = NOW() WHERE status != 'TRANSITAVEL'")
     await conn.execute("UPDATE alertas_operacionais SET status_evento = 'DESCARTADO', ultima_atualizacao = now() WHERE expiracao_em > now()")
