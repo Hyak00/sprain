@@ -7,6 +7,8 @@ CREATE TABLE IF NOT EXISTS fontes_dados_externos (
     ultimo_sucesso_em TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+ALTER TABLE fontes_dados_externos ADD COLUMN IF NOT EXISTS resumo_importacao JSONB;
+
 CREATE TABLE IF NOT EXISTS tombamentos_caminhao (
     id_fonte TEXT PRIMARY KEY,
     data_ocorrencia DATE NOT NULL,

@@ -28,8 +28,11 @@ def main():
 
     print("RELATORIO DE QUALIDADE DA IMPORTACAO ARTESP")
     print("-" * 70)
-    for nome, importados, ultimo in consultar(cursor, "SELECT nome, registros_importados, ultimo_sucesso_em FROM fontes_dados_externos WHERE nome LIKE 'ARTESP%' ORDER BY nome"):
-        print(f"Fonte: {nome} | Importados: {importados} | Ultimo sucesso: {ultimo}")
+    importacoes = []
+    for nome, importados, ultimo, resumo in consultar(cursor, "SELECT nome, registros_importados, ultimo_sucesso_em, resumo_importacao FROM fontes_dados_externos WHERE nome LIKE 'ARTESP%' ORDER BY nome"):
+        r = resumo or {}
+        importacoes.append((nome, r.get("linhas", "?"), r.get("sem_caminhao", "?"), r.get("sem_coordenadas", "?"), r.get("duplicados", "?"), r.get("invalidos", "?"), importados, str(ultimo)[:19]))
+    tabela(("FONTE", "LINHAS", "SEM CAMINHAO", "SEM COORD.", "DUPLICADOS", "INVALIDOS", "IMPORTADOS", "ULTIMO SUCESSO"), importacoes, (12, 8, 13, 11, 11, 10, 11, 19))
 
     secao("COBERTURA POR ANO (ACIDENTES COM CAMINHAO)")
     tabela(("ANO", "ACIDENTES", "CAMINHOES", "TOMBAMENTOS", "MESES", "PRIMEIRA", "ULTIMA"), consultar(cursor, """
