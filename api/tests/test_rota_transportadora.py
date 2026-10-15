@@ -19,8 +19,8 @@ async def test_validacao_rota_real_transportadora():
         }
         await client.post("/veiculos", json=payload)
         
-         RotaReal = {
-            "id_operation": "OP_REAL_01",
+        rota_real = {
+            "id_operacao": "OP_REAL_01",
             "id_veiculo": "TRK-001",
             "origem_nome": "Araraquara",
             "origem_lat": -21.79,
@@ -31,5 +31,5 @@ async def test_validacao_rota_real_transportadora():
             "janela_inicio": "2026-10-16T08:00:00Z",
             "janela_fim": "2026-10-16T14:00:00Z"
         }
-        resp = await client.post("/operacoes", json=RotaReal)
+        resp = await client.post("/operacoes", json=rota_real)
         assert resp.status_code in [200, 400]
