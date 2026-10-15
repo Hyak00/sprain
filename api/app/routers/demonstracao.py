@@ -16,8 +16,8 @@ async def gerar_cenario_historico_sp310(conn: asyncpg.Connection = Depends(get_c
     await conn.execute("""
         INSERT INTO alertas_operacionais 
         (id_evento, categoria, fonte, primeira_deteccao, ultima_atualizacao, expiracao_em, confianca, status_evento, trechos_afetados)
-        VALUES ('DEMO_SP310_BLOQUEIO', 'OCORRENCIA_CONFIRMADA', 'DEFESA_CIVIL', now(), now(), now() + interval '7 days', 0.99, 'CONFIRMADO', ARRAY[101, 102])
-        ON CONFLICT (id_evento) DO NOTHING
+        VALUES ('DEMO_SP310_BLOQUEIO', 'OCORRENCIA_CONFIRMADA', 'DEMONSTRACAO', now(), now(), now() + interval '1 hour', 0.99, 'CONFIRMADO', ARRAY[101, 102])
+        ON CONFLICT (id_evento) DO UPDATE SET fonte = EXCLUDED.fonte, expiracao_em = EXCLUDED.expiracao_em, ultima_atualizacao = now()
     """)
     
     rota_original = await RoutingEngine.compute_route(conn, orig_lon, orig_lat, dest_lon, dest_lat, "FASTEST", 0.0, "CARRETA_5_EIXOS", "demo_corp")
@@ -28,10 +28,10 @@ async def gerar_cenario_historico_sp310(conn: asyncpg.Connection = Depends(get_c
         "evento_historico": "Bloqueio por alagamento severo na SP-310 (Regiao de Araraquara)",
         "data_referencia": "2026-03-15",
         "comparativo_rotas": {
-            "rota_original_km": rota_original["distancia_km"] if rota_original else 45.2,
-            "rota_alternativa_km": rota_segura["distancia_km"] if rota_segura else 52.8,
-            "tempo_original_min": rota_original["tempo_min"] if rota_original else 40.0,
-            "tempo_alternativo_min": rota_segura["tempo_min"] if rota_segura else 55.0
+            "rota_original_km": rota_original["distancia_km"] if rota_original else None,
+            "rota_alternativa_km": rota_segura["distancia_km"] if rota_segura else None,
+            "tempo_original_min": rota_original["tempo_min"] if rota_original else None,
+            "tempo_alternativo_min": rota_segura["tempo_min"] if rota_segura else None
         },
         "aviso": "Demonstracao voltada ao apoio a decisao logistica; nao afirma prevencao automatica de prejuizo."
     }
