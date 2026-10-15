@@ -1,4 +1,6 @@
-from app.seguranca import require_role
+from app.seguranca import require_role, resolver_tenant_autenticado
+from types import SimpleNamespace
+from app.services.infraestrutura_viaria import SELECT_PONTOS, avaliar_ponto
 from fastapi import APIRouter, HTTPException, Depends, Query
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
@@ -84,147 +86,121 @@ async def calcular_rota(dados: RotaRequest, conn: asyncpg.Connection = Depends(g
         }
     }
 
+EIXOS_POR_CATEGORIA = {"VUC": 2, "TRUCK_3_EIXOS": 3, "CARRETA_5_EIXOS": 5}
+CORREDORES_DISPONIVEIS = {("araraquara", "sao paulo"), ("araraquara", "s\u00e3o paulo")}
+MOTIVO_TEMPO = "Tempo por segmento depende de velocidade calibrada por classe de via; ainda nao implementado."
+MOTIVO_METEOROLOGIA = "A associacao entre estacao meteorologica e segmento do corredor nao foi verificada; nenhuma condicao e exibida."
+MOTIVO_DESVIO = "Sem risco de alagamento calculado para o corredor, nao ha base para sugerir desvio."
+AVISO_PEDAGIOS = "Somente pedagios cadastrados e conferidos pela empresa a ate o raio informado do corredor de referencia; cobertura parcial. custo_total_pedagio_reais e o subtotal das tarifas conhecidas, sem as pendentes."
+
 @router.get("/intermunicipal", dependencies=[Depends(require_role(["ADMIN", "OPERATOR", "VIEWER"]))])
 async def calcular_rota_intermunicipal(
     origem: str = Query("Araraquara", description="Cidade de origem do transporte"),
     destino: str = Query("Sao Paulo", description="Cidade de destino final"),
     tipo_veiculo: str = Query("TRUCK_3_EIXOS", description="Categoria: VUC, TRUCK_3_EIXOS ou CARRETA_5_EIXOS"),
-    custo_hora_veiculo: float = Query(150.0, ge=10.0, description="Custo operacional por hora parada (R$)"),
-    consumo_km_litro: float = Query(2.5, ge=0.5, description="Consumo medio de diesel (km/l)"),
-    preco_diesel_litro: float = Query(6.10, ge=1.0, description="Preco do diesel (R$/l)"),
+    raio_pedagio_m: float = Query(100.0, ge=10.0, le=500.0, description="Distancia maxima entre o pedagio cadastrado e o corredor"),
+    tenant_id: str = Depends(resolver_tenant_autenticado),
     conn: asyncpg.Connection = Depends(get_connection)
 ):
-    query_corredor = """
-        SELECT 
-            r.id_trecho,
-            r.name,
-            ROUND((r.length / 1000.0)::numeric, 1) AS distancia_km,
-            ROUND(((r.length / 1000.0) / 80.0 * 60.0)::numeric, 1) AS tempo_nominal_min,
-            COALESCE(c.status_pista, 'LIBERADA') AS status_pista,
-            COALESCE(c.precipitacao_mm_h, 0.0) AS precipitacao_mm_h,
-            COALESCE(c.fator_atraso, 1.0) AS fator_atraso,
-            ROUND((((r.length / 1000.0) / 80.0 * 60.0) * COALESCE(c.fator_atraso, 1.0))::numeric, 1) AS tempo_real_min
-        FROM corredor_sp_araraquara r
-        LEFT JOIN condicoes_corredor c ON c.id_trecho = r.id_trecho
-        ORDER BY r.id_trecho;
-    """
-    segmentos = await conn.fetch(query_corredor)
-    
+    if (origem.strip().casefold(), destino.strip().casefold()) not in CORREDORES_DISPONIVEIS:
+        raise HTTPException(status_code=422, detail="Corredor disponivel apenas entre Araraquara e Sao Paulo.")
+    categoria = tipo_veiculo.strip().upper()
+    eixos = EIXOS_POR_CATEGORIA.get(categoria)
+    if eixos is None:
+        raise HTTPException(status_code=422, detail="Categoria invalida. Use VUC, TRUCK_3_EIXOS ou CARRETA_5_EIXOS.")
+
+    segmentos = await conn.fetch("""
+        SELECT id_trecho, name, ROUND((length / 1000.0)::numeric, 1) AS distancia_km
+        FROM corredor_sp_araraquara
+        ORDER BY id_trecho
+    """)
     total_km = sum(float(s["distancia_km"]) for s in segmentos)
-    tempo_nominal_total = sum(float(s["tempo_nominal_min"]) for s in segmentos)
-    tempo_real_total = sum(float(s["tempo_real_min"]) for s in segmentos)
-    
-    coluna_tarifa = "tarifa_truck_3eixos"
-    if tipo_veiculo.upper() == "VUC":
-        coluna_tarifa = "tarifa_vuc"
-    elif tipo_veiculo.upper() == "CARRETA_5_EIXOS":
-        coluna_tarifa = "tarifa_carreta_5eixos"
 
-    query_pedagios = f"""
-        SELECT 
-            id, rodovia, km, municipio, concessionaria,
-            {coluna_tarifa} AS tarifa
-        FROM pracas_pedagio
-        ORDER BY km DESC;
-    """
-    pracas_banco = await conn.fetch(query_pedagios)
+    pontos = await conn.fetch(
+        SELECT_PONTOS + """ AND tipo = 'PEDAGIO' AND EXISTS (
+            SELECT 1 FROM corredor_sp_araraquara c
+            WHERE ST_DWithin(c.geometry, ST_Transform(infraestrutura_viaria.geom, 31983), $2)
+        ) ORDER BY id""",
+        tenant_id, raio_pedagio_m
+    )
+    veiculo = SimpleNamespace(eixos=eixos)
+    grupos = {}
+    for p in pontos:
+        chave = p["grupo_cobranca"] or ("ponto", p["id"])
+        grupos.setdefault(chave, []).append((p, avaliar_ponto(p, veiculo)))
 
-    pedagios_rota = [
-        {
-            "id": p["id"],
-            "rodovia": p["rodovia"],
-            "km": float(p["km"]),
-            "municipio": p["municipio"],
-            "concessionaria": p["concessionaria"],
-            "tarifa": float(p["tarifa"])
-        }
-        for p in pracas_banco
-    ]
-    custo_pedagio_total = sum(p["tarifa"] for p in pedagios_rota)
-
-    custo_diesel_km = preco_diesel_litro / consumo_km_litro
-    custo_minuto = custo_hora_veiculo / 60.0
-    
-    trechos_criticos = [s for s in segmentos if s["status_pista"] == "RISCO_CRITICO_ALAGAMENTO"]
-    alerta_meteorologico = len(trechos_criticos) > 0
-    
-    recomendacao = "MANTER_ROTA_PADRAO"
-    desvio_sugerido = None
-    decisao_economica = None
-    
-    if alerta_meteorologico:
-        adicional_km = 18.4
-        tempo_estimado_desvio = tempo_nominal_total + 15.0
-        economia_tempo = tempo_real_total - tempo_estimado_desvio
-        
-        custo_diesel_adicional = adicional_km * custo_diesel_km
-        economia_tempo_reais = economia_tempo * custo_minuto
-        beneficio_liquido = economia_tempo_reais - custo_diesel_adicional
-        
-        recomendacao = "DESVIO_RECOMENDADO" if beneficio_liquido > 0 else "MANTER_ROTA_COM_ATENCAO"
-        
-        desvio_sugerido = {
-            "via_alternativa": "Variante SP-330 / Vicinal de Apoio",
-            "distancia_adicional_km": adicional_km,
-            "distancia_total_km": round(total_km + adicional_km, 1),
-            "tempo_estimado_min": round(tempo_estimado_desvio, 1),
-            "tempo_economizado_min": round(economia_tempo, 1)
-        }
-        
-        decisao_economica = {
-            "custo_diesel_adicional_reais": round(custo_diesel_adicional, 2),
-            "economia_tempo_reais": round(economia_tempo_reais, 2),
-            "custo_pedagio_rota_reais": round(custo_pedagio_total, 2),
-            "beneficio_liquido_reais": round(beneficio_liquido, 2),
-            "roi_positivo": beneficio_liquido > 0
-        }
-    else:
-        decisao_economica = {
-            "custo_diesel_adicional_reais": 0.0,
-            "economia_tempo_reais": 0.0,
-            "custo_pedagio_rota_reais": round(custo_pedagio_total, 2),
-            "beneficio_liquido_reais": 0.0,
-            "roi_positivo": True
-        }
+    pedagios = []
+    subtotal = 0.0
+    pendentes = 0
+    for itens in grupos.values():
+        tarifas = {avaliacao["custo_estimado_reais"] for _, avaliacao in itens}
+        tarifa = tarifas.pop() if len(tarifas) == 1 else None
+        if tarifa is None:
+            pendentes += 1
+        else:
+            subtotal += tarifa
+        principal = itens[0][0]
+        pedagios.append({
+            "id": principal["id"],
+            "nome": principal["nome"],
+            "fonte": principal["fonte"],
+            "origem_dados": principal["origem_dados"],
+            "grupo_cobranca": principal["grupo_cobranca"],
+            "cabines_cadastradas": len(itens),
+            "valido_ate": principal["valido_ate"].isoformat(),
+            "tarifa": tarifa
+        })
 
     return {
-        "status": "OPERACIONAL",
-        "modalidade": "ROTEAMENTO_PREDITIVO_COM_DECISAO_ECONOMICA",
+        "status": "DADOS_PARCIAIS",
+        "modalidade": "CONSULTA_CORREDOR_REFERENCIA",
         "origem": origem,
         "destino": destino,
-        "tipo_veiculo": tipo_veiculo.upper(),
+        "tipo_veiculo": categoria,
         "resumo": {
             "distancia_total_km": round(total_km, 1),
-            "tempo_nominal_min": round(tempo_nominal_total, 1),
-            "tempo_real_estimado_min": round(tempo_real_total, 1),
-            "atraso_climatico_min": round(tempo_real_total - tempo_nominal_total, 1),
-            "status_geral": "ALERTA_CLIMATICO" if alerta_meteorologico else "CONDICOES_FAVORAVEIS"
+            "tempo_nominal_min": None,
+            "tempo_real_estimado_min": None,
+            "atraso_climatico_min": None,
+            "status_geral": "SEM_DADOS_METEOROLOGICOS",
+            "motivo_indisponivel": MOTIVO_TEMPO + " " + MOTIVO_METEOROLOGIA
         },
         "decisao_logistica": {
-            "recomendacao": recomendacao,
-            "desvio": desvio_sugerido,
-            "analise_financeira": decisao_economica
+            "recomendacao": "INDISPONIVEL",
+            "desvio": None,
+            "motivo_indisponivel": MOTIVO_DESVIO,
+            "analise_financeira": {
+                "custo_diesel_adicional_reais": None,
+                "economia_tempo_reais": None,
+                "custo_pedagio_rota_reais": round(subtotal, 2),
+                "beneficio_liquido_reais": None,
+                "roi_positivo": None,
+                "motivo_indisponivel": MOTIVO_DESVIO
+            }
         },
         "pedagios": {
-            "quantidade_pracas": len(pedagios_rota),
-            "custo_total_pedagio_reais": round(custo_pedagio_total, 2),
-            "pracas_detalhadas": pedagios_rota
+            "quantidade_pracas": len(pedagios),
+            "custo_total_pedagio_reais": round(subtotal, 2),
+            "tarifas_pendentes": pendentes,
+            "cobertura_completa": False,
+            "aviso": AVISO_PEDAGIOS,
+            "pracas_detalhadas": pedagios
         },
         "segmentos": [
             {
                 "id": s["id_trecho"],
                 "nome": s["name"],
                 "distancia_km": float(s["distancia_km"]),
-                "tempo_nominal_min": float(s["tempo_nominal_min"]),
-                "tempo_real_min": float(s["tempo_real_min"]),
-                "status": s["status_pista"],
-                "precipitacao_mm_h": float(s["precipitacao_mm_h"])
+                "tempo_nominal_min": None,
+                "tempo_real_min": None,
+                "status": "SEM_DADO_METEOROLOGICO",
+                "precipitacao_mm_h": None
             }
             for s in segmentos
         ],
         "rastreabilidade": {
-            "versao_malha": "osm_sp_araraquara_v1.2",
-            "regra_utilizada": "roteamento_preditivo_corredor_v1",
+            "versao_malha": None,
+            "regra_utilizada": "consulta_corredor_referencia",
             "coletado_em": datetime.now(timezone.utc).isoformat()
         }
     }
