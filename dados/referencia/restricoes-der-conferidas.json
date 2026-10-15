@@ -1,0 +1,127 @@
+{
+  "verificado_em": "2026-10-14T22:33:00-03:00",
+  "valido_ate": "2026-10-21T22:33:00-03:00",
+  "atribuicao_geometria": "OpenStreetMap contributors, ODbL; geometria serve apenas para correspondencia, limite operacional provem do DER-SP.",
+  "registros": [
+    {
+      "id": "der-sp330-km81-sul",
+      "nome": "Largura da passagem sul do pedagio Valinhos",
+      "fonte": "https://sigrr.der.sp.gov.br/RelatRestricao?tipoRelatorio=html&tipoRestricao=Definitiva&tipoRodovia=Eixo&rodovia=SP+330&conservacaoRodovia=",
+      "secao": "SP 330",
+      "linha_oficial": [
+        "80,260",
+        "82,330",
+        "Eixo",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "4,40",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "Pedágio km 81, pista Sul - Limitado a largura de 4,40m."
+      ],
+      "osm_way_id": 721173861,
+      "geometria": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -47.0187631,
+            -23.0202426
+          ],
+          [
+            -47.0187077,
+            -23.020334
+          ],
+          [
+            -47.018646,
+            -23.0204284
+          ]
+        ]
+      },
+      "limites": {
+        "largura_max_m": 4.4
+      },
+      "colunas_limites": {"largura_max_m": 12},
+      "evidencia_geografica": "Nota do no OSM 1456093880 identifica Pedagio Valinhos sentido Sul; a via e unidirecional e contem esse no. A geometria corresponde somente a passagem coberta do pedagio."
+    },
+    {
+      "id": "der-sp330-sp310-153b-norte",
+      "nome": "Gabarito da ligacao SP-330 norte para SP-310 norte",
+      "fonte": "https://sigrr.der.sp.gov.br/RelatRestricao?tipoRelatorio=html&tipoRestricao=Definitiva&tipoRodovia=Eixo&rodovia=SP+330&conservacaoRodovia=",
+      "secao": "SP 330",
+      "linha_oficial": [
+        "152,360",
+        "153,250",
+        "Eixo",
+        "5,20",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "5,20",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "Anel viário 153 B da SP 330 (sentido norte) para acessar SP 310 no sentido norte, limitado em 5,20m de altura."
+      ],
+      "osm_way_id": 877397553,
+      "geometria": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -47.3988847,
+            -22.502486
+          ],
+          [
+            -47.3997954,
+            -22.5022332
+          ]
+        ]
+      },
+      "limites": {
+        "altura_max_m": 5.2
+      },
+      "colunas_limites": {"altura_max_m": 3},
+      "evidencia_geografica": "Via unidirecional SP-310 para oeste/norte, sob os viadutos da SP-330. O ramo 156650761 conecta SP-330 norte a essa via. Tag OSM maxheight=5.2 concorda com a descricao oficial. Nao se aplica ao tabuleiro da Anhanguera nem a pista SP-310 oposta (OSM 5.1)."
+    }
+  ],
+  "pendentes": [
+    {
+      "id": "mutinga-km14-9",
+      "motivo": "Passagem sob viaduto da Avenida Mutinga, SP-330 km14.9, fora do recorte regional importado; nao aplicar ao viaduto homonimo sobre a SP-348."
+    },
+    {
+      "id": "spa276-310-km0",
+      "motivo": "Acesso SPA276/310 nao integra as vias regionais importadas; correspondencia por pista no dispositivo ainda nao homologada. Nao aplicar altura de passagem sob SP-310 aos tabuleiros da SP-310."
+    },
+    {
+      "id": "sp310-km206-6",
+      "motivo": "Descricao oficial 5.39m sul diverge da coluna 5.45m Origem; sem aplicacao automatica."
+    },
+    {
+      "id": "sp310-sul-sp330-norte",
+      "motivo": "OSM 5.1m diverge do DER 5.2m; preservar limite existente mais restritivo; nao elevar automaticamente."
+    },
+    {
+      "id": "peso-pontes",
+      "motivo": "Relatorios consultados nao publicam peso admissivel das pontes; cobertura permanece incompleta."
+    }
+  ]
+}

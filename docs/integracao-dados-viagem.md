@@ -78,3 +78,20 @@ Foi consultado tambem o [inventario oficial de OAE do DER-SP](https://dadosabert
 Suite anterior: 84 testes. Novos testes cobrem consumo/preco automaticos, prioridade do custo informado, preco vencido, economia sem dupla contagem, valores invalidos, geometria longa/descontinua, timeout por fonte, duplicata ARTESP, leitor semanal, configuracao com GITHUB_ACTIONS e cabines duplicadas. Fixtures SQL anteriores validam limites de pontes, chuva, indisponibilidade de alternativa e isolamento entre empresas.
 
 Foi usada a malha regional existente no teste de corredor (261,53 km), sem substituir dados de frota por medidas supostamente reais. A cobertura de pontes continua parcial. Antes de usar como orientacao operacional, confirmar inventario de restricoes, enderecos, tempos, tarifas faltantes e premissas da empresa. O tempo do roteador atual continua uma estimativa com velocidade de referencia de 35 km/h.
+
+## Limites oficiais DER associados à malha
+
+O manifesto `dados/referencia/restricoes-der-conferidas.json` registra a linha completa do relatório público DER/SIGRR e a geometria OSM conferida. Foram associados a passagem sul do pedágio Valinhos (SP-330, km 81, largura 4,40 m, way 721173861) e o trecho sob a SP-330 na ligação norte para a SP-310 (altura 5,20 m, way 877397553). A primeira associação corresponde a dois segmentos e a segunda a um segmento na malha regional atual. A restrição de altura não se aplica ao tabuleiro da Anhanguera ou à pista oposta da SP-310.
+
+Executar com as variáveis de banco já usadas pelos importadores:
+
+```powershell
+python scripts/aplicar_restricoes_der.py --tenant demo_corp
+python scripts/aplicar_restricoes_der.py --tenant demo_corp --aplicar
+```
+
+Sem `--aplicar`, a execução apenas mostra o plano. O importador relê o relatório oficial e exige a mesma seção e linha completa; alterações na publicação impedem a aplicação. Confere também a referência OSM, o sentido da geometria e a cobertura de cada segmento com tolerância de 20 cm. Não busca a via mais próxima. Cadastros já verificados, IDs duplicados, outra empresa, geometrias diferentes e limites mais restritivos são preservados. A gravação é atômica e usa `malha_limites_revisoes` para registrar fonte, evidência, dados anteriores e SHA-256 da resposta consultada. Não há novo esquema, biblioteca ou consulta externa durante o cálculo das rotas.
+
+Os limites alimentam os mesmos campos utilizados pelo mapa, pelas rotas alternativas e pelos custos existentes. Uma nova incompatibilidade altera a chave do cache imediatamente; metadados de uma rota ainda compatível podem permanecer no cache por até cinco minutos. A validade inicial para revisão é de sete dias e não se renova sozinha. Exceder um limite conhecido continua bloqueando o trecho mesmo após o vencimento, como já ocorre no projeto.
+
+O manifesto mantém pendências explícitas: passagem da Mutinga fora do recorte regional atual, pistas da SPA 276/310 ainda sem associação exata na malha, divergência de 5,39/5,45 m na SP-310 km 206,6, divergência DER/OSM na ligação oposta e ausência de pesos admissíveis publicados. Nenhum desses casos autoriza passagem nem é cadastrado em uma via vizinha. A listagem não representa cobertura completa de pontes. O prejuízo por bater em uma estrutura não é inventado: a comparação considera o custo do caminho permitido e mantém as premissas de perdas climáticas existentes.
