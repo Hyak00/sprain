@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     DB_POOL_MAX_SIZE: int = 20
 
     API_KEYS: str = ""
+    CORS_ORIGINS: str = ""
 
     @property
     def ambiente_atual(self) -> str:
@@ -29,6 +30,15 @@ class Settings(BaseSettings):
         if not chaves and self.ambiente_atual == "production":
             raise RuntimeError("CRÍTICO: Variável API_KEYS não definida. Recusando inicialização do servidor em ambiente de produção.")
         return chaves
+
+    @property
+    def origens_cors(self) -> list[str]:
+        if self.ambiente_atual != "production":
+            return ["*"]
+        origens = [origem.strip().rstrip("/") for origem in self.CORS_ORIGINS.split(",") if origem.strip()]
+        if "*" in origens:
+            raise RuntimeError("CORS_ORIGINS nao pode permitir todas as origens em producao.")
+        return origens
 
     @property
     def database_url(self) -> str:

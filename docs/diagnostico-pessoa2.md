@@ -30,6 +30,7 @@ e não descreve a contagem atual.
 | Alta | Com `API_KEYS` vazia fora de produção, qualquer chave não vazia era aceita. | Falha fechada quando não há chaves configuradas. |
 | Alta | O reset global de ocorrências aceitava uma chave sem papel administrativo. | Exigência do papel administrador. |
 | Alta | Login de demonstração devolvia chaves inúteis em produção; `ENVIRONMENT` só no `.env` não era reconhecido pela validação. | Login demo recusado em produção e ambiente lido também da configuração. |
+| Média | CORS aceitava qualquer origem também em produção. | Em produção, apenas `CORS_ORIGINS` é aceito; sem configuração, chamadas entre origens diferentes ficam bloqueadas. |
 
 ## Trabalho restante antes de clientes reais
 
@@ -41,7 +42,7 @@ e não descreve a contagem atual.
    atuais são constantes em memória.
 4. Implantar backup automatizado, cópia externa e restauração testada em
    ambiente separado.
-5. Restringir CORS em produção, fixar dependências e preparar deploy com
+5. Fixar dependências e preparar deploy com
    migração, monitoramento e rollback reproduzíveis.
 
 Esses itens exigem evidência própria antes de serem marcados como concluídos.

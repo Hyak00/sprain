@@ -1,6 +1,7 @@
 import pytest
 from fastapi import HTTPException
 from app import seguranca
+from app.config import Settings
 
 def test_producao_recusa_sem_segredos(monkeypatch):
     monkeypatch.setenv("ENVIRONMENT", "production")
@@ -32,3 +33,16 @@ def test_producao_recusa_api_keys_ausentes(monkeypatch):
     monkeypatch.setattr(seguranca.settings, "API_KEYS", "")
     with pytest.raises(RuntimeError, match="API_KEYS"):
         seguranca.validar_configuracao_producao()
+
+
+def test_cors_producao_restringe_origens(monkeypatch):
+    monkeypatch.setenv("ENVIRONMENT", "production")
+    configuracao = Settings(_env_file=None, CORS_ORIGINS="https://painel.exemplo.com, https://ops.exemplo.com/")
+    assert configuracao.origens_cors == ["https://painel.exemplo.com", "https://ops.exemplo.com"]
+    assert Settings(_env_file=None).origens_cors == []
+
+
+def test_cors_producao_recusa_curinga(monkeypatch):
+    monkeypatch.setenv("ENVIRONMENT", "production")
+    with pytest.raises(RuntimeError, match="CORS_ORIGINS"):
+        Settings(_env_file=None, CORS_ORIGINS="https://painel.exemplo.com,*").origens_cors
