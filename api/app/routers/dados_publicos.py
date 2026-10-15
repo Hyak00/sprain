@@ -52,7 +52,7 @@ async def listar_tombamentos(
     sql = """SELECT id_fonte,data_ocorrencia,rodovia,km,sentido,municipio,classe,subclasse,
         caminhoes_envolvidos,veiculos_envolvidos,url_fonte,
         ST_X(geom) AS longitude,ST_Y(geom) AS latitude
-        FROM tombamentos_caminhao WHERE ativo AND data_ocorrencia >= $1
+        FROM tombamentos_caminhao WHERE ativo AND (UPPER(classe) LIKE '%TOMB%' OR UPPER(subclasse) LIKE '%TOMB%') AND data_ocorrencia >= $1
         AND ($2::boolean = false OR ST_Intersects(geom,ST_MakeEnvelope($3,$4,$5,$6,4326)))
         ORDER BY data_ocorrencia DESC,id_fonte LIMIT $7"""
     west, south, east, north = limites or (-180.0, -90.0, 180.0, 90.0)
@@ -74,7 +74,7 @@ async def resumir_tombamentos(
     desde = desde or date.today() - timedelta(days=3 * 365)
     linhas = await conn.fetch("""SELECT rodovia,COUNT(*)::integer AS ocorrencias,
         MIN(data_ocorrencia) AS primeira_ocorrencia,MAX(data_ocorrencia) AS ultima_ocorrencia
-        FROM tombamentos_caminhao WHERE ativo AND data_ocorrencia >= $1
+        FROM tombamentos_caminhao WHERE ativo AND (UPPER(classe) LIKE '%TOMB%' OR UPPER(subclasse) LIKE '%TOMB%') AND data_ocorrencia >= $1
         GROUP BY rodovia ORDER BY ocorrencias DESC,rodovia LIMIT $2""", desde, limite)
     return {"desde": desde, "rodovias": [dict(linha) for linha in linhas],
             "interpretacao": "Contagem historica observada; sem volume de trafego nao representa probabilidade de tombamento."}

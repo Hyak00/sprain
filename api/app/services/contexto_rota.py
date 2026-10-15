@@ -11,7 +11,7 @@ async def consultar_geometria(conn, geometria, raio_tombamento_m=500, raio_posto
         a.url_fonte,ROUND(ST_Distance(a.geom::geography,rota.geom::geography))::integer AS distancia_rota_m,
         ST_X(a.geom) AS longitude,ST_Y(a.geom) AS latitude
         FROM tombamentos_caminhao a,rota
-        WHERE a.ativo AND a.data_ocorrencia >= CURRENT_DATE - INTERVAL '3 years'
+        WHERE a.ativo AND (UPPER(a.classe) LIKE '%TOMB%' OR UPPER(a.subclasse) LIKE '%TOMB%') AND a.data_ocorrencia >= CURRENT_DATE - INTERVAL '3 years'
         AND ST_DWithin(a.geom::geography,rota.geom::geography,$2)
         ORDER BY distancia_rota_m,a.data_ocorrencia DESC LIMIT 201""", geojson, raio_tombamento_m)
     postos = await conn.fetch("""WITH rota AS (SELECT ST_SetSRID(ST_GeomFromGeoJSON($1::text),4326) AS geom)
