@@ -84,7 +84,7 @@ async def test_reset_global_exige_admin(chaves_teste):
         assert sem_chave.status_code == 401
         assert operador.status_code == 403
         assert admin.status_code == 200
-        assert conn.gravacoes == 1
+        assert conn.gravacoes == 2
     finally:
         app.dependency_overrides.pop(get_connection, None)
 

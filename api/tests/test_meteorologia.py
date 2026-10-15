@@ -44,8 +44,9 @@ async def test_clima_valida_regras():
         assert res3["precipitacao_mm"] == 65.5
         
         # Teste 4: Registro historico gravado
+        historico_antes = await conn.fetchval("SELECT count(*) FROM historico_avaliacoes_risco")
         await ws.registrar_avaliacao_risco(id_trecho, res3["precipitacao_mm"], "CRITICO", res3["fonte"], res3["idade_minutos"], "v1.0")
         hist = await conn.fetchval("SELECT count(*) FROM historico_avaliacoes_risco")
-        assert hist == 1
+        assert hist == historico_antes + 1
     finally:
         await conn.close()

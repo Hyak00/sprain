@@ -18,6 +18,8 @@ O repositório coletou 84 testes no commit inicial. Em dois contêineres Docker
 novos, sem portas publicadas e com banco próprio, os 84 passaram. Após as
 correções de segurança desta branch, a mesma suíte ampliada passou com 92
 testes. Nenhum teste foi direcionado ao banco ou à API de demonstração local.
+Após integrar o `main` de 15/10/2026, os 141 testes da suíte passaram;
+a validação usa a mesma rede e o mesmo banco descartáveis.
 O relatório `RELATORIO_HOMOLOGACAO.md` registra 56 testes de um commit anterior
 e não descreve a contagem atual.
 
