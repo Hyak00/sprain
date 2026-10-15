@@ -22,3 +22,13 @@ def test_producao_sem_tenant_keys_bloqueia_fallback_demo(monkeypatch):
     with pytest.raises(HTTPException) as exc:
         seguranca.carregar_chaves_tenants()
     assert exc.value.status_code == 503
+
+
+def test_producao_recusa_api_keys_ausentes(monkeypatch):
+    monkeypatch.setenv("ENVIRONMENT", "production")
+    monkeypatch.setenv("DB_PASSWORD", "senha_forte_exclusiva_prod_2026")
+    monkeypatch.setenv("WEBHOOK_SECRET_KEY", "chave_exclusiva_de_teste")
+    monkeypatch.setenv("TENANT_API_KEYS", "chave_teste:ADMIN:empresa_teste")
+    monkeypatch.setattr(seguranca.settings, "API_KEYS", "")
+    with pytest.raises(RuntimeError, match="API_KEYS"):
+        seguranca.validar_configuracao_producao()

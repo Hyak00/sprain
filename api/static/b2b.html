@@ -420,7 +420,7 @@
     </div>
 
         <script>
-        window.API_KEY = 'key_operator_demo';
+        window.API_KEY = '';
         let operacaoSelecionadaId = null;
         let recomendacoesAtuais = [];
         let frotaAtual = [];
@@ -481,7 +481,9 @@
                 });
 
                 if (!res.ok) {
-                    erroEl.innerText = 'E-mail corporativo ou senha invalidos.';
+                    erroEl.innerText = res.status === 503
+                        ? 'Acesso corporativo ainda nao configurado neste ambiente.'
+                        : 'E-mail corporativo ou senha invalidos.';
                     return;
                 }
 
@@ -503,6 +505,7 @@
         }
 
         function sairSessao() {
+            window.API_KEY = '';
             window.InfraCaminhoes.limpar();
             window.CadastroInfra.sessao(null);
             document.getElementById('inspector').style.display = 'none';

@@ -5,7 +5,7 @@ import unicodedata
 from app.schemas import AlertaRapidoCreate, OcorrenciaTextoCreate
 from app.nlp import extrair_dados_ocorrencia
 from app.database import get_connection
-from app.seguranca import exigir_api_key
+from app.seguranca import exigir_api_key, require_role
 
 router = APIRouter(prefix="/api/v1/ocorrencias", tags=["Ocorrências"])
 
@@ -92,7 +92,7 @@ async def listar_ocorrencias_ativas(conn: asyncpg.Connection = Depends(get_conne
     rows = await conn.fetch(query)
     return [dict(row) for row in rows]
 
-@router.post("/resetar-todas", dependencies=[Depends(exigir_api_key)])
+@router.post("/resetar-todas", dependencies=[Depends(require_role(["ADMIN"]))])
 async def resetar_todas_ocorrencias(conn: asyncpg.Connection = Depends(get_connection)):
     query = """
     UPDATE estado_operacional_trechos

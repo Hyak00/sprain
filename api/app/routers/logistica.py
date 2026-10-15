@@ -9,7 +9,7 @@ import urllib.request
 from typing import List, Dict, Any, Optional, Literal
 
 from app.services.rate_limiter import TenantRateLimiter
-from app.seguranca import require_role, get_current_user_claims
+from app.seguranca import require_role, get_current_user_claims, is_production
 from app.database import get_connection
 from app.schemas import (
     VeiculoCreate,
@@ -1121,6 +1121,8 @@ USUARIOS_CORPORATIVOS = {
 
 @router.post("/auth/login")
 async def login_corporativo(dados: LoginCorporativoRequest):
+    if is_production():
+        raise HTTPException(status_code=503, detail="Login de demonstracao indisponivel em producao.")
     email_limpo = dados.email.strip().lower()
     user = USUARIOS_CORPORATIVOS.get(email_limpo)
     if not user or user["senha"] != dados.senha:

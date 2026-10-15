@@ -5,6 +5,7 @@ from pydantic import BaseModel
 from typing import Optional
 
 from app.database import get_connection
+from app.seguranca import require_role
 
 sys.path.append("/app")
 
@@ -52,7 +53,7 @@ async def aplicar_impacto_chuva(conn, acumulado_mm: float) -> int:
     except Exception:
         return 0
 
-@router.post("/sincronizar-cge")
+@router.post("/sincronizar-cge", dependencies=[Depends(require_role(["ADMIN", "OPERATOR"]))])
 async def sincronizar_cge(conn=Depends(get_connection)):
     if not coletar_chuva_cge:
         from app.services.weather import CGEWeatherProvider
@@ -93,7 +94,7 @@ async def sincronizar_cge(conn=Depends(get_connection)):
         "trechos_atualizados": linhas
     }
 
-@router.post("/simular-chuva")
+@router.post("/simular-chuva", dependencies=[Depends(require_role(["ADMIN", "OPERATOR"]))])
 async def simular_chuva_manual(acumulado_mm: float, conn=Depends(get_connection)):
     if acumulado_mm < 0:
         raise HTTPException(status_code=400, detail="Volume de chuva nao pode ser negativo.")
