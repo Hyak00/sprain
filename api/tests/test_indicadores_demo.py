@@ -19,3 +19,4 @@ async def test_indicadores_qualidade_e_demo():
         data_demo = resp_demo.json()
         assert data_demo["modo"] == "DATASET_DEMONSTRACAO_B2B"
         assert "comparativo_rotas" in data_demo
+        assert "aviso" in data_demo
