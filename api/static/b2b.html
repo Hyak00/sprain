@@ -510,6 +510,7 @@
         }
 
         function alternarAba(aba) {
+            window.DadosViagem?.limpar();
             document.getElementById('tab-urbano').classList.toggle('active', aba === 'URBANO');
             document.getElementById('tab-frota').classList.toggle('active', aba === 'FROTA');
             document.getElementById('tab-corredor').classList.toggle('active', aba === 'CORREDOR');
@@ -822,9 +823,10 @@
             const res = await fetch('/api/v1/logistica/operacoes/' + idOperacao + '/explicacao', { headers: { 'X-API-Key': window.API_KEY } });
             if (!res.ok) return;
             const data = await res.json();
-            if(sessao!==window.SESSION_EPOCH) return;
+            if(sessao!==window.SESSION_EPOCH || idOperacao!==operacaoSelecionadaId) return;
 
             window.InfraCaminhoes.inspector(data.infraestrutura);
+            window.DadosViagem.exibir([data.geometrias?.rota_original_geojson,data.geometrias?.rota_alternativa_geojson]);
             document.getElementById('modal-op-title').innerText = data.id_operacao + ' • ' + data.placa + ' (' + data.modelo + ')';
             if (data.coordenadas) {
                 document.getElementById('modal-origem-destino').innerText = data.coordenadas.origem_nome + ' -> ' + data.coordenadas.destino_nome;
@@ -929,6 +931,7 @@
         }
     </script>
     <script src="/static/infraestrutura-caminhoes.js"></script>
+    <script src="/static/dados-viagem.js"></script>
     <script src="/static/infraestrutura-cadastro.js"></script>
 </body>
 </html>

@@ -34,3 +34,5 @@ docker exec -w /app/api sprain_api python -m pytest tests/ -v
 ## Caminhoes e infraestrutura na torre existente
 
 Consulte [o guia de integracao](docs/integracao-caminhoes.md) para medidas, custos, pedagios, pontes, dados de referencia e execucao da demonstracao. Login, abas, filtros, despacho e auditoria existentes foram preservados.
+
+O [complemento de dados e custos automaticos](docs/integracao-dados-viagem.md) descreve consumo de referencia, preco semanal ANP, fontes no mapa, tarifas conferidas e limites de cobertura.

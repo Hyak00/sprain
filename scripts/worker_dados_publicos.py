@@ -12,18 +12,26 @@ from pathlib import Path
 
 
 IMPORTADOR = Path(__file__).with_name("sincronizar_dados_publicos.py")
-FONTES = ("artesp", "anp", "anp-cadastro", "ssp-roubo")
+FONTES = ("artesp", "anp", "anp-semanal", "anp-cadastro", "ssp-roubo")
 
 
 def executar_rodada() -> bool:
     sucesso = True
-    for fonte in FONTES:
-        resultado = subprocess.run(
-            [sys.executable, "-B", str(IMPORTADOR), fonte, "--aplicar"],
-            timeout=600,
-            check=False,
-        )
-        if resultado.returncode:
+    tarefas=[(fonte,[sys.executable,'-B',str(IMPORTADOR),fonte,'--aplicar']) for fonte in FONTES]
+    tenant=os.getenv('SPRAIN_INFRA_TENANT','').strip()
+    if tenant:
+        tarefas.append(('estruturas-osm',[sys.executable,'-B',str(IMPORTADOR.with_name('sincronizar_estruturas_corredor.py')),'--tenant',tenant,'--aplicar']))
+    for fonte,comando in tarefas:
+        try:
+            resultado = subprocess.run(
+                comando,
+                timeout=600,
+                check=False,
+            )
+            falhou = resultado.returncode != 0
+        except (subprocess.TimeoutExpired, OSError):
+            falhou = True
+        if falhou:
             sucesso = False
             print(f"{datetime.now(timezone.utc).isoformat()} fonte={fonte} falhou; outras fontes continuam.",
                   file=sys.stderr, flush=True)

@@ -433,7 +433,7 @@ def aplicar(fonte: str, url: str, dados: bytes, registros: list[dict]):
             cursor.execute(MIGRACAO.read_text(encoding="utf-8"))
             cursor.execute("SELECT hash_sha256,registros_importados FROM fontes_dados_externos WHERE nome=%s", (fonte,))
             anterior = cursor.fetchone()
-            if anterior and anterior[0] == sha:
+            if anterior and anterior[0] == sha and anterior[1] == len(registros):
                 cursor.execute("UPDATE fontes_dados_externos SET ultimo_sucesso_em=now() WHERE nome=%s", (fonte,))
                 return {"fonte": fonte, "sem_alteracoes": True, "registros": len(registros)}
             if fonte.startswith("ARTESP"):
@@ -527,14 +527,27 @@ def aplicar(fonte: str, url: str, dados: bytes, registros: list[dict]):
     return {"fonte": fonte, "sem_alteracoes": False, "registros": len(registros)}
 
 def main() -> None:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("fonte", choices=("artesp", "anp", "anp-cadastro", "ssp-roubo", "roubo-carga", "coordenadas-postos", "todas"))
-    parser.add_argument("--anos", nargs="+", type=int)
-    parser.add_argument("--anos-ssp", nargs="+", type=int)
-    parser.add_argument("--arquivo", type=Path)
-    parser.add_argument("--url-fonte")
-    parser.add_argument("--aplicar", action="store_true")
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("fonte", choices=("artesp", "anp", "anp-semanal", "anp-cadastro", "ssp-roubo", "roubo-carga", "coordenadas-postos", "todas"))
+    parser.add_argument("--anos", nargs="+", type=int, help="Anos ARTESP; padrao: atual e dois anteriores")
+    parser.add_argument("--anos-ssp", nargs="+", type=int, help="Anos SSP; padrao: atual e anterior")
+    parser.add_argument("--arquivo", type=Path, help="CSV local para uma unica fonte")
+    parser.add_argument("--url-fonte", help="URL oficial do CSV local ou URL para baixar")
+    parser.add_argument("--aplicar", action="store_true", help="Grava em tabelas novas; padrao: so valida")
     args = parser.parse_args()
+    if args.fonte == "todas" and (args.arquivo or args.url_fonte):
+        parser.error("--arquivo e --url-fonte exigem uma unica fonte.")
+    if args.fonte == "roubo-carga" and (not args.arquivo or not args.url_fonte):
+        parser.error("Roubo de carga requer CSV agregado oficial e --url-fonte.")
+    if args.fonte == "coordenadas-postos" and not args.arquivo:
+        parser.error("Coordenadas de postos requerem CSV conferido com fonte por linha.")
+    if args.fonte == "anp-cadastro" and (args.arquivo or args.url_fonte):
+        parser.error("Cadastro ANP deve ser consultado diretamente na API oficial.")
+    if args.arquivo and not args.url_fonte and args.fonte != "coordenadas-postos":
+        parser.error("Informe --url-fonte para registrar a procedencia do arquivo.")
+    if args.url_fonte and urllib.parse.urlparse(args.url_fonte).scheme != "https":
+        parser.error("--url-fonte deve ser uma URL HTTPS verificavel.")
+
 
     tarefas: list[tuple[str, str, bytes]] = []
     if args.arquivo:
@@ -551,6 +564,10 @@ def main() -> None:
             for url in fontes_anp(date.today().year):
                 produto = "DIESEL" if "diesel" in url.lower() else "GASOLINA"
                 tarefas.append((f"ANP_{produto}", url, baixar(url)))
+        if args.fonte in ("anp-semanal", "todas"):
+            from anp_semanal import CATALOGO, descobrir_url
+            url = descobrir_url(baixar(CATALOGO).decode('utf-8'))
+            tarefas.append(('ANP_SEMANAL', url, baixar(url)))
         if args.fonte in ("anp-cadastro", "todas"):
             tarefas.append(("ANP_CADASTRO", ANP_CADASTRO, baixar_cadastro_anp()))
         if args.fonte in ("ssp-roubo", "todas"):
@@ -565,6 +582,11 @@ def main() -> None:
             registros, resumo = ler_artesp(dados, url)
         elif fonte == "ANP_CADASTRO":
             registros, resumo = ler_anp_cadastro(dados)
+        elif fonte == 'ANP_SEMANAL':
+            from anp_semanal import para_csv
+            registros, resumo = ler_anp(para_csv(dados), url)
+            if not registros or resumo['invalidos']:
+                raise ValueError('Planilha semanal ANP vazia ou com linhas invalidas; importacao cancelada.')
         elif fonte.startswith("ANP"):
             registros, resumo = ler_anp(dados, url)
         elif fonte == "COORDENADAS_POSTOS":

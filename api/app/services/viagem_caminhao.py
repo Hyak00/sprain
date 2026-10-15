@@ -7,6 +7,8 @@ from types import SimpleNamespace
 from app.schemas import ParametrosFinanceiros
 from app.services.infraestrutura_viaria import SELECT_PONTOS, LIMITES, avaliar_ponto, resumir_rota
 from app.services.routing_engine import RoutingEngine
+from app.services.estruturas_viarias import complementar_estruturas
+from app.services.custo_combustivel import custo_quilometrico, referencia_diesel, completar_custos
 
 
 def objeto(valor):
@@ -23,10 +25,11 @@ def dados_viagem(op):
 def comparar_custos(original, alternativa, premissas, risco_climatico, janela_min=None):
     """Diferencas com sinal: um desvio pode custar menos. Sem tarifa inventada."""
     p = ParametrosFinanceiros().model_dump() | premissas
+    combustivel = custo_quilometrico(p)
     hora = p['custo_hora_motorista'] + p['custo_operacional_veiculo_hora']
     def custo(rota):
         atraso=max(0.0,rota['tempo_min']-janela_min)/60*p['custo_atraso_hora'] if janela_min is not None else 0.0
-        return round(rota['distancia_km'] * p['custo_por_km'] + rota['tempo_min'] / 60 * hora
+        return round(rota['distancia_km'] * combustivel['custo_por_km_aplicado'] + rota['tempo_min'] / 60 * hora
                      + rota['infraestrutura']['pedagios']['subtotal_conhecido_reais'] + atraso, 2)
     direto, desvio = custo(original), custo(alternativa)
     delta = round(desvio - direto, 2)
@@ -35,6 +38,10 @@ def comparar_custos(original, alternativa, premissas, risco_climatico, janela_mi
                  + alternativa['infraestrutura']['pedagios']['tarifas_pendentes'])
     return {
         'custo_original_conhecido_brl': direto, 'custo_alternativa_conhecido_brl': desvio,
+        'custo_medio_original_conhecido_por_km_brl': round(direto/original['distancia_km'],2) if original['distancia_km'] else None,
+        'custo_medio_alternativa_conhecido_por_km_brl': round(desvio/alternativa['distancia_km'],2) if alternativa['distancia_km'] else None,
+        'combustivel_original_estimado_litros': (round(original['distancia_km']/p['consumo_km_l'],2)
+            if combustivel['combustivel_por_km'] is not None else None),
         'delta_pedagios_conhecidos_brl': round(alternativa['infraestrutura']['pedagios']['subtotal_conhecido_reais']
                                               - original['infraestrutura']['pedagios']['subtotal_conhecido_reais'], 2),
         'custo_desvio_brl': delta,
@@ -44,6 +51,9 @@ def comparar_custos(original, alternativa, premissas, risco_climatico, janela_mi
         'tarifas_pendentes_comparacao': pendentes,
         'comparacao_completa': False,
         'janela_disponivel_min': janela_min,
+        'combustivel': combustivel,
+        'delta_combustivel_estimado_brl': (round((alternativa['distancia_km'] - original['distancia_km'])
+            * combustivel['combustivel_por_km'], 2) if combustivel['combustivel_por_km'] is not None else None),
         'premissas': p,
         'aviso': 'Estimativa com custos conhecidos e perda potencial informada; nao e dinheiro efetivamente salvo. '
                  'Cobertura de restricoes parcial; tarifas pendentes podem alterar a comparacao.'
@@ -66,7 +76,7 @@ class ContextoViagens:
             WHERE o.tenant_id=$1 AND ($2::text IS NULL OR o.id_operacao=$2) ORDER BY o.id_operacao''',tenant,id_operacao)
         pontos = [dict(p) for p in await conn.fetch(SELECT_PONTOS, tenant)]
         trechos = await conn.fetch('''SELECT ort.id_operacao,t.id_trecho,t.length,t.ivi_score,
-            t.limites_malha,t.fonte_malha,t.limites_verificado_em,t.limites_valido_ate,
+            t.estrutura_malha,t.limites_malha,t.fonte_malha,t.limites_verificado_em,t.limites_valido_ate,
             ST_AsGeoJSON(ST_Transform(t.geom,4326)) AS geojson,
             (t.tenant_malha IS NULL OR t.tenant_malha=$1) AND
             (t.importacao_malha_id IS NULL OR EXISTS(SELECT 1 FROM malha_importacoes m
@@ -78,7 +88,12 @@ class ContextoViagens:
             WHERE (t.tenant_malha IS NULL OR t.tenant_malha=$1) AND t.limites_malha IS NOT NULL
             AND t.limites_malha<>'{}'::jsonb AND (t.importacao_malha_id IS NULL OR EXISTS(
                 SELECT 1 FROM malha_importacoes m WHERE m.id=t.importacao_malha_id AND m.ativo))''',tenant)
-        return cls(conn,tenant,[dict(o) for o in ops],pontos,trechos,limites)
+        referencia=await referencia_diesel(conn)
+        operacoes=[dict(o) for o in ops]
+        for op in operacoes:
+            dims,custos=dados_viagem(op)
+            op['custos_operacionais']=completar_custos(custos,dims,referencia)
+        return cls(conn,tenant,operacoes,pontos,trechos,limites)
 
     def original(self, op):
         dims, _ = dados_viagem(op)
@@ -107,6 +122,7 @@ class ContextoViagens:
                             'fonte_malha':t['fonte_malha'],'verificado_em':t['limites_verificado_em'],
                             'valido_ate':t['limites_valido_ate'],
                             'status_limite':'BLOQUEADO' if t['id_trecho'] in bloqueios else 'CONFERENCIA_NECESSARIA'}})
+        complementar_estruturas(info,[{'geometry':json.loads(t['geojson']),'properties':{'estrutura_viaria':t['estrutura_malha'],'limites_importados':objeto(t['limites_malha'])}} for t in ts if t['geojson']])
         info['limites_trechos'] = limites
         info['trechos_incompativeis'] = sorted(bloqueios)
         info['limites_mapa']={'type':'FeatureCollection','features':limites_mapa}

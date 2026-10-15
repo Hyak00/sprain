@@ -21,6 +21,9 @@ CREATE INDEX IF NOT EXISTS infraestrutura_tenant_trecho_idx
     ON infraestrutura_viaria (tenant_id, id_trecho);
 CREATE INDEX IF NOT EXISTS infraestrutura_geom_idx
     ON infraestrutura_viaria USING gist (geom);
+ALTER TABLE infraestrutura_viaria ADD COLUMN IF NOT EXISTS grupo_cobranca TEXT;
+ALTER TABLE infraestrutura_viaria ADD COLUMN IF NOT EXISTS tarifas_por_eixos JSONB;
+ALTER TABLE trechos_osm ADD COLUMN IF NOT EXISTS estrutura_malha JSONB;
 
 ALTER TABLE veiculos ADD COLUMN IF NOT EXISTS dimensoes JSONB;
 ALTER TABLE operacoes ADD COLUMN IF NOT EXISTS dimensoes JSONB;

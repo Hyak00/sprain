@@ -1,0 +1,83 @@
+{
+  "fonte": "https://rodovias.motiva.com.br/content/dam/conteudo-multicanal/rodovias/concessoes/autoban/rodovias/pdf/tabela_tarifas_autoban_2026.pdf",
+  "sha256_documento": "26d6f5da77b641df12337173f6b19eca00d849becd18c9aca7273744f7365e3a",
+  "inicio_tarifa": "2026-07-01",
+  "verificado_em": "2026-10-14T20:00:00-03:00",
+  "valido_ate": "2026-10-21T20:00:00-03:00",
+  "categoria": "Comercial por eixo, tarifa cheia, sem TAG/descontos. Apenas pontos conferidos da referencia OSM; nao cobre todos os pedagios.",
+  "pracas": [
+    {
+      "nome": "Perus SP-330",
+      "grupo_cobranca": "AUTOBAN-25983114",
+      "tarifa_por_eixo": "14.5",
+      "nos_osm": [
+        25983114,
+        25983119,
+        632018316
+      ]
+    },
+    {
+      "nome": "Campo Limpo / Caieiras SP-348",
+      "grupo_cobranca": "AUTOBAN-26008875",
+      "tarifa_por_eixo": "14.5",
+      "nos_osm": [
+        26008875,
+        6661114507
+      ]
+    },
+    {
+      "nome": "Itupeva SP-348",
+      "grupo_cobranca": "AUTOBAN-31941072",
+      "tarifa_por_eixo": "14.3",
+      "nos_osm": [
+        31941072,
+        289634458
+      ]
+    },
+    {
+      "nome": "Nova Odessa SP-330",
+      "grupo_cobranca": "AUTOBAN-33554488",
+      "tarifa_por_eixo": "12.8",
+      "nos_osm": [
+        33554488,
+        1563445918
+      ]
+    },
+    {
+      "nome": "Limeira SP-330",
+      "grupo_cobranca": "AUTOBAN-33558136",
+      "tarifa_por_eixo": "9.7",
+      "nos_osm": [
+        33558136,
+        1827816642
+      ]
+    },
+    {
+      "nome": "Sumare SP-348",
+      "grupo_cobranca": "AUTOBAN-289634460",
+      "tarifa_por_eixo": "12.8",
+      "nos_osm": [
+        289634460,
+        2349449098
+      ]
+    },
+    {
+      "nome": "Limeira SP-348",
+      "grupo_cobranca": "AUTOBAN-289634462",
+      "tarifa_por_eixo": "9.7",
+      "nos_osm": [
+        289634462,
+        1701473764
+      ]
+    },
+    {
+      "nome": "Valinhos SP-330",
+      "grupo_cobranca": "AUTOBAN-1456093880",
+      "tarifa_por_eixo": "14.3",
+      "nos_osm": [
+        1456093880,
+        6661232489
+      ]
+    }
+  ]
+}

@@ -3,6 +3,7 @@ import json
 import asyncpg
 from typing import Dict, Any, Optional, Tuple
 from types import SimpleNamespace
+from app.services.estruturas_viarias import complementar_estruturas
 from app.services.infraestrutura_viaria import SELECT_PONTOS, avaliar_ponto, resumir_rota, LIMITES
 
 class RoutingEngine:
@@ -72,8 +73,9 @@ class RoutingEngine:
         cache_key += ":dimensions=" + json.dumps(vehicle_dimensions, sort_keys=True)
         cached_result = cls._get_from_cache(cache_key)
         if cached_result is not None:
-            return {**cached_result, "infraestrutura": {**cached_result['infraestrutura'],
-                **resumir_rota(pontos, cached_result["ids_trechos"], vehicle_dimensions)}}
+            info={**cached_result['infraestrutura'],**resumir_rota(pontos,cached_result['ids_trechos'],vehicle_dimensions)}
+            complementar_estruturas(info,cached_result['geojson']['features'])
+            return {**cached_result,'infraestrutura':info}
 
         vert_query = """
         SELECT v.id, ST_DWithin(ST_Transform(v.the_geom,4326)::geography,
@@ -147,7 +149,7 @@ class RoutingEngine:
             t.length, 
             t.ivi_score,
             t.sentido,
-            t.limites_malha, t.fonte_malha, t.limites_verificado_em,t.limites_valido_ate,
+            t.estrutura_malha,t.limites_malha, t.fonte_malha, t.limites_verificado_em,t.limites_valido_ate,
             ST_AsGeoJSON(ST_Transform(t.geom, 4326)) AS geojson
         FROM pgr_dijkstra(
             $3::text,
@@ -184,6 +186,7 @@ class RoutingEngine:
                         "fonte_malha": row["fonte_malha"],
                         "verificado_em":row['limites_verificado_em'],
                         "valido_ate":row['limites_valido_ate'],
+                        "estrutura_viaria":json.loads(row["estrutura_malha"]) if row["estrutura_malha"] else None,
                         "status_limite":"CONFERENCIA_NECESSARIA"
                     }
                 })
@@ -205,6 +208,7 @@ class RoutingEngine:
         result['infraestrutura']['limites_mapa']={'type':'FeatureCollection',
             'features':[f for f in features if f['properties']['limites_importados']]}
 
+        complementar_estruturas(result['infraestrutura'],features)
         cls._set_cache(cache_key, result)
         return result
 
