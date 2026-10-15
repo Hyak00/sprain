@@ -3,6 +3,7 @@ from fastapi import APIRouter, HTTPException, Depends, Query
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
 import asyncpg
+from datetime import datetime, timezone
 
 from app.database import get_connection
 
@@ -75,7 +76,12 @@ async def calcular_rota(dados: RotaRequest, conn: asyncpg.Connection = Depends(g
     return {
         "rota_padrao": rota_padrao,
         "rota_resiliente": rota_resiliente,
-        "desvio_necessario": rota_padrao["distancia_km"] != rota_resiliente["distancia_km"]
+        "desvio_necessario": rota_padrao["distancia_km"] != rota_resiliente["distancia_km"],
+        "rastreabilidade": {
+            "versao_malha": "osm_sp_araraquara_v1.2",
+            "regra_utilizada": "pgr_dijkstra_resiliente_v1",
+            "coletado_em": datetime.now(timezone.utc).isoformat()
+        }
     }
 
 @router.get("/intermunicipal", dependencies=[Depends(require_role(["ADMIN", "OPERATOR", "VIEWER"]))])
@@ -215,5 +221,10 @@ async def calcular_rota_intermunicipal(
                 "precipitacao_mm_h": float(s["precipitacao_mm_h"])
             }
             for s in segmentos
-        ]
+        ],
+        "rastreabilidade": {
+            "versao_malha": "osm_sp_araraquara_v1.2",
+            "regra_utilizada": "roteamento_preditivo_corredor_v1",
+            "coletado_em": datetime.now(timezone.utc).isoformat()
+        }
     }
