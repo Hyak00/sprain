@@ -828,23 +828,21 @@ async def tomar_decisao_economica(dados: DecisaoEconomicaRequest, conn: asyncpg.
     if not rota_direta or not rota_segura:
         raise HTTPException(status_code=400, detail="Nao foi possivel rotear os pontos informados sobre a malha viaria.")
 
-    fator_chuva = min(1.0, dados.precipitacao_mm / 100.0)
-    prob_atraso = round(min(0.95, 0.20 + (fator_chuva * 0.70)), 2)
-    prob_bloqueio = round(min(0.90, 0.10 + (fator_chuva * 0.80)), 2)
-
     rota_direta_info = {
         "distancia_km": rota_direta["distancia_km"],
         "tempo_min": rota_direta["tempo_min"],
-        "probabilidade_atraso": prob_atraso,
-        "probabilidade_bloqueio": prob_bloqueio,
+        "probabilidade_atraso": None,
+        "probabilidade_bloqueio": None,
+        "motivo_indisponivel": "Probabilidades de atraso e bloqueio dependem de modelo calibrado contra ocorrencias reais.",
         "custo_pedagio_conhecido":rota_direta["infraestrutura"]["pedagios"]["subtotal_conhecido_reais"]
     }
 
     rota_segura_info = {
         "distancia_km": rota_segura["distancia_km"],
         "tempo_min": rota_segura["tempo_min"],
-        "probabilidade_atraso": 0.08,
-        "probabilidade_bloqueio": 0.01,
+        "probabilidade_atraso": None,
+        "probabilidade_bloqueio": None,
+        "motivo_indisponivel": "Probabilidades de atraso e bloqueio dependem de modelo calibrado contra ocorrencias reais.",
         "custo_pedagio_conhecido":rota_segura["infraestrutura"]["pedagios"]["subtotal_conhecido_reais"]
     }
 
@@ -867,7 +865,7 @@ async def tomar_decisao_economica(dados: DecisaoEconomicaRequest, conn: asyncpg.
     }
 
 @router.get("/central-frota", dependencies=[Depends(aplicar_rate_limit)])
-async def obter_painel_central_frota(tenant_id: str = Depends(resolve_tenant), precipitacao_referencia_mm: float = 60.0, conn: asyncpg.Connection = Depends(get_connection)):
+async def obter_painel_central_frota(tenant_id: str = Depends(resolve_tenant), precipitacao_referencia_mm: float = 60.0, prejuizo_referencia_brl: Optional[float] = Query(None, description="Prejuizo potencial configuravel informado pelo gestor"), conn: asyncpg.Connection = Depends(get_connection)):
     query = """
         SELECT
             v.id_veiculo,
@@ -900,8 +898,16 @@ async def obter_painel_central_frota(tenant_id: str = Depends(resolve_tenant), p
     veiculos_em_risco = 0
     impacto_financeiro_evitavel_total = 0.0
 
-    contexto=await ContextoViagens.carregar(conn,tenant_id)
-    por_id={o['id_operacao']:o for o in contexto.ops}
+    recs = await conn.fetch("""
+        SELECT DISTINCT ON (id_operacao)
+            id_operacao, tipo_acao, nivel_risco, custo_desvio,
+            prejuizo_potencial_evitado, analise_infraestrutura
+        FROM recomendacoes_operacao
+        WHERE tenant_id = $1
+        ORDER BY id_operacao, id_recomendacao DESC;
+    """, tenant_id)
+    recs_map = {rec["id_operacao"]: rec for rec in recs}
+
     for r in rows:
         tem_operacao = r["id_operacao"] is not None
         trechos_risco = int(r["trechos_risco"] or 0)
@@ -909,11 +915,12 @@ async def obter_painel_central_frota(tenant_id: str = Depends(resolve_tenant), p
         if not tem_operacao:
             status_frota = "DISPONIVEL"
             nivel_risco = "BAIXO"
-            prob_atraso = 0.0
-            eta_min = 0.0
+            prob_atraso = None
+            eta_min = None
             acao = "AGUARDANDO_DESPACHO"
-            custo_desvio = 0.0
+            custo_desvio = None
             economia_estimada = 0.0
+            analise = None
         else:
             status_frota = "EM_TRANSITO"
             dist_km = float(r["distancia_planejada_km"] or 8.0)
@@ -924,39 +931,44 @@ async def obter_painel_central_frota(tenant_id: str = Depends(resolve_tenant), p
 
             if score_exposicao >= 60.0 or trechos_risco >= 2:
                 nivel_risco = "ALTO"
-                prob_atraso = min(0.95, 0.45 + (fator_chuva * 0.50))
-                eta_min = round(tempo_base_min * 1.6, 1)
+                prob_atraso = None
+                eta_min = None
                 acao = "ALTERAR_ROTA_IMEDIATO"
-                custo_desvio = round(dist_km * 0.35 * 6.50, 2)
-                economia_estimada = 2800.00
+                custo_desvio = None
+                economia_estimada = prejuizo_referencia_brl
                 veiculos_em_risco += 1
-                impacto_financeiro_evitavel_total += economia_estimada
+                if economia_estimada is not None:
+                    impacto_financeiro_evitavel_total += economia_estimada
             elif score_exposicao >= 35.0 or trechos_risco == 1:
                 nivel_risco = "MEDIO"
-                prob_atraso = min(0.70, 0.25 + (fator_chuva * 0.35))
-                eta_min = round(tempo_base_min * 1.25, 1)
+                prob_atraso = None
+                eta_min = None
                 acao = "MONITORAR_ALERTA"
-                custo_desvio = 0.0
+                custo_desvio = None
                 economia_estimada = 0.0
             else:
                 nivel_risco = "BAIXO"
-                prob_atraso = 0.05
-                eta_min = tempo_base_min
+                prob_atraso = None
+                eta_min = None
                 acao = "MANTER_CURSO"
-                custo_desvio = 0.0
+                custo_desvio = None
                 economia_estimada = 0.0
 
-        analise=None
-        if tem_operacao:
-            analise=await contexto.analisar(por_id[r['id_operacao']],precipitacao_referencia_mm,
-                {'prejuizo_potencial_alagamento':2800.0},forcar=nivel_risco=='ALTO')
-            if analise['necessita_desvio'] or nivel_risco=='ALTO':
-                financeiro=analise['financeiro'] or {}
-                custo_desvio=financeiro.get('custo_desvio_brl',0)
-                economia_estimada=financeiro.get('economia_liquida_potencial_brl',0)
-                acao='ALTERAR_ROTA_IMEDIATO' if analise['alternativa'] else 'AGUARDAR_MELHORA'
-                if analise['restricao_fisica']:
-                    nivel_risco='ALTO'
+            rec = recs_map.get(r["id_operacao"])
+            analise = objeto(rec["analise_infraestrutura"]) if rec and rec["analise_infraestrutura"] else None
+            if analise:
+                financeiro = analise.get("financeiro") or {}
+                if rec["custo_desvio"] is not None:
+                    custo_desvio = rec["custo_desvio"]
+                elif financeiro.get("custo_desvio_brl") is not None:
+                    custo_desvio = financeiro.get("custo_desvio_brl")
+                if prejuizo_referencia_brl is not None:
+                    economia_estimada = prejuizo_referencia_brl
+                elif rec["prejuizo_potencial_evitado"] is not None:
+                    economia_estimada = rec["prejuizo_potencial_evitado"]
+                acao = rec["tipo_acao"]
+                if analise.get("restricao_fisica"):
+                    nivel_risco = "ALTO"
             # Totals recalculated from the completed rows below.
         frota.append({
             "id_veiculo": r["id_veiculo"],
@@ -973,7 +985,7 @@ async def obter_painel_central_frota(tenant_id: str = Depends(resolve_tenant), p
             } if tem_operacao else None,
             "analise_risco": {
                 "nivel": nivel_risco,
-                "probabilidade_atraso_pct": round(prob_atraso * 100, 1),
+                "probabilidade_atraso_pct": round(prob_atraso * 100, 1) if prob_atraso is not None else None,
                 "trechos_vulneraveis_rota": trechos_risco,
                 "recomendacao_acao": acao
             },
@@ -984,7 +996,7 @@ async def obter_painel_central_frota(tenant_id: str = Depends(resolve_tenant), p
         })
 
     veiculos_em_risco=sum(v['analise_risco']['nivel']=='ALTO' for v in frota)
-    impacto_financeiro_evitavel_total=sum(v['impacto_financeiro_projetado']['economia_potencial_brl'] for v in frota)
+    impacto_financeiro_evitavel_total=sum(v['impacto_financeiro_projetado']['economia_potencial_brl'] or 0.0 for v in frota if v['impacto_financeiro_projetado']['economia_potencial_brl'] is not None)
     return {
         "tenant_id": tenant_id,
         "clima_referencia_mm": precipitacao_referencia_mm,
@@ -993,7 +1005,7 @@ async def obter_painel_central_frota(tenant_id: str = Depends(resolve_tenant), p
             "em_operacao": sum(1 for v in frota if v["status_monitoramento"] == "EM_TRANSITO"),
             "veiculos_alto_risco": veiculos_em_risco,
             "taxa_comprometimento_pct": round((veiculos_em_risco / max(1, total_veiculos)) * 100, 1),
-            "economia_potencial_total_brl": round(impacto_financeiro_evitavel_total, 2)
+            "economia_potencial_total_brl": round(impacto_financeiro_evitavel_total, 2) if prejuizo_referencia_brl is not None else None
         },
         "veiculos": frota
     }
