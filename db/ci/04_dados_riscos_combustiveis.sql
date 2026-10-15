@@ -24,6 +24,8 @@ CREATE TABLE IF NOT EXISTS tombamentos_caminhao (
     importado_em TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 ALTER TABLE tombamentos_caminhao ADD COLUMN IF NOT EXISTS ativo BOOLEAN NOT NULL DEFAULT true;
+ALTER TABLE tombamentos_caminhao ADD COLUMN IF NOT EXISTS condicao_meteorologica TEXT;
+ALTER TABLE tombamentos_caminhao ADD COLUMN IF NOT EXISTS visibilidade TEXT;
 CREATE INDEX IF NOT EXISTS tombamentos_caminhao_geom_idx
     ON tombamentos_caminhao USING gist (geom);
 CREATE INDEX IF NOT EXISTS tombamentos_caminhao_geog_idx

@@ -126,6 +126,8 @@ def ler_artesp(dados: bytes, url_fonte: str) -> tuple[list[dict], dict]:
             "classe": classe, "subclasse": subclasse, "caminhoes": caminhoes,
             "veiculos": veiculos, "url_fonte": url_fonte,
             "latitude": latitude, "longitude": longitude,
+            "condicao": (linha.get("CONDICAO_METERIOLOGICA") or "").strip() or None,
+            "visibilidade": (linha.get("VISIBILIDADE") or "").strip() or None,
         }
     resumo["com_caminhao"] = len(registros)
     return list(registros.values()), resumo
@@ -319,6 +321,8 @@ def ler_ssp_trimestral(dados: bytes, url_fonte: str) -> tuple[list[dict], dict]:
              **{f"Deinter {n}": f"DEINTER {n}" for n in range(1, 11)}}
     if not set(nomes).issubset(valores) or "Estado" not in valores or "Interior" not in valores:
         raise ValueError("Regioes SSP ausentes do trimestre.")
+    if sum(valores[nome] for nome in nomes) != valores["Estado"]:
+        raise ValueError("Soma das regioes SSP difere do total do estado.")
     mes_inicio, mes_fim = (trimestre - 1) * 3 + 1, trimestre * 3
     inicio = date(ano, mes_inicio, 1)
     fim = date(ano, mes_fim, calendar.monthrange(ano, mes_fim)[1])
@@ -423,17 +427,20 @@ def aplicar(fonte: str, url: str, dados: bytes, registros: list[dict]):
                 cursor.execute("UPDATE tombamentos_caminhao SET ativo=false WHERE url_fonte=%s", (url,))
                 valores = [(r["id_fonte"], r["data"], r["hora"], r["rodovia"], r["km"], r["sentido"],
                             r["municipio"], r["classe"], r["subclasse"], r["caminhoes"], r["veiculos"],
-                            r["url_fonte"], r["longitude"], r["longitude"], r["latitude"])
+                            r["url_fonte"], r["condicao"], r["visibilidade"],
+                            r["longitude"], r["longitude"], r["latitude"])
                            for r in registros]
                 execute_values(cursor, "INSERT INTO tombamentos_caminhao "
                     "(id_fonte,data_ocorrencia,hora_ocorrencia,rodovia,km,sentido,municipio,classe,subclasse,"
-                    "caminhoes_envolvidos,veiculos_envolvidos,url_fonte,geom) VALUES %s "
+                    "caminhoes_envolvidos,veiculos_envolvidos,url_fonte,condicao_meteorologica,visibilidade,geom) VALUES %s "
                     "ON CONFLICT (id_fonte) DO UPDATE SET ativo=true,url_fonte=EXCLUDED.url_fonte,"
                     "rodovia=EXCLUDED.rodovia,km=EXCLUDED.km,municipio=EXCLUDED.municipio,"
                     "classe=EXCLUDED.classe,subclasse=EXCLUDED.subclasse,"
                     "caminhoes_envolvidos=EXCLUDED.caminhoes_envolvidos,"
-                    "veiculos_envolvidos=EXCLUDED.veiculos_envolvidos,geom=EXCLUDED.geom", valores,
-                    template="(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,"
+                    "veiculos_envolvidos=EXCLUDED.veiculos_envolvidos,"
+                    "condicao_meteorologica=EXCLUDED.condicao_meteorologica,"
+                    "visibilidade=EXCLUDED.visibilidade,geom=EXCLUDED.geom", valores,
+                    template="(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,"
                              "CASE WHEN %s::float8 IS NULL THEN NULL "
                              "ELSE ST_SetSRID(ST_MakePoint(%s::float8,%s::float8),4326) END)")
             elif fonte.startswith("ANP"):
