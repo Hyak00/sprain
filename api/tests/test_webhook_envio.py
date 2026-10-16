@@ -210,6 +210,9 @@ def test_https_verifica_nome_original_no_tls(monkeypatch):
             pass
 
     class ContextoTLSFalso:
+        def set_alpn_protocols(self, protocolos):
+            assert protocolos == ["http/1.1"]
+
         def wrap_socket(self, sock, server_hostname):
             servidores_tls.append(server_hostname)
             return sock

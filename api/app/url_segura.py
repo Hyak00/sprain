@@ -82,6 +82,7 @@ def post_seguro(url: str, headers: dict[str, str], corpo: bytes, timeout: float 
     try:
         if partes.scheme == "https":
             contexto = ssl.create_default_context()
+            contexto.set_alpn_protocols(["http/1.1"])
             conexao_socket = contexto.wrap_socket(conexao_socket, server_hostname=host)
         # O socket já está conectado ao IP validado. HTTPConnection apenas
         # serializa a requisição e não faz outra resolução de DNS.
