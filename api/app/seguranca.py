@@ -12,7 +12,7 @@ DEMO_KEYS = {
 }
 
 def is_production() -> bool:
-    return os.getenv("ENVIRONMENT", "development").strip().lower() == "production"
+    return settings.ambiente_atual == "production"
 
 def validar_configuracao_producao() -> None:
     if not is_production():
@@ -26,6 +26,8 @@ def validar_configuracao_producao() -> None:
         raise RuntimeError("Configuracao insegura: WEBHOOK_SECRET_KEY ausente ou invalida em producao.")
     if not tenant_keys:
         raise RuntimeError("Configuracao insegura: TENANT_API_KEYS obrigatorio em producao.")
+    if not settings.chaves_validas:
+        raise RuntimeError("Configuracao insegura: API_KEYS obrigatorio em producao.")
     for k in DEMO_KEYS:
         if k in tenant_keys:
             raise RuntimeError("Configuracao insegura: chaves de demonstracao proibidas em producao.")
@@ -57,9 +59,9 @@ async def exigir_api_key(x_api_key: Optional[str] = Header(default=None)):
     if not x_api_key:
         raise HTTPException(status_code=401, detail="Autenticacao necessaria. Header X-API-Key ausente.")
     chaves = settings.chaves_validas
-    if is_production() and not chaves:
-        raise HTTPException(status_code=503, detail="API_KEYS nao configurada em producao.")
-    if chaves and not any(secrets.compare_digest(x_api_key, c) for c in chaves):
+    if not chaves:
+        raise HTTPException(status_code=503, detail="API_KEYS nao configurada.")
+    if not any(secrets.compare_digest(x_api_key, c) for c in chaves):
         raise HTTPException(status_code=401, detail="API key invalida.")
     return x_api_key
 

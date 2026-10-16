@@ -24,23 +24,26 @@ async def registrar_feedback_alerta(dados: FeedbackRequest, tenant_id=Depends(re
             VALUES ($1, $2, $3, $4, $5)
         """, dados.id_evento, tenant_id, dados.falso_alerta, dados.evento_nao_detectado, dados.motivo_reporte)
         
-        if dados.falso_alerta:
-            await conn.execute("UPDATE alertas_operacionais SET falso_alerta = true, status_evento = 'DESCARTADO' WHERE id_evento = $1", dados.id_evento)
-        elif dados.evento_nao_detectado:
-            await conn.execute("UPDATE alertas_operacionais SET evento_nao_detectado = true WHERE id_evento = $1", dados.id_evento)
-            
     return {"sucesso": True, "id_evento": dados.id_evento, "status": "FEEDBACK_REGISTRADO"}
 
 @router.get("/precisao")
 async def calcular_precisao_alertas(tenant_id=Depends(resolver_tenant_autenticado), conn: asyncpg.Connection = Depends(get_connection)):
     row = await conn.fetchrow("""
+        WITH ultimo_feedback AS (
+            SELECT DISTINCT ON (id_evento)
+                id_evento, falso_alerta, evento_nao_detectado
+            FROM feedback_alertas_operacionais
+            WHERE tenant_id = $1
+            ORDER BY id_evento, reportado_em DESC, id_feedback DESC
+        )
         SELECT 
             COUNT(*) AS total_avaliados,
-            COUNT(*) FILTER (WHERE status_evento = 'CONFIRMADO' AND NOT falso_alerta) AS confirmados_validos,
-            COUNT(*) FILTER (WHERE falso_alerta) AS falsos_positivos,
-            COUNT(*) FILTER (WHERE evento_nao_detectado) AS falsos_negativos
-        FROM alertas_operacionais
-    """)
+            COUNT(*) FILTER (WHERE a.status_evento = 'CONFIRMADO' AND NOT f.falso_alerta) AS confirmados_validos,
+            COUNT(*) FILTER (WHERE f.falso_alerta) AS falsos_positivos,
+            COUNT(*) FILTER (WHERE f.evento_nao_detectado) AS falsos_negativos
+        FROM ultimo_feedback f
+        JOIN alertas_operacionais a ON a.id_evento = f.id_evento
+    """, tenant_id)
     
     total = int(row["total_avaliados"] or 0)
     vp = int(row["confirmados_validos"] or 0)
@@ -59,5 +62,5 @@ async def calcular_precisao_alertas(tenant_id=Depends(resolver_tenant_autenticad
             "falsos_positivos": fp,
             "falsos_negativos": fn
         },
-        "status_calibracao": "MOTOR_ESTAVEL" if precisao >= 80.0 else "NECESSITA_CALIBRAGEM"
+        "status_calibracao": "AMOSTRA_INSUFICIENTE" if total == 0 else ("MOTOR_ESTAVEL" if precisao >= 80.0 else "NECESSITA_CALIBRAGEM")
     }

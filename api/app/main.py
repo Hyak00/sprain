@@ -8,6 +8,7 @@ from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.config import settings
 from app.seguranca import validar_configuracao_producao
 from app.services.security_headers import SecurityHeadersMiddleware
 from app.services.observabilidade import ObservabilidadeMiddleware
@@ -100,7 +101,7 @@ app.add_middleware(SecurityHeadersMiddleware)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.origens_cors,
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],

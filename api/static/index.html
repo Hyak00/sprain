@@ -348,6 +348,8 @@
       if (resp.status === 401) {
         sessionStorage.removeItem('sprain_api_key');
         alert('Chave invalida. Tente de novo.');
+      } else if (resp.status === 403) {
+        alert('Sua chave nao permite esta operacao. Use uma conta de operador ou administrador.');
       } else if (resp.status === 404 || resp.status === 422) {
         const erro = await resp.json().catch(() => ({}));
         alert(erro.detail || 'Nao foi possivel processar o pedido.');
@@ -586,12 +588,13 @@
       clearTimeout(debounceChuva);
       debounceChuva = setTimeout(async () => {
         try {
-          await fetch('/api/v1/monitoramento/simular-chuva?acumulado_mm=' + mm, { method: 'POST' });
-            await recarregarMalhaViaria();
-            if (typeof tracarRotaSegura === 'function' && pontoOrigem && pontoDestino) {
-              await tracarRotaSegura();
-            }
-          } catch (err) {
+          const res = await chamarApi('/api/v1/monitoramento/simular-chuva?acumulado_mm=' + mm, { method: 'POST' });
+          if (!res || !res.ok) return;
+          await recarregarMalhaViaria();
+          if (typeof tracarRotaSegura === 'function' && pontoOrigem && pontoDestino) {
+            await tracarRotaSegura();
+          }
+        } catch (err) {
           console.error(err);
         }
       }, 350);
@@ -601,7 +604,11 @@
       btnCge.disabled = true;
       btnCge.textContent = 'Consultando CGE...';
       try {
-        const res = await fetch('/api/v1/monitoramento/sincronizar-cge', { method: 'POST' });
+        const res = await chamarApi('/api/v1/monitoramento/sincronizar-cge', { method: 'POST' });
+        if (!res || !res.ok) {
+          statusCge.textContent = 'Nao foi possivel sincronizar o CGE.';
+          return;
+        }
         const data = await res.json();
         const mm = data.telemetria ? data.telemetria.acumulado_mm : 0;
         sliderChuva.value = mm;
