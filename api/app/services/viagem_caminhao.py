@@ -7,6 +7,7 @@ from types import SimpleNamespace
 from app.schemas import ParametrosFinanceiros
 from app.services.infraestrutura_viaria import SELECT_PONTOS, LIMITES, avaliar_ponto, resumir_rota
 from app.services.routing_engine import RoutingEngine
+from app.services.hydro_engine import HydroEngine
 from app.services.estruturas_viarias import complementar_estruturas
 from app.services.custo_combustivel import custo_quilometrico, referencia_diesel, completar_custos
 
@@ -76,7 +77,7 @@ class ContextoViagens:
             WHERE o.tenant_id=$1 AND ($2::text IS NULL OR o.id_operacao=$2) ORDER BY o.id_operacao''',tenant,id_operacao)
         pontos = [dict(p) for p in await conn.fetch(SELECT_PONTOS, tenant)]
         trechos = await conn.fetch('''SELECT ort.id_operacao,t.id_trecho,t.length,t.ivi_score,
-            t.estrutura_malha,t.limites_malha,t.fonte_malha,t.limites_verificado_em,t.limites_valido_ate,
+            t.NULL AS estrutura_malha,t.limites_malha,t.fonte_malha,t.limites_verificado_em,t.limites_valido_ate,
             ST_AsGeoJSON(ST_Transform(t.geom,4326)) AS geojson,
             (t.tenant_malha IS NULL OR t.tenant_malha=$1) AND
             (t.importacao_malha_id IS NULL OR EXISTS(SELECT 1 FROM malha_importacoes m
@@ -132,6 +133,17 @@ class ContextoViagens:
     async def analisar(self, op, chuva, premissas=None, forcar=False):
         original = self.original(op)
         ts = self.trechos.get(op['id_operacao'], [])
+        if float(chuva or 0) <= 0.0:
+            engine = HydroEngine(self.conn)
+            chuva_trechos = []
+            for t in ts:
+                id_t = t.get('id_trecho')
+                if id_t:
+                    props = await engine.get_bacia_trecho_proportions(id_t)
+                    if props:
+                        chuva_trechos.append(engine.calculate_effective_rainfall(props, {}))
+            if chuva_trechos:
+                chuva = max(chuva_trechos)
         fator = min(1.0,chuva/100)
         criticos = sum(float(t['ivi_score'] or 0)*(0.6+0.6*fator)>=80 for t in ts)
         risco = sum(60<=float(t['ivi_score'] or 0)*(0.6+0.6*fator)<80 for t in ts)

@@ -3,7 +3,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from decimal import Decimal
 from types import SimpleNamespace
-import json
 
 from app import database
 
@@ -40,16 +39,7 @@ def avaliar_ponto(ponto, veiculo, agora=None):
         return {"status": status, "limites_excedidos": excedidos,
                 "limites_ausentes": ausentes, "dados_vigentes": vigente}
     tarifa = ponto["tarifa_por_eixo"]
-    tabela = ponto.get('tarifas_por_eixos')
-    if isinstance(tabela, str):
-        tabela = json.loads(tabela)
-    custo = None
-    if vigente and veiculo is not None and not referencia_osm:
-        if tabela:
-            valor = tabela.get(str(veiculo.eixos), tabela.get(veiculo.eixos))
-            custo = Decimal(str(valor)) if valor is not None else None
-        elif tarifa is not None:
-            custo = round(tarifa * veiculo.eixos, 2)
+    custo = round(tarifa * veiculo.eixos, 2) if vigente and tarifa is not None and veiculo is not None and not referencia_osm else None
     return {"status": "TARIFA_DISPONIVEL" if custo is not None else "TARIFA_A_CONFIRMAR",
             "custo_estimado_reais": float(custo) if custo is not None else None,
             "dados_vigentes": vigente}
@@ -66,9 +56,6 @@ def feature(ponto, avaliacao=None):
             )},
             "tarifa_por_eixo": float(ponto["tarifa_por_eixo"]) if ponto["tarifa_por_eixo"] is not None else None,
             "origem_dados": ponto.get("origem_dados", "CADASTRO_MANUAL"),
-            "grupo_cobranca": ponto.get('grupo_cobranca'),
-            "tarifas_por_eixos": (json.loads(ponto['tarifas_por_eixos']) if isinstance(ponto.get('tarifas_por_eixos'),str)
-                                  else ponto.get('tarifas_por_eixos')),
             **(avaliacao or {}),
         },
     }
@@ -98,15 +85,7 @@ def resumir_rota(pontos, ids_trechos, dimensoes):
     ordem = {edge:seq for seq,edge in enumerate(ids_trechos)}
     caminho = sorted((p for p in pontos if p["id_trecho"] in ids),key=lambda p:ordem[p["id_trecho"]])
     avaliacoes = {p["id"]: avaliar_ponto(p, veiculo) for p in caminho}
-    grupos = {}
-    for p in caminho:
-        if p['tipo'] == 'PEDAGIO':
-            grupos.setdefault(p.get('grupo_cobranca') or ('ponto', p['id']), []).append(avaliacoes[p['id']])
-    pedagios = []
-    for pontos_grupo in grupos.values():
-        tarifas = {p['custo_estimado_reais'] for p in pontos_grupo}
-        # Divergencia ou uma cabine sem tarifa confirmada torna o grupo pendente.
-        pedagios.append({'custo_estimado_reais': tarifas.pop() if len(tarifas) == 1 else None})
+    pedagios = [avaliacoes[p["id"]] for p in caminho if p["tipo"] == "PEDAGIO"]
     conhecidos = [Decimal(str(p["custo_estimado_reais"])) for p in pedagios
                   if p["custo_estimado_reais"] is not None]
     return {
