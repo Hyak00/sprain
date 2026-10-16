@@ -26,7 +26,7 @@
             id: informado(e.id_evento), categoria: informado(e.categoria), fonte: informado(e.fonte),
             status: informado(e.status_evento), desconhecido: informado(e.o_que_nao_sabemos),
             confianca: confianca !== null && confianca >= 0 && confianca <= 1 ? (confianca * 100).toFixed(0) + '%' : 'Não informado',
-            local: locais.length ? 'Trechos associados à ' + locais.join(' e à ') : 'Sem associação identificada às rotas exibidas; contexto público',
+            local: locais.length ? 'Trechos associados à ' + locais.join(' e à ') : e.escopo==='PRIVADO' ? 'Relato privado por coordenada; associação à rota não validada' : 'Sem associação identificada às rotas exibidas; contexto público',
             trechos: ids.length ? ids.join(', ') : 'Não informados',
             temporal: validade === null ? 'Validade não informada; conferir antes de usar' : validade <= agora ? 'EXPIRADO — atualizar a consulta' : atualizacao === null ? 'Atualização não informada; conferir antes de usar' : atualizacao > agora ? 'Data de atualização futura; conferir na fonte' : 'Dentro da validade informada pela API',
             expirado: validade !== null && validade <= agora,
@@ -105,7 +105,7 @@
         texto(parametros,'p',informado(c.combustivel.aviso));
         texto(parametros,'p','Medidas efetivas atuais retornadas pela API; não há fotografia datada das medidas nesta resposta. As premissas financeiras pertencem ao cálculo retornado. Use os formulários existentes de caminhão e despacho para informar medidas e recalcular.');
         const alertas = texto(box,'details',''); texto(alertas,'summary','Alertas: fonte, validade e relação com a rota');
-        texto(alertas,'p','Eventos públicos do endpoint de ocorrências, até 50 registros. Não representam o total da empresa. A associação usa somente IDs de trechos; não confirma impacto atual nem cobertura completa.');
+        texto(alertas,'p','Até 50 eventos públicos e 50 relatos privados da empresa. A associação por trechos não confirma impacto atual nem cobertura completa.');
         const botao = texto(alertas,'button','Consultar / atualizar alertas'); botao.type='button'; botao.className='btn-top';
         const status = texto(alertas,'p','Abra esta seção para consultar.'); status.setAttribute('role','status');
         const lista = texto(alertas,'div','');
@@ -115,17 +115,20 @@
             for (const e of eventos) {
                 const v=evento(e,op), item=texto(lista,'article','');
                 texto(item,'h4',v.categoria + ' · ' + v.status);
+                linha(item,'Natureza',e.natureza||'Não informada');linha(item,'Escopo',e.escopo||'Não informado');
                 linha(item,'Identificador',v.id); linha(item,'Fonte',v.fonte);
                 linha(item,'Localização',v.local); linha(item,'IDs dos trechos',v.trechos);
-                texto(item,'p','Nome da via, km, sentido e coordenadas do evento: não fornecidos por este endpoint.');
+                linha(item,'Local informado',e.local||'Não informado');
+                if(e.descricao)linha(item,'Descrição relatada',e.descricao);
                 linha(item,'Primeira detecção',v.deteccao); linha(item,'Atualização',v.atualizacao); linha(item,'Expira em',v.expiracao);
                 const temporal=texto(item,'p',v.temporal);
                 temporal.dataset.expiracao=e.expiracao_em || '';
                 linha(item,'Confiança informada pela API',v.confianca);
                 texto(item,'p','O status e a confiança são declarações da API; não equivalem a verificação independente. Chuva simulada, previsão e registro histórico não se tornam observação confirmada por aparecerem no painel.');
                 linha(item,'O que não sabemos',v.desconhecido);
-                texto(item,'p','Consequência operacional específica não informada aqui. Consulte a justificativa da rota; este painel não recalcula nem determina bloqueio a partir desta lista.');
-                if (window.PainelSessao.podeEscrever() && typeof e.id_evento === 'string' && e.id_evento.trim() && !v.expirado) feedback(item,e);
+                linha(item,'Consequência possível',e.consequencia_possivel||'Não informada');
+                texto(item,'p',e.criterio_consequencia||'Possibilidade relatada; não confirma impacto na viagem.');
+                if (window.PainelSessao.podeEscrever() && e.escopo!=='PRIVADO' && typeof e.id_evento === 'string' && e.id_evento.trim() && !v.expirado) feedback(item,e);
             }
         }
         async function consultar() {
@@ -133,12 +136,12 @@
             clearInterval(timer); eventos=[]; lista.replaceChildren(); consultaEm=null;
             botao.disabled=true; botao.setAttribute('aria-busy','true'); status.textContent='Consultando alertas…';
             try {
-                const res=await window.PainelSessao.request('/api/v1/ocorrencias/ativas',{signal:controle.signal});
-                const dados=await res.json();
+                const resposta=await window.PainelEventos.consultar(true);
+                const dados=resposta.items;
                 if(atual!==geracao)return;
                 if(!Array.isArray(dados) || dados.some(e=>!e || typeof e!=='object' || Array.isArray(e)))throw new Error('Resposta inválida');
                 eventos=dados; consultaEm=new Date().toISOString();
-                status.textContent='Consulta recebida em '+data(consultaEm)+'. Atualize para buscar mudanças na fonte.';
+                status.textContent='Consulta recebida em '+data(consultaEm)+'. Até 50 ocorrências públicas e 50 relatos recentes; não é histórico completo. Atualize para buscar mudanças na fonte.';
                 renderizar(); timer=setInterval(()=>{
                     if(atual!==geracao)return;
                     lista.querySelectorAll('[data-expiracao]').forEach(el=>{

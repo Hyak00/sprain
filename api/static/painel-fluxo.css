@@ -1,0 +1,15 @@
+.mvp-complemento {font-size:12px; line-height:1.5; overflow-wrap:anywhere;}
+header {height:auto; min-height:58px; flex-wrap:wrap; gap:8px;}
+.top-controls,.nav-tabs {flex-wrap:wrap; min-width:0; max-width:100%;}
+.workspace {min-height:0;}
+.mvp-complemento details {border:1px solid #475569; padding:8px; margin:8px 0; border-radius:6px;}
+.mvp-complemento p {margin:8px 0;}
+.mvp-complemento label {display:block; margin:8px 0;}
+.mvp-complemento input {width:100%; padding:7px; background:#020617; color:#f1f5f9; border:1px solid #64748b;}
+.mvp-complemento button {white-space:normal; padding:8px; margin:4px; background:#1e293b; color:#e2e8f0; border:1px solid #64748b; border-radius:4px;}
+.mvp-natureza {border-left:3px solid #7dd3fc; padding:8px; background:#172033;}
+#portal-operacional article {margin:12px 0; padding:10px; border:1px solid #334155; border-radius:6px;}
+#portal-operacional input[type="checkbox"] {width:auto; display:inline-block; margin-right:8px;}
+#portal-operacional textarea {display:block; width:100%; min-height:90px; padding:8px; color:#f1f5f9; background:#020617; border:1px solid #64748b;}
+.map-legend {max-width:310px; max-height:32vh; overflow:auto;}
+@media(max-width:800px){.map-legend {max-width:none; max-height:none;}}

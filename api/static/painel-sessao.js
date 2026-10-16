@@ -10,7 +10,7 @@
         let usuario = null, geracao = 0;
         const pendentes = new Set();
         const consultasPost = new Set(['/api/v1/infraestrutura/rota-caminhao', '/api/v1/infraestrutura/avaliar-mapa',
-            '/api/v1/dados-publicos/consultar-rota', '/api/v1/transito/comparar']);
+            '/api/v1/dados-publicos/consultar-rota', '/api/v1/transito/comparar', '/api/v1/painel/consultas']);
         function encerrar(motivo = '') {
             geracao++; usuario = null;
             pendentes.forEach(c => c.abort()); pendentes.clear(); aoEncerrar(motivo);

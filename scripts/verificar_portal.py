@@ -20,7 +20,9 @@ def main():
     resultados = []
     for caminho in ['/api/v1/health/readiness', '/static/b2b.html', '/static/portal-operacional.js',
                     '/api/v1/logistica/operacoes', '/api/v1/logistica/relatorios/sumario-executivo',
-                    '/api/v1/indicadores/qualidade', '/api/v1/dados-publicos/fontes', '/api/v1/alertas/precisao']:
+                    '/api/v1/indicadores/qualidade', '/api/v1/dados-publicos/fontes', '/api/v1/alertas/precisao',
+                    '/api/v1/painel/corredores', '/api/v1/painel/consultas', '/api/v1/painel/eventos',
+                    '/static/painel-fluxo.js', '/static/painel-corredores.js', '/static/painel-eventos.js']:
         req = urllib.request.Request(args.base_url.rstrip('/') + caminho, headers={'X-API-Key': chave} if caminho.startswith('/api/') else {})
         try:
             # Nao seguir redirecionamento para outro host com a chave.
