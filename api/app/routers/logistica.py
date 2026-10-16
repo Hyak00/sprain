@@ -669,13 +669,13 @@ async def limpar_cache():
 from app.services.observabilidade import MetricsCollector
 
 @router.get("/observabilidade/metricas", dependencies=[Depends(require_role(["ADMIN", "OPERATOR"]))])
-async def obter_metricas_sistema():
-    return MetricsCollector.obter_metricas()
+async def obter_metricas_sistema(tenant_id: str = Depends(resolve_tenant)):
+    return MetricsCollector.obter_metricas(tenant_id)
 
 @router.post("/observabilidade/reset", dependencies=[Depends(require_role(["ADMIN"]))])
-async def resetar_metricas_sistema():
-    MetricsCollector.resetar()
-    return {"sucesso": True, "mensagem": "Metricas de observabilidade zeradas com sucesso"}
+async def resetar_metricas_sistema(tenant_id: str = Depends(resolve_tenant)):
+    MetricsCollector.resetar(tenant_id)
+    return {"sucesso": True, "mensagem": "Metricas de observabilidade da empresa zeradas"}
 
 @router.get("/relatorios/auditoria.csv", dependencies=[Depends(require_role(["ADMIN", "OPERATOR"]))])
 async def exportar_auditoria_csv(tenant_id: str = Depends(resolve_tenant), conn: asyncpg.Connection = Depends(get_connection)):

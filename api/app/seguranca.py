@@ -1,6 +1,6 @@
 import os
 import secrets
-from fastapi import Header, HTTPException, Depends
+from fastapi import Header, HTTPException, Depends, Request
 from typing import Optional, List
 from app.config import settings
 
@@ -63,7 +63,7 @@ async def exigir_api_key(x_api_key: Optional[str] = Header(default=None)):
         raise HTTPException(status_code=401, detail="API key invalida.")
     return x_api_key
 
-async def get_current_user_claims(x_api_key: Optional[str] = Header(default=None)):
+async def get_current_user_claims(request: Request, x_api_key: Optional[str] = Header(default=None)):
     if not x_api_key:
         raise HTTPException(status_code=401, detail="Nao autorizado. Forneca o cabecalho X-API-Key.")
     users_db = carregar_chaves_tenants()
@@ -75,6 +75,7 @@ async def get_current_user_claims(x_api_key: Optional[str] = Header(default=None
     if not usuario_valido:
         raise HTTPException(status_code=401, detail="API-Key nao reconhecida ou sem permissao.")
     user_scopes = ROLE_PERMISSIONS.get(usuario_valido["role"], ["read"])
+    request.state.authenticated_tenant_id = usuario_valido["tenant_id"]
     return {
         "role": usuario_valido["role"],
         "tenant_id": usuario_valido["tenant_id"],
