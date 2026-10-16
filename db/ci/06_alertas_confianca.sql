@@ -12,4 +12,4 @@ CREATE TABLE IF NOT EXISTS alertas_operacionais (
     falso_alerta BOOLEAN NOT NULL DEFAULT false,
     evento_nao_detectado BOOLEAN NOT NULL DEFAULT false
 );
-CREATE INDEX idx_alertas_trechos ON alertas_operacionais USING GIN (trechos_afetados);
+CREATE INDEX IF NOT EXISTS idx_alertas_trechos ON alertas_operacionais USING GIN (trechos_afetados);
