@@ -1,25 +1,37 @@
-Write-Host "Iniciando verificacao pre-deploy..." -ForegroundColor Cyan
+param(
+    [string]$HealthUrl = "http://127.0.0.1:8000/api/v1/health/readiness",
+    [string]$ComposeFile = "docker-compose.yml",
+    [string]$EnvFile = ""
+)
 
-$testRun = docker exec -w /app/api sprain_api python -m pytest tests/ -q
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "Falha na suite de testes:" -ForegroundColor Red
-    Write-Host $testRun
-    exit 1
+$ErrorActionPreference = "Stop"
+
+if (-not (Test-Path -LiteralPath $ComposeFile -PathType Leaf)) {
+    throw "Arquivo Compose nao encontrado: $ComposeFile"
 }
-Write-Host "Testes unitarios e integrados: OK (26 aprovados)" -ForegroundColor Green
 
-$health = curl.exe -s http://localhost:8000/api/v1/health/readiness | ConvertFrom-Json
+$composeArgs = @("compose")
+if ($EnvFile) {
+    if (-not (Test-Path -LiteralPath $EnvFile -PathType Leaf)) {
+        throw "Arquivo de ambiente nao encontrado: $EnvFile"
+    }
+    $composeArgs += @("--env-file", $EnvFile)
+}
+$composeArgs += @("-f", $ComposeFile, "config", "--quiet")
+
+& docker @composeArgs
+if ($LASTEXITCODE -ne 0) {
+    throw "Configuracao Docker Compose invalida"
+}
+Write-Host "Configuracao Docker Compose: OK" -ForegroundColor Green
+
+try {
+    $health = Invoke-RestMethod -Uri $HealthUrl -TimeoutSec 10
+} catch {
+    throw "Falha ao consultar readiness em ${HealthUrl}: $_"
+}
 if ($health.status -ne "READY" -or $health.postgis -ne "OPERACIONAL") {
-    Write-Host "Falha na prontidao do banco PostGIS" -ForegroundColor Red
-    exit 1
+    throw "API ou banco PostGIS nao esta pronto"
 }
-Write-Host "Readiness PostGIS: OK (Latencia: $($health.latencia_db_ms) ms)" -ForegroundColor Green
-
-docker compose config --quiet
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "docker-compose.yml invalido" -ForegroundColor Red
-    exit 1
-}
-Write-Host "Orquestracao Docker Compose: OK" -ForegroundColor Green
-
-Write-Host "Pre-deploy concluido com sucesso. Liberado para producao." -ForegroundColor Green
+Write-Host "API e PostGIS respondendo (latencia: $($health.latencia_db_ms) ms)" -ForegroundColor Green
+Write-Host "Verificacao basica concluida. Antes de implantar, execute testes em ambiente isolado e valide um backup restaurado." -ForegroundColor Yellow
