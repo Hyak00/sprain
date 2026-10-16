@@ -11,11 +11,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
+RUN groupadd --gid 10001 sprain \
+    && useradd --uid 10001 --gid sprain --create-home --shell /usr/sbin/nologin sprain \
+    && chown sprain:sprain /app
+
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt uvicorn[standard] asyncpg fastapi pydantic pydantic-settings jinja2 python-multipart
-COPY . .
+COPY --chown=sprain:sprain . .
 
 WORKDIR /app/api
+
+ENV HOME=/home/sprain
+USER sprain
 
 EXPOSE 8000
 

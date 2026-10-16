@@ -31,10 +31,16 @@ services:
       TENANT_API_KEYS: ${TENANT_API_KEYS:-}
       WEBHOOK_SECRET_KEY: Wks6HRPLe-Ypf513abN4jB2uL3ZAj5hcTIs0r7PmWMI=
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     depends_on:
       db:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/api/v1/health/readiness"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
 
   dados-publicos:
     build: .
