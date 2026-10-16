@@ -1,7 +1,9 @@
 import json
 import socket
+import sys
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
+from pathlib import Path
 from types import SimpleNamespace
 from urllib.parse import urlsplit
 
@@ -11,6 +13,9 @@ from app.services.webhook_dispatcher import WebhookDispatcher
 from app import url_segura
 from app.routers import logistica
 from app.schemas import WebhookAlertaRequest
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from scripts import worker_dados_publicos as worker
 
 
 class Registro:
@@ -296,3 +301,32 @@ async def test_alerta_operacional_bloqueia_dns_que_muda_para_rede_interna(monkey
     assert resposta["sucesso"] is False
     assert resposta["status_envio"] == "FALHA_ENVIO"
     assert consultas == ["webhook.example", "webhook.example"]
+
+
+def test_worker_envia_alerta_pelo_cliente_seguro(monkeypatch):
+    enviados = []
+
+    def enviar(url, headers, corpo, timeout):
+        enviados.append((url, headers, json.loads(corpo), timeout))
+        return 202
+
+    monkeypatch.setenv("WEBHOOK_ALERTA_DADOS", "https://webhook.example/dados")
+    monkeypatch.setattr(worker, "post_seguro", enviar)
+    worker.disparar_alerta("anp", "falha de teste")
+    assert len(enviados) == 1
+    url, headers, corpo, timeout = enviados[0]
+    assert url == "https://webhook.example/dados"
+    assert headers == {"Content-Type": "application/json"}
+    assert corpo["fonte"] == "anp"
+    assert corpo["erro"] == "falha de teste"
+    assert timeout == 10
+
+
+def test_worker_recusa_webhook_interno(monkeypatch, capsys):
+    monkeypatch.setenv("WEBHOOK_ALERTA_DADOS", "http://127.0.0.1:8000/interno")
+    monkeypatch.setattr(
+        url_segura.socket, "socket",
+        lambda *args: pytest.fail("não deveria abrir conexão interna"),
+    )
+    worker.disparar_alerta("anp", "falha de teste")
+    assert "Falha ao enviar alerta para webhook" in capsys.readouterr().err
