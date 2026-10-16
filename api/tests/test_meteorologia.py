@@ -6,6 +6,8 @@ from app.services.weather import WeatherService
 @pytest.mark.asyncio
 async def test_clima_valida_regras():
     conn = await asyncpg.connect(settings.database_url)
+    transaction = conn.transaction()
+    await transaction.start()
     try:
         await conn.execute("DELETE FROM leituras_meteorologicas")
         await conn.execute("DELETE FROM estacoes_meteorologicas")
@@ -49,4 +51,5 @@ async def test_clima_valida_regras():
         hist = await conn.fetchval("SELECT count(*) FROM historico_avaliacoes_risco")
         assert hist == historico_antes + 1
     finally:
+        await transaction.rollback()
         await conn.close()
