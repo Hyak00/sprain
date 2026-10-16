@@ -18,8 +18,11 @@ Plataforma corporativa B2B que ajuda transportadoras a identificar riscos climá
 
 ```bash
 docker compose up --build -d
-docker exec -w /app/api sprain_api python -m pytest tests/ -v
 ```
+
+Execute a suíte de testes somente em um banco isolado, como no CI: alguns
+testes podem modificar dados. Para criar e verificar um backup do PostGIS,
+consulte o [guia de backup e restauração](docs/backup-restauracao-postgis.md).
 
 ---
 
