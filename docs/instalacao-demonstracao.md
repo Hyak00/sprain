@@ -7,9 +7,11 @@ docker compose -f compose.demo.yml up -d --build
 python scripts/verificar_portal.py
 ```
 
-Abra `http://127.0.0.1:18000/static/b2b.html`; Swagger: `/docs`. Use os botões de acesso rápido de demonstração. O Compose carrega os scripts `db/ci/01` a `08` somente na primeira inicialização do volume próprio. Não usa volumes, banco, rede, chaves ou portas do ambiente operacional.
+Abra `http://127.0.0.1:18000/static/b2b.html`; Swagger: `/docs`. Use os botões de acesso rápido de demonstração. O Compose carrega os scripts de `db/ci` somente na primeira inicialização do volume próprio. A API aplica a migração aditiva da auditoria ao iniciar, inclusive em volumes existentes. Não usa volumes, banco, rede, chaves ou portas do ambiente operacional.
 
 Dados do CI são exemplos/sintéticos e não evidência de eventos históricos, viagens de clientes ou retorno financeiro realizado. As chaves e senha do Compose são públicas de demonstração, inadequadas para produção. Somente a API é publicada em loopback; o banco permanece na rede Docker. O agendador existente da API é preservado: pode consultar clima periodicamente. A demonstração não implica fontes públicas completas ou atualizadas.
+
+A métrica de acurácia considera apenas registros de `auditoria_previsao_realidade` com `tenant_id` igual à empresa autenticada. Registros antigos sem empresa identificada são preservados, mas não entram na métrica; a origem deles precisa ser comprovada antes de atribuir um `tenant_id`.
 
 Para parar sem apagar os dados:
 
