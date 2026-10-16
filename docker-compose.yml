@@ -31,7 +31,7 @@ services:
       TENANT_API_KEYS: ${TENANT_API_KEYS:-}
       WEBHOOK_SECRET_KEY: Wks6HRPLe-Ypf513abN4jB2uL3ZAj5hcTIs0r7PmWMI=
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     depends_on:
       db:
         condition: service_healthy
