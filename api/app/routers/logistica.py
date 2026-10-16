@@ -162,6 +162,12 @@ async def criar_operacao(dados: OperacaoCreate, conn: asyncpg.Connection = Depen
     RETURNING id_operacao;
     """
     async with conn.transaction():
+        # Serializa o identificador inclusive quando ainda nao existe uma linha.
+        # O DELETE legado nao pode ocorrer antes de conferir a empresa proprietaria.
+        await conn.execute("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", dados.id_operacao)
+        titular = await conn.fetchval("SELECT tenant_id FROM operacoes WHERE id_operacao=$1 FOR UPDATE", dados.id_operacao)
+        if titular is not None and titular != tenant_id:
+            raise HTTPException(409, "Identificador de operacao indisponivel.")
         await conn.execute("DELETE FROM operacao_rotas_trechos WHERE id_operacao = $1;", dados.id_operacao)
         await conn.execute(
             query, dados.id_operacao, dados.id_veiculo, dados.origem_nome, dados.origem_lat, dados.origem_lon,
@@ -435,7 +441,11 @@ async def exportar_plano_contingencia_csv(tenant_id: str = Depends(resolve_tenan
         headers={"Content-Disposition": f"attachment; filename=plano_contingencia_{tenant_id}.csv"}
     )
 
-@router.post("/operacoes/importar-lote", dependencies=[Depends(require_role(["ADMIN", "OPERATOR"])), Depends(aplicar_rate_limit)])
+@router.post("/operacoes/importar-lote", dependencies=[Depends(require_role(["ADMIN", "OPERATOR"])), Depends(aplicar_rate_limit)],
+             summary="Importar operacoes com resultado por item",
+             description="Importacao nao atomica: algumas operacoes podem ser gravadas mesmo quando outras falham. "
+                         "Confira sucessos/falhas antes de reenviar. O identificador ja existente na mesma empresa "
+                         "atualiza a operacao; use a previa da central para evitar substituicoes acidentais.")
 async def importar_operacoes_lote(lote: List[Dict[str, Any]], tenant_id: str = Depends(resolve_tenant), conn: asyncpg.Connection = Depends(get_connection)):
     from datetime import datetime, timedelta, timezone
     from pydantic import ValidationError
