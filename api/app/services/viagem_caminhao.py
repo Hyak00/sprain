@@ -77,7 +77,7 @@ class ContextoViagens:
             WHERE o.tenant_id=$1 AND ($2::text IS NULL OR o.id_operacao=$2) ORDER BY o.id_operacao''',tenant,id_operacao)
         pontos = [dict(p) for p in await conn.fetch(SELECT_PONTOS, tenant)]
         trechos = await conn.fetch('''SELECT ort.id_operacao,t.id_trecho,t.length,t.ivi_score,
-            t.NULL AS estrutura_malha,t.limites_malha,t.fonte_malha,t.limites_verificado_em,t.limites_valido_ate,
+            NULL AS estrutura_malha,t.limites_malha,t.fonte_malha,t.limites_verificado_em,t.limites_valido_ate,
             ST_AsGeoJSON(ST_Transform(t.geom,4326)) AS geojson,
             (t.tenant_malha IS NULL OR t.tenant_malha=$1) AND
             (t.importacao_malha_id IS NULL OR EXISTS(SELECT 1 FROM malha_importacoes m
