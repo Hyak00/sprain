@@ -14,6 +14,8 @@ Base desta entrega: `d5433c9`, consultada em 15/10/2026. O complemento fica no i
 
 O módulo usa o cliente autenticado existente e duas chamadas: `GET /api/v1/ocorrencias/ativas` e `POST /api/v1/alertas/feedback`. As informações financeiras já vêm de `GET /api/v1/logistica/operacoes/{id}/explicacao`. Não adiciona consultas a fornecedores externos, bibliotecas ou processamento de rotas no navegador.
 
+O antigo `POST /api/v1/ocorrencias/resetar-todas` não pode ser usado por administradores de empresas: os alertas e estados das vias são globais. A rota legada responde 403 sem alterar dados e não aparece no OpenAPI; o botão de reset global foi removido. A moderação de um evento específico exigirá identidade e autorização próprias da fonte, além de auditoria.
+
 ## Limitações explícitas
 
 - Ocorrências são contexto público, não a lista privada de uma empresa. O contrato não informa paginação, total, endereço/km/sentido, geometria do evento ou consequência operacional específica. Não foram inventados pontos no mapa nem endereços a partir de IDs.

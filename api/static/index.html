@@ -61,7 +61,6 @@
         <button class="btn btn-simular" onclick="executarSimulacao()">Simular</button>
       </div>
       <button class="btn" style="background:#4f46e5; border-color:#4338ca;" onclick="abrirModalGraficos()">ðŸ“Š Telemetria Temporal</button>
-      <button class="btn btn-reset" onclick="resetarVias()">Normalizar Malha</button>
     </div>
   </header>
 
@@ -363,12 +362,6 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ milimetros_chuva: mm })
       });
-      sincronizar();
-    }
-
-    async function resetarVias() {
-      await chamarApi('/api/v1/ocorrencias/resetar-todas', { method: 'POST' });
-      limparRota();
       sincronizar();
     }
 
