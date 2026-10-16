@@ -1,0 +1,14 @@
+.ac-painel {font-size:12px; overflow-wrap:anywhere;}
+.ac-painel details {border:1px solid #334155; border-radius:5px; margin:10px 0; padding:8px;}
+.ac-painel summary {cursor:pointer; color:#7dd3fc; font-weight:600;}
+.ac-painel p {line-height:1.5; margin:8px 0;}
+.ac-painel article {border-top:1px solid #475569; margin-top:12px; padding-top:6px;}
+.ac-painel h4 {font-size:12px; color:#fbbf24;}
+.ac-painel table {width:100%; border-collapse:collapse; font-size:11px;}
+.ac-painel th,.ac-painel td {text-align:left; border-bottom:1px solid #334155; padding:6px 3px; vertical-align:top;}
+.ac-painel th {font-weight:500;}
+.ac-painel caption {text-align:left; margin:8px 0;}
+.ac-painel label {display:block; margin:8px 0;}
+.ac-painel textarea,.ac-painel select {display:block; width:100%; box-sizing:border-box; background:#0f172a; color:#f1f5f9; border:1px solid #64748b; padding:6px;}
+.ac-painel textarea {min-height:60px; resize:vertical;}
+.ac-painel button {white-space:normal;}
