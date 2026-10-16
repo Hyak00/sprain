@@ -100,8 +100,9 @@ class RoutingEngine:
         else:
             cost_sql = "t.length / CASE WHEN t.highway IN ('primary', 'trunk') THEN 40.0 WHEN t.highway IN ('secondary', 'tertiary') THEN 30.0 ELSE 20.0 END"
 
-        penalidade_alerta = " * (1.0 + COALESCE((SELECT MAX(a.confianca) * 10.0 FROM alertas_operacionais a WHERE a.expiracao_em > now() AND a.status_evento = 'INCERTO' AND t.id_trecho = ANY(a.trechos_afetados)), 0.0))"
-        cost_sql += penalidade_alerta
+        if any(a.get("status_evento") == "INCERTO" for a in alertas):
+            penalidade_alerta = " * (1.0 + COALESCE((SELECT MAX(a.confianca) * 10.0 FROM alertas_operacionais a WHERE a.expiracao_em > now() AND a.status_evento = 'INCERTO' AND t.id_trecho = ANY(a.trechos_afetados)), 0.0))"
+            cost_sql += penalidade_alerta
 
         restricao = ""
         if tipo_veiculo in ["TRUCK_3_EIXOS", "CARRETA_5_EIXOS"]:
