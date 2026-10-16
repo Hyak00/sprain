@@ -58,6 +58,12 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-B", "/app/scripts/worker_status.py"]
+      interval: 60s
+      timeout: 5s
+      start_period: 2m
+      retries: 2
 
 volumes:
   pgdata:
