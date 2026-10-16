@@ -177,7 +177,8 @@ class ContextoViagens:
 async def gravar_recomendacao(conn, op, tenant, cenario, analise):
     alternativa=analise['alternativa']
     financeiro=analise['financeiro'] or {}
-    acao='ALTERAR_ROTA' if alternativa else 'AGUARDAR_MELHORA'
+    acao=('MANTER_ROTA_ORIGINAL' if not analise.get('necessita_desvio',True) else
+          'ALTERAR_ROTA' if alternativa else 'AGUARDAR_MELHORA')
     motivo=(f"Detectados {analise['trechos_criticos']} trechos criticos e {analise['trechos_risco']} em risco de inundacao. "
             f"{len(analise['original']['infraestrutura']['trechos_incompativeis'])} trecho(s) incompativel(is) ou sem medidas do caminhao.")
     if not alternativa:

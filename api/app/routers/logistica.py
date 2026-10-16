@@ -553,6 +553,8 @@ async def listar_alertas_ativos(tenant_id: str = Depends(resolve_tenant), conn: 
         JOIN operacoes o ON o.id_operacao = r.id_operacao AND o.tenant_id = r.tenant_id
         LEFT JOIN veiculos v ON v.id_veiculo = o.id_veiculo AND v.tenant_id = o.tenant_id
         WHERE r.tenant_id = $1 AND r.nivel_risco IN ('CRITICO', 'RISCO')
+          AND r.id_recomendacao = (SELECT max(atual.id_recomendacao) FROM recomendacoes_operacao atual
+              WHERE atual.id_operacao=r.id_operacao AND atual.tenant_id=r.tenant_id)
         ORDER BY r.id_recomendacao DESC
         LIMIT 50;
     """
@@ -774,6 +776,7 @@ async def obter_sumario_executivo(tenant_id: str = Depends(resolve_tenant), conn
 
 from app.services.webhook_dispatcher import WebhookDispatcher
 from pydantic import BaseModel
+from uuid import UUID
 
 class WebhookConfigRequest(BaseModel):
     url: str
@@ -1033,14 +1036,27 @@ async def resetar_rate_limit_servidor(tenant_id: str = Depends(resolve_tenant)):
 class DecisaoGestorRequest(BaseModel):
     decisao: str
     motivo_gestor: str = "Validado pela mesa operacional"
+    consulta_id: UUID | None = None
 
 @router.post("/operacoes/{id_operacao}/decisao", dependencies=[Depends(require_role(["ADMIN", "OPERATOR"])), Depends(aplicar_rate_limit)])
-async def registrar_decisao_gestor(id_operacao: str, payload: DecisaoGestorRequest, tenant_id: str = Depends(resolve_tenant), conn: asyncpg.Connection = Depends(get_connection)):
+async def registrar_decisao_gestor(id_operacao: str, payload: DecisaoGestorRequest, tenant_id: str = Depends(resolve_tenant), conn: asyncpg.Connection = Depends(get_connection), claims=Depends(get_current_user_claims)):
     if payload.decisao not in ("APROVAR_DESVIO", "MANTER_ROTA_ORIGINAL", "AGUARDAR_MELHORA"):
         raise HTTPException(status_code=400, detail="Decisao invalida.")
     op = await conn.fetchrow("SELECT id_operacao FROM operacoes WHERE id_operacao = $1 AND tenant_id = $2;", id_operacao, tenant_id)
     if not op:
         raise HTTPException(status_code=404, detail="Operacao nao encontrada.")
+    fotografia = None
+    perfil_consulta = None
+    if payload.consulta_id:
+        from app.services.painel import selo
+        consulta = await conn.fetchrow('''SELECT snapshot,perfil FROM painel_consultas
+            WHERE id=$1 AND tenant_id=$2 AND id_operacao=$3''', payload.consulta_id, tenant_id, id_operacao)
+        if not consulta:
+            raise HTTPException(404, 'Consulta nao encontrada para esta operacao.')
+        fotografia = objeto(consulta['snapshot'])
+        perfil_consulta = claims['role']
+        if fotografia.get('contexto_consulta',{}).get('selo_premissas') != await selo(conn, tenant_id, id_operacao):
+            raise HTTPException(409, 'A consulta ficou desatualizada. Atualize a operacao antes de decidir.')
     if payload.decisao in ('MANTER_ROTA_ORIGINAL','APROVAR_DESVIO'):
         contexto=await ContextoViagens.carregar(conn,tenant_id,id_operacao)
         viagem=contexto.ops[0]
@@ -1067,10 +1083,11 @@ async def registrar_decisao_gestor(id_operacao: str, payload: DecisaoGestorReque
         );
     """)
     row = await conn.fetchrow("""
-        INSERT INTO decisoes_gestor_operacao (id_operacao, tenant_id, decisao, motivo_gestor)
-        VALUES ($1, $2, $3, $4)
+        INSERT INTO decisoes_gestor_operacao (id_operacao, tenant_id, decisao, motivo_gestor, consulta_id, perfil_registro, snapshot)
+        VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)
         RETURNING id_decisao, registrado_em;
-    """, id_operacao, tenant_id, payload.decisao, payload.motivo_gestor)
+    """, id_operacao, tenant_id, payload.decisao, payload.motivo_gestor, payload.consulta_id, perfil_consulta,
+        json.dumps(fotografia,default=str) if fotografia else None)
     return {
         "sucesso": True,
         "id_decisao": row["id_decisao"],
@@ -1094,7 +1111,7 @@ async def listar_decisoes_gestor(id_operacao: str, tenant_id: str = Depends(reso
         );
     """)
     rows = await conn.fetch("""
-        SELECT id_decisao, id_operacao, tenant_id, decisao, motivo_gestor, registrado_em
+        SELECT id_decisao, id_operacao, tenant_id, decisao, motivo_gestor, registrado_em, consulta_id, perfil_registro
         FROM decisoes_gestor_operacao
         WHERE id_operacao = $1 AND tenant_id = $2
         ORDER BY id_decisao DESC;
@@ -1106,6 +1123,8 @@ async def listar_decisoes_gestor(id_operacao: str, tenant_id: str = Depends(reso
             "tenant_id": r["tenant_id"],
             "decisao": r["decisao"],
             "motivo_gestor": r["motivo_gestor"],
+            "consulta_id": str(r['consulta_id']) if r['consulta_id'] else None,
+            "perfil_consulta": r['perfil_registro'],
             "registrado_em": r["registrado_em"].isoformat()
         }
         for r in rows

@@ -5,6 +5,7 @@ const resposta={
     [base+'operacoes']:[{id_operacao:'OP1',origem_nome:'Origem',destino_nome:'Destino'}],
     [base+'relatorios/sumario-executivo']:{periodo:'D-0 / D+1',kpis:{total_operacoes:1,rotas_em_risco_alagamento:0,rotas_recalculadas_com_sucesso:0,prejuizo_estimado_evitado_brl:0}},
     [base+'operacoes/OP1/explicacao']:{id_operacao:'OP1',acao_recomendada:'MANTER_ROTA',justificativa:'<img src=x onerror=alert(1)>',infraestrutura:{}},
+    '/api/v1/painel/consultas':{consulta:{id:'consulta-teste'},explicacao:{id_operacao:'OP1',acao_recomendada:'MANTER_ROTA',justificativa:'<img src=x onerror=alert(1)>',infraestrutura:{}}},
     [base+'operacoes/OP1/decisoes']:[],
     '/api/v1/health/liveness':{status:'UP'},'/api/v1/health/readiness':{status:'READY'},
     '/api/v1/alertas/precisao':{total_eventos_analisados:0},'/api/v1/dados-publicos/fontes':{fontes:[]},'/api/v1/indicadores/qualidade':{status_geral:'ATENCAO_FONTES'}

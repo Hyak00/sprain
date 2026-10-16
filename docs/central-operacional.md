@@ -1,6 +1,6 @@
 # Central de trabalho
 
-Entrega complementar ao painel existente, baseada em main `4c63696` de 15/10/2026. O botão **Central de trabalho**, no cabeçalho, abre um diálogo com navegação própria. As abas de operações, frota e corredor continuam disponíveis.
+Entrega complementar ao painel existente; fluxo 3.1 atualizado sobre main `8c2c188` em 16/10/2026. Consulte [o fluxo integrado](fluxo-mvp-painel.md) para corredores, recorrências, premissas editáveis, consultas e relatos. O botão **Central de trabalho**, no cabeçalho, abre um diálogo com navegação própria. As abas de operações, frota e corredor continuam disponíveis.
 
 ## Uso
 
@@ -15,9 +15,9 @@ Entrega complementar ao painel existente, baseada em main `4c63696` de 15/10/202
 
 - O PDF é gerado localmente com texto paginado e fonte padrão. Não instala biblioteca de PDF no navegador ou servidor. O gerador limita documentos a 300 mil caracteres para evitar processamento excessivo; use JSON integral quando necessário.
 - O relatório individual mostra operação, percurso, tempos, recomendação, custos retornados, premissas, limites/fontes disponíveis e histórico de decisões. A data de recebimento da consulta não é apresentada como data do cálculo.
-- Medidas efetivas atuais não são apresentadas como fotografia histórica. Autoria individual e contexto de cada decisão antiga não estão no contrato atual e aparecem como não fornecidos.
+- Medidas efetivas atuais não são apresentadas como fotografia histórica. Novas consultas são persistidas e vinculáveis às decisões. Autoria individual e fotografias de decisões anteriores que nunca foram gravadas continuam não fornecidas.
 - Economia comprovada e custo observado aparecem como **não disponíveis**. Impacto potencial e custos de planejamento não comprovam execução ou dinheiro economizado. O resumo é um retrato das últimas recomendações, não um relatório filtrado por período.
-- PDF/HTML listam no máximo 100 pontos físicos por rota, explicitando o recorte; o JSON integral mantém a resposta completa. O CSV de decisões representa o histórico retornado; o CSV de consulta representa a consulta carregada, não um histórico persistente de todas as consultas.
+- PDF/HTML listam no máximo 100 pontos físicos por rota, explicitando o recorte; o JSON integral mantém a resposta completa. O CSV de decisões representa o histórico retornado; o CSV de consulta representa a consulta carregada, não uma exportação agregada de todas as fotografias persistidas; elas estão em Histórico de consultas.
 - CSV escapa separadores, aspas e quebras; neutraliza início de fórmula em texto. Valores numéricos negativos mantêm o sinal.
 
 ## Contratos consumidos
@@ -26,7 +26,7 @@ Entrega complementar ao painel existente, baseada em main `4c63696` de 15/10/202
 |---|---|---|
 | Operações | GET /api/v1/logistica/operacoes | ADMIN/OPERATOR/VIEWER |
 | Resumo | GET /api/v1/logistica/relatorios/sumario-executivo | Todos |
-| Operação/histórico | GET /api/v1/logistica/operacoes/{id}/explicacao e /decisoes | Todos |
+| Operação/histórico | POST /api/v1/painel/consultas e GET /api/v1/logistica/operacoes/{id}/decisoes | Todos |
 | Importação parcial | POST /api/v1/logistica/operacoes/importar-lote | ADMIN/OPERATOR |
 | Fontes globais | GET /api/v1/dados-publicos/fontes e /api/v1/indicadores/qualidade | Todos |
 | Saúde | GET /api/v1/health/liveness e /readiness | Público; central exige sessão |

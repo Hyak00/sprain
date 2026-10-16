@@ -70,7 +70,7 @@ window.CadastroInfra = (()=>{
     proximos.onclick=()=>executar(async()=>{
         const lon=Number(campos.longitude.value),lat=Number(campos.latitude.value);
         if(!campos.longitude.value||!campos.latitude.value)throw new Error('Informe latitude e longitude ou escolha no mapa.');
-        const data=await request('malha/trechos-proximos?somente_regional=false&longitude='+lon+'&latitude='+lat);
+        const data=await request('infraestrutura/malha/trechos-proximos?somente_regional=false&longitude='+lon+'&latitude='+lat);
         candidatos.replaceChildren();el('option',candidatos,'Escolha a pista correta').value='';
         data.candidatos.forEach(c=>el('option',candidatos,'#'+c.id_trecho+' · '+(c.name||'Sem nome')+' · '+Math.round(c.distancia_m)+' m').value=c.id_trecho);
         status.textContent=data.aviso;
