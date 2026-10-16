@@ -40,5 +40,5 @@ class TenantRateLimiter:
         return limite, restantes
 
     @classmethod
-    def reset(cls):
-        cls._history.clear()
+    def reset(cls, tenant_id: str):
+        cls._history.pop(tenant_id, None)

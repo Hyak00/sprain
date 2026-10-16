@@ -658,13 +658,13 @@ async def obter_auditoria_acuracia(conn: asyncpg.Connection = Depends(get_connec
     }
 
 @router.get("/performance/cache", dependencies=[Depends(require_role(["ADMIN", "OPERATOR"]))])
-async def obter_status_cache():
-    return RoutingEngine.cache_stats()
+async def obter_status_cache(tenant_id: str = Depends(resolve_tenant)):
+    return RoutingEngine.cache_stats(tenant_id)
 
 @router.post("/performance/cache/limpar", dependencies=[Depends(require_role(["ADMIN"]))])
-async def limpar_cache():
-    RoutingEngine.clear_cache()
-    return {"sucesso": True, "mensagem": "Cache de rotas esvaziado"}
+async def limpar_cache(tenant_id: str = Depends(resolve_tenant)):
+    RoutingEngine.clear_cache(tenant_id)
+    return {"sucesso": True, "mensagem": "Cache de rotas da empresa esvaziado"}
 
 from app.services.observabilidade import MetricsCollector
 
@@ -1002,8 +1002,8 @@ async def obter_alertas_meteorologicos_regiao(precipitacao_mm: float = 65.0, raj
     }
 
 @router.post("/rate-limit/reset", dependencies=[Depends(require_role(["ADMIN"]))])
-async def resetar_rate_limit_servidor():
-    TenantRateLimiter.reset()
+async def resetar_rate_limit_servidor(tenant_id: str = Depends(resolve_tenant)):
+    TenantRateLimiter.reset(tenant_id)
     return {"sucesso": True, "status": "RATE_LIMIT_RESETADO"}
 
 
