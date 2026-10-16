@@ -114,7 +114,7 @@ class RoutingEngine:
         
         arestas_sql = f"SELECT t.id_trecho AS id, t.source::bigint, t.target::bigint, CASE WHEN t.sentido='INVERSO' THEN -1 ELSE (({cost_sql}){restricao})::float END AS cost, CASE WHEN t.sentido='DIRETO' THEN -1 ELSE (({cost_sql}){restricao})::float END AS reverse_cost FROM trechos_osm t WHERE t.source IS NOT NULL AND t.target IS NOT NULL AND (t.tenant_malha IS NULL OR t.tenant_malha={empresa_sql}) AND (t.importacao_malha_id IS NULL OR EXISTS(SELECT 1 FROM malha_importacoes m WHERE m.id=t.importacao_malha_id AND m.ativo)){filtro_bloqueios}"
 
-        pgr_query = "SELECT r.seq, r.node, r.edge, r.cost, t.id_trecho, t.name, t.length, t.ivi_score, t.sentido, t.limites_malha, t.fonte_malha, t.limites_verificado_em, t.limites_valido_ate, ST_AsGeoJSON(ST_Transform(t.geom, 4326)) AS geojson FROM pgr_dijkstra($3::text, $1::bigint, $2::bigint, true) r LEFT JOIN trechos_osm t ON t.id_trecho = r.edge WHERE r.edge != -1 ORDER BY r.seq;"
+        pgr_query = "SELECT r.seq, r.node, r.edge, r.cost, t.id_trecho, t.name, t.length, t.highway, t.classe_declividade, t.ivi_score, t.sentido, t.limites_malha, t.fonte_malha, t.limites_verificado_em, t.limites_valido_ate, ST_AsGeoJSON(ST_Transform(t.geom, 4326)) AS geojson FROM pgr_dijkstra($3::text, $1::bigint, $2::bigint, true) r LEFT JOIN trechos_osm t ON t.id_trecho = r.edge WHERE r.edge != -1 ORDER BY r.seq;"
 
         rows = await conn.fetch(pgr_query, int(orig_vert), int(dest_vert), arestas_sql)
         if not rows:
@@ -146,8 +146,42 @@ class RoutingEngine:
                     }
                 })
 
+        velocidades_base_kmh = {
+            "motorway": 90.0,
+            "motorway_link": 50.0,
+            "trunk": 80.0,
+            "trunk_link": 45.0,
+            "primary": 60.0,
+            "primary_link": 40.0,
+            "secondary": 50.0,
+            "secondary_link": 35.0,
+            "tertiary": 40.0,
+            "tertiary_link": 30.0,
+            "residential": 30.0,
+            "living_street": 20.0,
+            "unclassified": 30.0
+        }
+        fatores_declividade = {
+            1.0: 1.00,
+            2.0: 0.90,
+            3.0: 0.75,
+            4.0: 0.60
+        }
+        tempo_total_min = 0.0
+        for row in rows:
+            extensao_km = (float(row["length"] or 0.0)) / 1000.0
+            tipo_via = str(row["highway"] or "residential").lower()
+            v_base = velocidades_base_kmh.get(tipo_via, 30.0)
+            dec = float(row["classe_declividade"]) if row["classe_declividade"] is not None else 1.0
+            f_dec = fatores_declividade.get(dec, 1.00)
+            if rain_mm > 0.0:
+                f_chuva = max(0.70, 1.0 - (min(rain_mm, 100.0) / 100.0) * 0.25)
+            else:
+                f_chuva = 1.0
+            v_real = max(10.0, v_base * f_dec * f_chuva)
+            tempo_total_min += (extensao_km / v_real) * 60.0
         dist_km = round(total_length / 1000.0, 2)
-        tempo_min = round((dist_km / 35.0) * 60.0, 1)
+        tempo_min = round(tempo_total_min, 1)
 
         result = {
             "distancia_km": dist_km,
