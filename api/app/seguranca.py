@@ -68,6 +68,11 @@ async def exigir_api_key(x_api_key: Optional[str] = Header(default=None)):
 async def get_current_user_claims(request: Request, x_api_key: Optional[str] = Header(default=None)):
     if not x_api_key:
         raise HTTPException(status_code=401, detail="Nao autorizado. Forneca o cabecalho X-API-Key.")
+    from app.services.acesso_painel import PREFIXO, claims_sessao
+    if x_api_key.startswith(PREFIXO):
+        claims=await claims_sessao(x_api_key)
+        request.state.authenticated_tenant_id=claims['tenant_id']
+        return {**claims,'scopes':ROLE_PERMISSIONS[claims['role']]}
     users_db = carregar_chaves_tenants()
     usuario_valido = None
     for key, dados in users_db.items():

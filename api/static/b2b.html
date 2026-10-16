@@ -147,16 +147,16 @@
             </div>
             <div class="login-field">
                 <label for="login-email">E-mail Corporativo</label>
-                <input type="email" id="login-email" autocomplete="username" class="login-input" value="operacoes@democorp.com.br">
+                <input type="email" id="login-email" autocomplete="username" class="login-input" required>
             </div>
             <div class="login-field">
                 <label for="login-senha">Senha de Acesso</label>
-                <input type="password" id="login-senha" autocomplete="current-password" class="login-input" value="sprain2026">
+                <input type="password" id="login-senha" autocomplete="current-password" class="login-input" required maxlength="256">
             </div>
             <div role="status" aria-live="polite" id="login-erro" style="color:#f87171; font-size:12px; margin-bottom:8px; min-height:16px;"></div>
             <button class="btn-login" data-acao="realizarLogin" onclick="realizarLogin()">Entrar na Torre de Controle</button>
 
-            <div class="demo-accounts">
+            <div class="demo-accounts" hidden>
                 <div style="font-size:10.5px; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:4px;">Contas Homologadas (Acesso Rápido Demo):</div>
                 <button class="demo-btn" onclick="preencherLogin('operacoes@democorp.com.br', 'sprain2026')">
                     <span><strong>TransPaulista S.A.</strong> (Mesa Operacional)</span>
@@ -482,7 +482,8 @@
             erroEl.innerText = 'Autenticando...';
 
             try {
-                const res = await window.PainelSessao.request('/api/v1/logistica/auth/login', {
+                if(!document.getElementById('login-email').reportValidity()||!document.getElementById('login-senha').reportValidity())return;
+                const res = await window.PainelSessao.request('/api/v1/acesso/login', {
                     method: 'POST',
                     publico: true,
                     headers: { 'Content-Type': 'application/json' },
@@ -497,6 +498,7 @@
                 }
 
                 const user = await res.json();
+                document.getElementById('login-senha').value='';
                 window.PainelSessao.entrar(user);
                 window.PortalOperacional?.sessao(user);
                 window.API_KEY = user.api_key;
@@ -518,7 +520,7 @@
         }
 
         function sairSessao() {
-            window.PainelSessao.encerrar();
+            return window.PainelSessao.sair();
         }
 
         function limparPainelSessao() {
@@ -624,6 +626,7 @@
                 btn.dataset.escrita = '';
                 btn.onclick = () => abrirModalDespachoComVeiculo(v.id_veiculo);
                 div.appendChild(btn);
+                const origem=document.createElement('small');origem.className='mvp-proveniencia';origem.textContent='Fonte: cadastro da empresa. Atualização: '+window.PortalDados.data(v.atualizado_em);div.appendChild(origem);
                 container.appendChild(div);
             });
             window.InfraCaminhoes.frota(frotaAtual);
@@ -742,8 +745,8 @@
                 destino_nome: valOr(document.getElementById('desp-dest-nome').value.trim(), 'Destino Selecionado'),
                 destino_lat: parseFloat(valOr(document.getElementById('desp-dest-lat').value, 0)),
                 destino_lon: parseFloat(valOr(document.getElementById('desp-dest-lon').value, 0)),
-                janela_inicio: agora.toISOString().slice(0, 19),
-                janela_fim: fim.toISOString().slice(0, 19)
+                janela_inicio: agora.toISOString(),
+                janela_fim: fim.toISOString()
             };
 
             try { Object.assign(payload,window.InfraCaminhoes.ler('infra-desp')); }
@@ -925,13 +928,15 @@
             await carregarHistoricoDecisoes(idOp);
         }
 
+        let leituraExplicacao=0;
         async function abrirExplicacaoDecisao(idOperacao) {
+            const leitura=++leituraExplicacao;
             const sessao=window.SESSION_EPOCH;
             const res = await window.PainelSessao.request('/api/v1/painel/consultas', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id_operacao:idOperacao})});
             if (!res.ok) return;
             const respostaConsulta = await res.json();
             const data = respostaConsulta.explicacao;
-            if(sessao!==window.SESSION_EPOCH || idOperacao!==operacaoSelecionadaId) return;
+            if(sessao!==window.SESSION_EPOCH || idOperacao!==operacaoSelecionadaId || leitura!==leituraExplicacao) return;
             consultaSelecionadaId=respostaConsulta.consulta.id;
             const indice=recomendacoesAtuais.findIndex(r=>r.id_operacao===data.id_operacao);
             const linha={id_operacao:data.id_operacao,id_veiculo:data.id_veiculo,nivel_risco:data.nivel_risco,acao:data.acao_recomendada,
@@ -1032,6 +1037,7 @@
                 item.append(acao, document.createTextNode(d.motivo_gestor || 'Sem justificativa informada'));
                 data.className = 'mono';
                 data.textContent = 'ID #' + d.id_decisao + ' • ' + new Date(d.registrado_em).toLocaleString('pt-BR');
+                data.textContent += d.usuario_id?' • Usuário '+d.usuario_id:' • Identidade individual não fornecida';
                 item.appendChild(data); box.appendChild(item);
             });
         }
@@ -1072,5 +1078,6 @@
     <script src="/static/painel-corredores.js"></script>
     <script src="/static/painel-eventos.js"></script>
     <script>window.PainelSessao.instalar();</script>
+    <script src="/static/painel-homologacao.js"></script>
 </body>
 </html>

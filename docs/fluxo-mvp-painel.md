@@ -4,7 +4,7 @@ Base: main `8c2c188`, 16/10/2026. Esta entrega complementa o painel existente. N
 
 ## Uso
 
-1. Entre, confira empresa e papel. OPERATOR e ADMIN podem gravar; VIEWER pode consultar e registrar a fotografia da própria consulta, sem alterar o planejamento. Login permanece o demonstrativo existente; não há identidade individual ou recuperação de senha de produção nesta entrega.
+1. Entre, confira empresa e papel. OPERATOR e ADMIN podem gravar; VIEWER pode consultar e registrar a fotografia da própria consulta, sem alterar o planejamento. O painel aceita contas individuais provisionadas no servidor, com sessão revogável e expiração. O acesso demonstrativo existente permanece fora de produção. Procedimento e evidências: [homologação do fluxo](homologacao-fluxo-painel.md). Recuperação de senha é item 3.2.
 2. Abra uma operação. A API salva a fotografia integral da explicação, incluindo geometria, fontes disponíveis, premissas, cenário e instante do cálculo. O instante de consulta é separado do instante do cálculo. Ausência de recomendação não recebe confiança fictícia ou rota alternativa inventada.
 3. Expanda **Editar premissas e recalcular esta operação**. Valores em branco removem a sobrescrita da viagem e usam as referências/frota aplicáveis. O custo total/km tem prioridade; combustível não é somado duas vezes. Informe explicitamente a chuva simulada, inclusive zero. A API usa os motores existentes, registra um cenário SIMULAÇÃO e atualiza a comparação, tabela e totais. Edição é permitida somente em operações PLANNED. Não se trata de chuva observada.
 4. Confira **Comparação detalhada de custos**, **Pedágios, caminhão e restrições** e as fontes. Valores estimados com parcelas conhecidas não são custo integral garantido; tarifa pendente pode alterar a comparação. Perda potencial evitada não comprova economia real. Sem geometria alternativa, o painel informa que a comparação está indisponível.
@@ -41,11 +41,11 @@ As decisões continuam em POST `/api/v1/logistica/operacoes/{id}/decisao`, com `
 
 ## Verificação
 
-- `npm test`: 45 testes de sessão, DOM, custos, formulários, cache, cancelamento, importação e relatórios. `linkedom` é dependência somente de desenvolvimento, não pacote carregado pelo usuário.
-- `python -m pytest tests -q`: 173 testes aprovados no ambiente isolado. Executar somente em API/banco de testes. Inclui isolamento por empresa e papel, migração repetível, versão de edição, despacho sem duplicação, custo recalculado, consulta obsoleta, decisão vinculada, fotografia preservada, relato privado, ausência de dados e contratos do OpenAPI usados pelo painel.
+- `npm test`: 51 testes de sessão, DOM, custos, formulários, cache, cancelamento, importação e relatórios. `linkedom` é dependência somente de desenvolvimento, não pacote carregado pelo usuário.
+- `python -m pytest tests -q`: 180 testes aprovados no ambiente isolado. Executar somente em API/banco de testes. Inclui isolamento por empresa e papel, acesso individual, expiração/revogação, migração repetível, versão de edição, despacho sem duplicação, custo recalculado, consulta obsoleta, decisão vinculada, fotografia preservada, relato privado, ausência de dados e contratos do OpenAPI usados pelo painel.
 - Conferência manual no navegador: login/logout, operador/leitor/admin de outra empresa, simulação, edição de custos e chuva zero, corredor, recorrência, despacho, histórico e relato exibido no mapa. Breakpoint móvel de 390 pixels CSS conferido; diálogos mantêm foco e campos nativos têm rótulos. Isso não é certificação integral WCAG ou homologação de campo.
 - Preservação: os 69 IDs e o CSS inline anteriores permanecem; estilos e módulos adicionais se adaptam ao painel. Nenhum serviço externo ou dependência de produção nova.
 
 ## Limites concretos
 
-O item 3.1 não resolve gestão/recuperação de usuários de produção (3.2), confirmação humana de uma ponte ou tarifa ausente, histórico primário que a fonte não fornece ou prova de economia em viagens reais. Essas ausências são visíveis. A agenda não é um despachante automático e relatos ainda exigem validação operacional. O código e testes locais não substituem revisão do PR e homologação da equipe.
+O item 3.1 inclui acesso individual provisionado; gestão de usuários pela interface e recuperação de senha são 3.2. Não resolve confirmação humana de uma ponte ou tarifa ausente, histórico primário que a fonte não fornece ou prova de economia em viagens reais. Essas ausências são visíveis. A agenda não é um despachante automático e relatos ainda exigem validação operacional. O código e testes locais não substituem revisão do PR e homologação da equipe.

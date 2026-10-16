@@ -18,6 +18,8 @@ from app.services.infraestrutura_viaria import garantir_schema as garantir_infra
 from app.services.dados_publicos import garantir_schema as garantir_dados_publicos
 from app.services.painel import garantir_schema as garantir_painel
 from app.routers import painel
+from app.routers import acesso_painel
+from app.services.acesso_painel import garantir_schema as garantir_acesso
 from app.routers import infraestrutura, malha, dados_publicos, transito, indicadores, demonstracao, feedback_alertas, operacoes_cliente
 from app.routers import (
     estatisticas,
@@ -54,6 +56,7 @@ async def lifespan(app: FastAPI):
     await garantir_infraestrutura()
     await garantir_dados_publicos()
     await garantir_painel()
+    await garantir_acesso()
     task_clima = asyncio.create_task(agendador_telemetria_corredor())
     try:
         yield
@@ -128,6 +131,7 @@ app.include_router(demonstracao.router)
 app.include_router(feedback_alertas.router)
 app.include_router(operacoes_cliente.router)
 app.include_router(painel.router)
+app.include_router(acesso_painel.router)
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 static_dir = BASE_DIR / "static"

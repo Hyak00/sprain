@@ -21,7 +21,7 @@
     const legenda=document.createElement('details');U.el(legenda,'summary','Natureza das informações e ocorrências');for(const[n,c]of Object.entries(cores)){const p=U.el(legenda,'p','● '+n.replaceAll('_',' '));p.style.color=c;}U.el(legenda,'p','Histórico ≠ previsão ≠ observação ≠ confirmação. Relatos pendentes não bloqueiam rotas automaticamente.');document.querySelector('.map-legend').appendChild(legenda);
     async function tela(p,ctx){
         U.el(p,'p','Relato privado da empresa, pendente de validação. Não confirma interdição nem bloqueia automaticamente a malha. Use o feedback do alerta existente para reportar um alerta errado.');
-        const form=U.el(p,'form');form.onsubmit=e=>e.preventDefault();const label=U.el(form,'label','Tipo da ocorrência '),categoria=U.el(label,'select');for(const x of ['ALAGAMENTO','TRANSITO','PONTE','OUTRO'])U.el(categoria,'option',x).value=x;
+        const form=U.el(p,'form');form.onsubmit=e=>e.preventDefault();const label=U.el(form,'label','Tipo da ocorrência '),categoria=U.el(label,'select');categoria.setAttribute('aria-label','Tipo da ocorrência');for(const x of ['ALAGAMENTO','TRANSITO','PONTE','OUTRO'])U.el(categoria,'option',x).value=x;
         const desc=U.el(form,'label','Descrição do que foi observado '),texto=U.el(desc,'textarea');texto.required=true;texto.minLength=5;texto.maxLength=1000;
         const data=U.campo(form,'ocorrido_em','Data/hora observada (horário do seu navegador)','datetime-local','',{required:''});
         const lat=U.campo(form,'latitude','Latitude do relato','number','',{required:'',min:-90,max:90,step:'any'}),lon=U.campo(form,'longitude','Longitude do relato','number','',{required:'',min:-180,max:180,step:'any'});

@@ -5,7 +5,7 @@ Referência: seções 3.1–3.7 da lista técnica enviada, páginas 9–11. Atua
 | Item | Situação | Evidência / próximo aceite |
 |---|---|---|
 | 3.1 APIs chamadas pelo painel | Validado localmente | Inventário de contratos no OpenAPI, testes HTTP e fluxos manuais; corrigida busca de trechos próximos |
-| 3.1 Login/logout/papéis | Implementado no acesso demo | Leitor bloqueado na interface e API; cancelamento/troca de empresa testados; identidade de produção é 3.2 |
+| 3.1 Login/logout/papéis | Implementado e verificado | Login individual com hash de senha e sessão revogável/expirável; empresa/papel atuais e autoria; demo preservada fora de produção. Ver homologacao-fluxo-painel.md |
 | 3.1 Corredores/rotas recorrentes | Implementado | CRUD/versionamento, inativação, agenda persistida e despacho explícito idempotente; sem agendador automático |
 | 3.1 Mapa/vulnerabilidade/camadas | Implementado | Malha e rotas preservadas; ocorrências com geometria autorizada e relatos privados; ausência de geometria explícita |
 | 3.1 Fontes/datas/legenda | Implementado com ausência explícita | Cenário/cálculo/consulta separados; fontes disponíveis exibidas, valores ausentes não são fabricados |
@@ -15,10 +15,10 @@ Referência: seções 3.1–3.7 da lista técnica enviada, páginas 9–11. Atua
 | 3.1 Comparação de rotas/custos | Implementado | Motor original; distância/tempo, restrições, pedágios/combustível, custos estimados, cobertura e limitações |
 | 3.1 Premissas editáveis | Implementado | Custo por operação no inspector; selo de conflito, cenário explícito e recálculo transacional; tabela/totais sincronizados |
 | 3.1 Conhecido/estimado | Implementado | Parcelas conhecidas versus estimativas; potencial não comprova economia; ausência não vira zero |
-| 3.1 Decisão e histórico | Implementado no acesso atual | Consulta persistida e fotografia vinculada à decisão; autoria por papel/empresa, identidade individual não fornecida |
+| 3.1 Decisão e histórico | Implementado e verificado | Consulta persistida e fotografia vinculada; usuário individual nas novas sessões, empresa/papel nas credenciais compartilhadas; registros antigos sem dados não são reconstruídos |
 | 3.1 Reporte de erro/evento ausente | Implementado | Feedback existente e relato privado georreferenciado pendente; não bloqueia rotas automaticamente |
 | 3.1 Estados em todas as telas | Implementado nos fluxos do painel | Central, frota, corredor, operações e novos formulários têm carregamento/erro/vazio ou validação; falha não mantém comparação anterior como atual |
-| 3.1 Responsividade/acessibilidade | Implementado em nível básico | Rótulos, foco, teclado, diálogo, texto além de cor e breakpoint 390 px; não equivale a auditoria WCAG integral |
+| 3.1 Responsividade/acessibilidade | Implementado em nível básico | Rótulos, foco, teclado/Escape, fundo do despacho inerte, texto além de cor; 320/768/1280 px verificados; não equivale a auditoria WCAG integral |
 | 3.2 Gestão de usuários | Dependência | Não existe CRUD de identidade; tela explica indisponibilidade, sem simular gravação |
 | 3.2 Premissas da empresa | Dependência | Formulários por frota/despacho existentes; persistência global ausente |
 | 3.2 Recuperação de acesso | Dependência | Login atual é demo; não há recuperação |

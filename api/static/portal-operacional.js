@@ -166,7 +166,7 @@
         const novo=botao(p,'Abrir formulário de novo despacho',()=>{encerrar();root.abrirModalDespacho();});novo.disabled=!root.PainelSessao.podeEscrever();
         botao(p,'Abrir minha frota',()=>{encerrar();root.alternarAba('FROTA');});
         el(p,'h4','Gestão de usuários e recuperação de acesso');
-        el(p,'p','O acesso atual é de demonstração. Criar/desativar usuários, mudar papéis e recuperar acesso exigem endpoints de identidade do backend. Essas ações ainda não estão disponíveis; nenhuma alteração de usuário é simulada neste navegador.');
+        el(p,'p','O login individual usa contas provisionadas no servidor e sessões com validade e revogação. Contas demo permanecem disponíveis somente fora de produção. Criação e gestão de usuários e recuperação de senha não são feitas por esta tela; o administrador usa o procedimento documentado.');
         el(p,'h4','Corredores e rotas recorrentes');el(p,'p','A aba SP-310/SP-348 consulta o corredor de referência. Use Corredores e recorrências para cadastrar e editar corredores e agendas da sua empresa.');
         botao(p,'Cadastrar corredores e recorrências',()=>navegar('corredores'));
         botao(p,'Consultar corredor existente',()=>{encerrar();root.alternarAba('CORREDOR');});
@@ -174,7 +174,7 @@
         botao(p,'Abrir relatórios e exportações',()=>render('relatorios'));
     }
     function demonstracao(p){
-        el(p,'p','DEMONSTRAÇÃO — o login disponível neste painel é de demonstração e é bloqueado pelo backend em produção. Chuva simulada não é medição em campo.');
+        el(p,'p','DEMONSTRAÇÃO — os atalhos de contas demo funcionam somente fora de produção. O acesso individual é separado desses atalhos. Chuva simulada não é medição em campo.');
         const passos=['Entre com uma conta de demonstração em ambiente separado.','Cadastre um caminhão de teste com medidas explicitamente identificadas como exemplo.','Despache uma rota dentro da malha disponível e confira as coordenadas.','Compare cenários de chuva, rota original, alternativa, limitações e custos.','Registre uma decisão com motivo, confira o histórico e exporte o relatório.'];
         const ol=el(p,'ol');passos.forEach(s=>el(ol,'li',s));
         el(p,'p','Cenário histórico SP-310: aguardando fonte primária e associação dos trechos. O endpoint atual contém distâncias substitutas e não é acionado por esta tela como se fosse histórico validado.');
@@ -189,7 +189,7 @@
         el(p,'p','Tempo desta sessão até a primeira consulta de relatório útil: '+(primeiro?((primeiro-inicio)/1000).toFixed(1)+' s':'ainda não registrado nesta sessão')+'. Medição apenas em memória: não é evento auditável persistido. Esse evento de onboarding ainda precisa de endpoint.');
         el(p,'h4','Quando pedir suporte');el(p,'p','Em falha de fonte, atualize a consulta e confira a idade dos dados. Em conflito de decisão, recalcule a rota. Em resultado incerto de importação, consulte as operações antes de reenviar. Nunca envie sua chave de API em relatórios ou mensagens de suporte.');
     }
-    function sessao(user){limpar();usuario={tenant_id:user.tenant_id,role:user.role,email:user.email};inicio=Date.now();aviso.hidden=false;}
+    function sessao(user){limpar();usuario={tenant_id:user.tenant_id,role:user.role,email:user.email};inicio=Date.now();aviso.hidden=user.tipo_acesso==='INDIVIDUAL';}
     function limpar(){usuario=null;selecionada=null;primeiro=null;versao++;controle?.abort();dialog.close();conteudo.replaceChildren();urls.forEach(u=>URL.revokeObjectURL(u));urls.clear();}
     function selecionar(op){selecionada=op;}
     function registrarSecao(id,label,fn){
