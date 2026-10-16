@@ -55,6 +55,7 @@ services:
       DB_NAME: ${DB_NAME:-enchentes}
       SPRAIN_INFRA_TENANT: ${SPRAIN_INFRA_TENANT:-}
       DADOS_PUBLICOS_INTERVALO_HORAS: ${DADOS_PUBLICOS_INTERVALO_HORAS:-24}
+      WEBHOOK_ALERTA_DADOS: ${WEBHOOK_ALERTA_DADOS:-}
     depends_on:
       db:
         condition: service_healthy
