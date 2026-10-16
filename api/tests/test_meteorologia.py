@@ -34,7 +34,8 @@ async def test_clima_valida_regras():
         """)
         res2 = await ws.obter_clima_trecho(id_trecho)
         assert res2["status"] == "DESATUALIZADO"
-        assert res2["precipitacao_mm"] == 0.0
+        assert res2["precipitacao_mm"] is None
+        assert "motivo_indisponivel" in res2
         
         # Teste 3: Observacao valida
         await conn.execute("""
@@ -49,7 +50,7 @@ async def test_clima_valida_regras():
         historico_antes = await conn.fetchval("SELECT count(*) FROM historico_avaliacoes_risco")
         await ws.registrar_avaliacao_risco(id_trecho, res3["precipitacao_mm"], "CRITICO", res3["fonte"], res3["idade_minutos"], "v1.0")
         hist = await conn.fetchval("SELECT count(*) FROM historico_avaliacoes_risco")
-        assert hist == historico_antes + 1
+          assert hist == historico_antes + 1
     finally:
         await transaction.rollback()
         await conn.close()

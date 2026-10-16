@@ -36,12 +36,12 @@ class WeatherService:
         """
         row = await self.conn.fetchrow(query, id_trecho)
         if not row:
-            return {"status": "DESCONHECIDO", "motivo": "Sem estacao proxima na regiao.", "precipitacao_mm": 0.0}
+            return {"status": "DESCONHECIDO", "motivo_indisponivel": "Sem estacao proxima na regiao.", "precipitacao_mm": None}
 
         if row["precipitacao_mm"] is None:
             return {
                 "status": "INDISPONIVEL",
-                "motivo": "Estacao ativa, mas sem leituras disponiveis.",
+                "motivo_indisponivel": "Estacao ativa, mas sem leituras disponiveis.", "precipitacao_mm": None,
                 "estacao": row["estacao"],
                 "distancia_m": round(row["distancia_m"], 1),
                 "precipitacao_mm": 0.0
@@ -53,12 +53,12 @@ class WeatherService:
         if idade > tolerancia:
             return {
                 "status": "DESATUALIZADO",
-                "motivo": f"Dado antigo ({int(idade)} min). Tolerancia de seguranca: {tolerancia} min.",
+                "motivo_indisponivel": f"Dado antigo ({int(idade)} min). Tolerancia de seguranca: {tolerancia} min.",
                 "idade_minutos": int(idade),
                 "estacao": row["estacao"],
                 "fonte": row["fonte"],
                 "tipo": row["tipo"],
-                "precipitacao_mm": 0.0,
+                "precipitacao_mm": None,
                 "aviso": "Limitacao explicita: dado atual ausente. Nao havera estimativa insegura."
             }
 
