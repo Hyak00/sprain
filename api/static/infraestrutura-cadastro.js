@@ -54,7 +54,7 @@ window.CadastroInfra = (()=>{
         status.textContent=p.origem_dados==='REFERENCIA_OSM'?'Para confirmar esta referência, informe a fonte consultada e a validade.':'';
     }
     async function request(path,method='GET',body){
-        const g=geracao,r=await fetch('/api/v1/'+path,{method,headers:{'X-API-Key':window.API_KEY,'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined});
+        const g=geracao,r=await window.PainelSessao.request('/api/v1/'+path,{method,headers:{'X-API-Key':window.API_KEY,'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined});
         const data=await r.json();if(g!==geracao)throw new Error('A sessão mudou.');
         if(!r.ok)throw new Error(typeof data.detail==='string'?data.detail:'Confira os campos, a associação e sua permissão.');return data;
     }
@@ -64,7 +64,7 @@ window.CadastroInfra = (()=>{
         pontos.forEach(f=>el('option',lista,f.properties.tipo+' · '+f.properties.nome+' #'+f.properties.id).value=f.properties.id);
         preparar(null);if(data.proximo_depois_id)status.textContent='Primeiras 500 referências; outras páginas disponíveis pela API.';
     }
-    async function executar(fn){try{await fn();}catch(e){status.textContent=e.message;}}
+    async function executar(fn){try{await fn();}catch(e){if(!e.silencioso)status.textContent=e.message;}}
     carregar.onclick=()=>executar(carregarPontos);
     lista.onchange=()=>preparar(pontos.find(f=>String(f.properties.id)===lista.value));
     proximos.onclick=()=>executar(async()=>{

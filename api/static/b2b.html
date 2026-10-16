@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SPRain • Plataforma Corporativa de Resiliência Logística</title>
+    <link rel="stylesheet" href="/static/painel-sessao.css">
     <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
     <link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
@@ -131,7 +132,7 @@
 </head>
 <body>
 
-    <div id="login-overlay">
+    <div id="login-overlay" role="dialog" aria-modal="true" aria-label="Acesso ao portal do cliente">
         <div class="login-card">
             <div class="login-brand">
                 <div class="login-logo">SP</div>
@@ -141,15 +142,15 @@
                 </div>
             </div>
             <div class="login-field">
-                <label>E-mail Corporativo</label>
-                <input type="email" id="login-email" class="login-input" value="operacoes@democorp.com.br">
+                <label for="login-email">E-mail Corporativo</label>
+                <input type="email" id="login-email" autocomplete="username" class="login-input" value="operacoes@democorp.com.br">
             </div>
             <div class="login-field">
-                <label>Senha de Acesso</label>
-                <input type="password" id="login-senha" class="login-input" value="sprain2026">
+                <label for="login-senha">Senha de Acesso</label>
+                <input type="password" id="login-senha" autocomplete="current-password" class="login-input" value="sprain2026">
             </div>
-            <div id="login-erro" style="color:#f87171; font-size:12px; margin-bottom:8px; min-height:16px;"></div>
-            <button class="btn-login" onclick="realizarLogin()">Entrar na Torre de Controle</button>
+            <div role="status" aria-live="polite" id="login-erro" style="color:#f87171; font-size:12px; margin-bottom:8px; min-height:16px;"></div>
+            <button class="btn-login" data-acao="realizarLogin" onclick="realizarLogin()">Entrar na Torre de Controle</button>
 
             <div class="demo-accounts">
                 <div style="font-size:10.5px; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:4px;">Contas Homologadas (Acesso Rápido Demo):</div>
@@ -212,8 +213,8 @@
                 <div id="status-geo-dest" style="font-size:10.5px; color:#34d399; margin-top:3px;">✓ Coordenada localizada automaticamente pelo PostGIS</div>
             </div>
 
-            <div id="desp-feedback" style="font-size:12px; color:#38bdf8; margin-bottom:10px; min-height:16px;"></div>
-            <button class="btn-login" onclick="criarOperacaoRoteada()">Traçar Rota Automaticamente e Avaliar Alagamentos</button>
+            <div role="status" aria-live="polite" id="desp-feedback" style="font-size:12px; color:#38bdf8; margin-bottom:10px; min-height:16px;"></div>
+            <button class="btn-login" data-escrita data-acao="criarOperacaoRoteada" onclick="criarOperacaoRoteada()">Traçar Rota Automaticamente e Avaliar Alagamentos</button>
         </div>
     </div>
 
@@ -233,8 +234,8 @@
         </div>
 
         <div class="top-controls">
-            <button class="btn-action-top" onclick="abrirModalDespacho()">+ Despachar Nova Rota</button>
-            <button class="btn-top" onclick="exportarCsv()">↓ Exportar CSV</button>
+            <button class="btn-action-top" data-escrita data-acao="abrirModalDespacho" onclick="abrirModalDespacho()">+ Despachar Nova Rota</button>
+            <button class="btn-top" data-acao="exportarCsv" onclick="exportarCsv()">↓ Exportar CSV</button>
             <div class="corp-badge">
                 <div>
                     <div style="font-weight:700; color:#38bdf8;" id="lbl-user-tenant">demo_corp</div>
@@ -271,7 +272,7 @@
                     <div class="control-row">
                         <div class="ctrl-group">
                             <span class="ctrl-label">Cenário de Chuva</span>
-                            <select class="ctrl-input" id="sel-chuva">
+                            <select class="ctrl-input" data-escrita id="sel-chuva">
                                 <option value="35">35 mm/h (Atenção)</option>
                                 <option value="60">60 mm/h (Severo)</option>
                                 <option value="85" selected>85 mm/h (Crítico)</option>
@@ -280,9 +281,9 @@
                         </div>
                         <div class="ctrl-group">
                             <span class="ctrl-label">Custo Retenção (R$)</span>
-                            <input class="ctrl-input mono" id="input-prejuizo" type="number" min="0" step="100" value="2800">
+                            <input class="ctrl-input mono" data-escrita id="input-prejuizo" type="number" min="0" step="100" value="2800">
                         </div>
-                        <button class="btn-primary" onclick="executarSimulacao()">Simular</button>
+                        <button class="btn-primary" data-acao="executarSimulacao" onclick="executarSimulacao()">Simular</button>
                     </div>
 
                     <div class="filter-bar">
@@ -315,17 +316,17 @@
                 <div class="panel-card">
                     <div style="font-size:11px; font-weight:700; color:var(--accent); text-transform:uppercase; margin-bottom:8px;">Cadastrar Novo Caminhão na Frota</div>
                     <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px;">
-                        <input type="text" id="veic-id" class="ctrl-input mono" placeholder="ID (Ex: TRK-055)" value="TRK-055">
-                        <input type="text" id="veic-placa" class="ctrl-input mono" placeholder="Placa (Ex: BRA5E55)" value="BRA5E55">
-                        <input type="text" id="veic-modelo" class="ctrl-input" placeholder="Modelo (Ex: Volvo VM 270)" value="Volvo VM 270">
-                        <select id="veic-tipo" class="ctrl-input">
+                        <input type="text" data-escrita id="veic-id" class="ctrl-input mono" placeholder="ID (Ex: TRK-055)" value="TRK-055">
+                        <input type="text" data-escrita id="veic-placa" class="ctrl-input mono" placeholder="Placa (Ex: BRA5E55)" value="BRA5E55">
+                        <input type="text" data-escrita id="veic-modelo" class="ctrl-input" placeholder="Modelo (Ex: Volvo VM 270)" value="Volvo VM 270">
+                        <select data-escrita id="veic-tipo" class="ctrl-input">
                             <option value="VUC">VUC (Urbano Leve)</option>
                             <option value="TRUCK_3_EIXOS" selected>TRUCK 3 Eixos (Restrição Pesado)</option>
                             <option value="CARRETA_5_EIXOS">Carreta 5 Eixos (Restrição Pesado)</option>
                         </select>
                     </div>
-                    <button class="btn-action-top" style="width:100%; padding:9px;" onclick="cadastrarNovoCaminhao()">+ Salvar Caminhão na Frota do Tenant</button>
-                    <div id="veic-feedback" style="font-size:11.5px; color:#34d399; margin-top:6px;"></div>
+                    <button class="btn-action-top" style="width:100%; padding:9px;" data-escrita data-acao="cadastrarNovoCaminhao" onclick="cadastrarNovoCaminhao()">+ Salvar Caminhão na Frota do Tenant</button>
+                    <div role="status" aria-live="polite" id="veic-feedback" style="font-size:11.5px; color:#34d399; margin-top:6px;"></div>
                 </div>
 
                 <div class="panel-card" style="flex:1;">
@@ -406,19 +407,21 @@
 
                 <div style="border-top:1px solid var(--border); padding-top:8px; display:flex; flex-direction:column; gap:6px;">
                     <div style="font-size:10.5px; font-weight:700; text-transform:uppercase; color:var(--accent);">Supervisão do Gestor:</div>
-                    <input id="input-motivo-gestor" class="ctrl-input" type="text" value="Desvio preventivo validado pela mesa operacional">
+                    <input data-escrita id="input-motivo-gestor" class="ctrl-input" type="text" value="Desvio preventivo validado pela mesa operacional">
                     <div class="btn-group">
-                        <button class="btn-dec" style="background:#059669;" onclick="registrarDecisao('APROVAR_DESVIO')">✓ Aprovar Desvio</button>
-                        <button class="btn-dec" style="background:#475569;" onclick="registrarDecisao('MANTER_ROTA_ORIGINAL')">Manter Original</button>
-                        <button class="btn-dec" style="background:#d97706;" onclick="registrarDecisao('AGUARDAR_MELHORA')">Aguardar</button>
+                        <button class="btn-dec" style="background:#059669;" data-escrita data-acao="registrarDecisao" onclick="registrarDecisao('APROVAR_DESVIO')">✓ Aprovar Desvio</button>
+                        <button class="btn-dec" style="background:#475569;" data-escrita data-acao="registrarDecisao" onclick="registrarDecisao('MANTER_ROTA_ORIGINAL')">Manter Original</button>
+                        <button class="btn-dec" style="background:#d97706;" data-escrita data-acao="registrarDecisao" onclick="registrarDecisao('AGUARDAR_MELHORA')">Aguardar</button>
                     </div>
-                    <div id="feedback-decisao" style="font-size:11px; color:#34d399; font-weight:600;"></div>
+                    <div role="status" aria-live="polite" id="feedback-decisao" style="font-size:11px; color:#34d399; font-weight:600;"></div>
                     <div class="audit-log" id="historico-decisoes"></div>
                 </div>
             </div>
         </main>
     </div>
 
+        <div id="painel-status" role="status" aria-live="polite" aria-atomic="true" hidden></div>
+        <script src="/static/painel-sessao.js"></script>
         <script>
         window.API_KEY = '';
         let operacaoSelecionadaId = null;
@@ -474,8 +477,9 @@
             erroEl.innerText = 'Autenticando...';
 
             try {
-                const res = await fetch('/api/v1/logistica/auth/login', {
+                const res = await window.PainelSessao.request('/api/v1/logistica/auth/login', {
                     method: 'POST',
+                    publico: true,
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ email: email, senha: senha })
                 });
@@ -488,28 +492,76 @@
                 }
 
                 const user = await res.json();
-                window.InfraCaminhoes.limpar();
-                window.CadastroInfra.sessao(user.role);
+                window.PainelSessao.entrar(user);
                 window.API_KEY = user.api_key;
+                window.CadastroInfra.sessao(user.role);
+                window.PainelSessao.permissoes();
                 document.getElementById('lbl-empresa-sub').innerText = user.empresa + ' • Sessao (' + user.email + ')';
                 document.getElementById('lbl-user-tenant').innerText = user.tenant_id;
                 document.getElementById('lbl-user-role').innerText = 'PERFIL: ' + user.role;
                 document.getElementById('login-overlay').style.display = 'none';
+                alternarAba('URBANO');
+                document.getElementById('tab-urbano').focus();
                 erroEl.innerText = '';
 
                 await carregarFrota();
                 await executarSimulacao();
             } catch (e) {
-                erroEl.innerText = 'Erro de comunicacao com o servidor.';
+                if (!e.silencioso) erroEl.textContent = e.message || 'Não foi possível entrar. Tente novamente.';
             }
         }
 
         function sairSessao() {
+            window.PainelSessao.encerrar();
+        }
+
+        function limparPainelSessao() {
             window.API_KEY = '';
-            window.InfraCaminhoes.limpar();
-            window.CadastroInfra.sessao(null);
+            window.InfraCaminhoes?.limpar();
+            window.CadastroInfra?.sessao(null);
+            recomendacoesAtuais = []; frotaAtual = []; decisoesMap = {};
+            operacaoSelecionadaId = null; corredorAtualizacao++; filtroAtivo = 'ALL';
+            limparRotasExibidas();
+            document.querySelectorAll('.maplibregl-popup').forEach(el => el.remove());
+            ['grid-operacoes','lista-frota-cards','corredor-detalhes','historico-decisoes','desp-veiculo'].forEach(id => document.getElementById(id).replaceChildren());
+            ['modal-op-title','modal-origem-destino','modal-justificativa','modal-limitacao','feedback-decisao','desp-feedback','veic-feedback'].forEach(id => document.getElementById(id).textContent = '');
+            ['kpi-total','kpi-afetadas','kpi-custo','kpi-evitado','count-frota'].forEach(id => document.getElementById(id).textContent = '—');
+            document.querySelectorAll('input, textarea').forEach(el => { el.value = ''; });
+            document.getElementById('input-prejuizo').value = '2800';
+            ['lbl-user-tenant','lbl-user-role','lbl-empresa-sub'].forEach(id => document.getElementById(id).textContent = 'Sem sessão');
+            document.querySelectorAll('.filter-pill').forEach(el => el.classList.toggle('active', el.id === 'flt-ALL'));
+            window.PainelSessao.aviso(); window.PainelSessao.permissoes();
+            fecharModalDespacho();
             document.getElementById('inspector').style.display = 'none';
             document.getElementById('login-overlay').style.display = 'flex';
+            document.getElementById('login-email').focus();
+        }
+
+        function limparRotasExibidas() {
+            window.DadosViagem?.limpar();
+            ['rota-original','rota-segura','trechos-criticos','infra-pontos','infra-limites'].forEach(id => {
+                map.getSource(id)?.setData({type:'FeatureCollection',features:[]});
+            });
+            markerOrig?.remove(); markerDest?.remove(); markerOrig = null; markerDest = null;
+        }
+
+        function falhaPainel(acao) {
+            if (acao === 'executarSimulacao') {
+                recomendacoesAtuais = []; operacaoSelecionadaId = null;
+                limparRotasExibidas();
+                document.getElementById('inspector').style.display = 'none';
+                const tbody = document.getElementById('grid-operacoes'); tbody.replaceChildren();
+                const tr = tbody.insertRow(), td = tr.insertCell(); td.colSpan = 5;
+                td.textContent = 'Não foi possível atualizar as operações. Tente novamente no botão acima.';
+                ['kpi-total','kpi-afetadas','kpi-custo','kpi-evitado'].forEach(id => document.getElementById(id).textContent = '—');
+            }
+            if (acao === 'carregarHistoricoDecisoes') document.getElementById('historico-decisoes').textContent = 'Histórico indisponível. Selecione a operação para tentar novamente.';
+            if (acao === 'carregarFrota') {
+                frotaAtual = [];
+                document.getElementById('lista-frota-cards').textContent = 'Frota indisponível. Abra a aba novamente para tentar.';
+                document.getElementById('desp-veiculo').replaceChildren();
+                document.getElementById('count-frota').textContent = '—';
+            }
         }
 
         function alternarAba(aba) {
@@ -526,7 +578,7 @@
 
         async function carregarFrota() {
             const sessao=window.SESSION_EPOCH;
-            const res = await fetch('/api/v1/logistica/veiculos', { headers: { 'X-API-Key': window.API_KEY } });
+            const res = await window.PainelSessao.request('/api/v1/logistica/veiculos', { headers: { 'X-API-Key': window.API_KEY } });
             if (!res.ok) return;
             const novaFrota = (await res.json()).filter(v => !v.id_veiculo.startsWith('HACK') && !v.id_veiculo.startsWith('TEST') && !v.id_veiculo.startsWith('VEIC-ISO'));
             if(sessao!==window.SESSION_EPOCH) return;
@@ -539,6 +591,7 @@
             const container = document.getElementById('lista-frota-cards');
             if (frotaAtual.length === 0) {
                 window.InfraCaminhoes.frota(frotaAtual);
+            window.PainelSessao.permissoes();
                 container.innerHTML = '<div style="color:var(--text-muted); font-size:12px;">Nenhum caminhao cadastrado neste tenant. Cadastre acima!</div>';
                 return;
             }
@@ -550,11 +603,13 @@
                 const btn = document.createElement('button');
                 btn.className = 'btn-top';
                 btn.innerText = 'Tracar Rota ->';
+                btn.dataset.escrita = '';
                 btn.onclick = () => abrirModalDespachoComVeiculo(v.id_veiculo);
                 div.appendChild(btn);
                 container.appendChild(div);
             });
             window.InfraCaminhoes.frota(frotaAtual);
+            window.PainelSessao.permissoes();
         }
 
         async function cadastrarNovoCaminhao() {
@@ -569,7 +624,7 @@
             const fb = document.getElementById('veic-feedback');
             try { Object.assign(payload,window.InfraCaminhoes.ler('infra-veic')); }
             catch(e) {fb.textContent=e.message;return;}
-            const res = await fetch('/api/v1/logistica/veiculos', {
+            const res = await window.PainelSessao.request('/api/v1/logistica/veiculos', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-API-Key': window.API_KEY },
                 body: JSON.stringify(payload)
@@ -593,8 +648,13 @@
         }
 
         function abrirModalDespachoComVeiculo(idVeic) {
+            const sessao = window.SESSION_EPOCH;
             abrirModalDespacho();
-            setTimeout(() => { document.getElementById('desp-veiculo').value = idVeic; window.InfraCaminhoes.preencher('infra-desp',frotaAtual.find(v=>v.id_veiculo===idVeic)); }, 150);
+            setTimeout(() => {
+                if (sessao !== window.SESSION_EPOCH || !window.PainelSessao.podeEscrever()) return;
+                document.getElementById('desp-veiculo').value = idVeic;
+                window.InfraCaminhoes.preencher('infra-desp',frotaAtual.find(v=>v.id_veiculo===idVeic));
+            }, 150);
         }
 
         function fecharModalDespacho() {
@@ -608,7 +668,7 @@
                 return;
             }
             if (termo.trim().length < 1) { termo = 'Avenida'; }
-            const res = await fetch('/api/v1/logistica/vias/buscar?q=' + encodeURIComponent(termo), {
+            const res = await window.PainelSessao.request('/api/v1/logistica/vias/buscar?q=' + encodeURIComponent(termo), {
                 headers: { 'X-API-Key': window.API_KEY }
             });
             if (!res.ok) return;
@@ -660,7 +720,7 @@
 
             try { Object.assign(payload,window.InfraCaminhoes.ler('infra-desp')); }
             catch(e) {fb.textContent=e.message;return;}
-            const res = await fetch('/api/v1/logistica/operacoes', {
+            const res = await window.PainelSessao.request('/api/v1/logistica/operacoes', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-API-Key': window.API_KEY },
                 body: JSON.stringify(payload)
@@ -683,7 +743,7 @@
             const atualizacao=++corredorAtualizacao,sessao=window.SESSION_EPOCH;
             const cat = document.getElementById('sel-veiculo-corredor').value;
             const container = document.getElementById('corredor-detalhes');
-            const res = await fetch('/api/v1/rotas/intermunicipal?origem=Araraquara&destino=Sao%20Paulo&tipo_veiculo=' + cat, {
+            const res = await window.PainelSessao.request('/api/v1/rotas/intermunicipal?origem=Araraquara&destino=Sao%20Paulo&tipo_veiculo=' + cat, {
                 headers: { 'X-API-Key': window.API_KEY }
             });
             if (!res.ok) return;
@@ -706,16 +766,16 @@
             renderizarTabela();
         }
 
-        function exportarCsv() {
-            fetch('/api/v1/logistica/exportar-contingencia/csv', { headers: { 'X-API-Key': window.API_KEY } })
-            .then(r => r.blob())
-            .then(blob => {
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = 'plano_contingencia_b2b.csv';
-                a.click();
-            });
+        async function exportarCsv() {
+            const sessao = window.SESSION_EPOCH;
+            const res = await window.PainelSessao.request('/api/v1/logistica/exportar-contingencia/csv');
+            if (!res.headers.get('Content-Type')?.includes('text/csv')) throw new Error('Formato de exportação inesperado.');
+            const blob = await res.blob();
+            if (sessao !== window.SESSION_EPOCH) return;
+            const url = window.URL.createObjectURL(blob), a = document.createElement('a');
+            a.href = url; a.download = 'plano_contingencia_b2b.csv';
+            document.body.appendChild(a); a.click(); a.remove();
+            setTimeout(() => window.URL.revokeObjectURL(url), 1000);
         }
 
         async function executarSimulacao() {
@@ -725,7 +785,9 @@
             tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:24px; color:var(--text-muted);">Calculando impacto na malha...</td></tr>';
 
             const prejuizoInput = Number(document.getElementById('input-prejuizo').value);
-            let res = await fetch('/api/v1/logistica/simular-impacto', {
+            let res = window.PainelSessao.perfil() === 'VIEWER'
+                ? await window.PainelSessao.request('/api/v1/logistica/alertas/ativos')
+                : await window.PainelSessao.request('/api/v1/logistica/simular-impacto', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-API-Key': window.API_KEY },
                 body: JSON.stringify({
@@ -734,9 +796,8 @@
                 })
             });
 
-            if (res.status === 403) {
-                const resAtivos = await fetch('/api/v1/logistica/alertas/ativos', { headers: { 'X-API-Key': window.API_KEY } });
-                const ativos = await resAtivos.json();
+            if (window.PainelSessao.perfil() === 'VIEWER') {
+                const ativos = await res.json();
                 if(sessao!==window.SESSION_EPOCH) return;
                 recomendacoesAtuais = ativos.map(a => ({
                     id_operacao: a.id_operacao, id_veiculo: a.id_veiculo, nivel_risco: a.nivel_risco, acao:a.tipo_acao,
@@ -815,15 +876,19 @@
 
         async function selecionarOperacao(idOp) {
             operacaoSelecionadaId = idOp;
+            document.getElementById('inspector').style.display = 'none';
+            limparRotasExibidas();
+            document.getElementById('historico-decisoes').textContent = 'Carregando histórico...';
             renderizarTabela();
             document.getElementById('feedback-decisao').innerText = '';
             await abrirExplicacaoDecisao(idOp);
+            if (operacaoSelecionadaId !== idOp) return;
             await carregarHistoricoDecisoes(idOp);
         }
 
         async function abrirExplicacaoDecisao(idOperacao) {
             const sessao=window.SESSION_EPOCH;
-            const res = await fetch('/api/v1/logistica/operacoes/' + idOperacao + '/explicacao', { headers: { 'X-API-Key': window.API_KEY } });
+            const res = await window.PainelSessao.request('/api/v1/logistica/operacoes/' + idOperacao + '/explicacao', { headers: { 'X-API-Key': window.API_KEY } });
             if (!res.ok) return;
             const data = await res.json();
             if(sessao!==window.SESSION_EPOCH || idOperacao!==operacaoSelecionadaId) return;
@@ -899,23 +964,34 @@
         }
 
         async function carregarHistoricoDecisoes(idOp) {
+            const sessao = window.SESSION_EPOCH;
             const box = document.getElementById('historico-decisoes');
-            const res = await fetch('/api/v1/logistica/operacoes/' + idOp + '/decisoes', { headers: { 'X-API-Key': window.API_KEY } });
+            const res = await window.PainelSessao.request('/api/v1/logistica/operacoes/' + idOp + '/decisoes', { headers: { 'X-API-Key': window.API_KEY } });
             if (!res.ok) return;
             const lista = await res.json();
+            if (sessao !== window.SESSION_EPOCH || operacaoSelecionadaId !== idOp) return;
             if (!lista || lista.length === 0) {
                 box.innerHTML = '<div style="color:var(--text-muted);">Nenhuma decisao auditada ainda para esta operacao.</div>';
                 return;
             }
             decisoesMap[idOp] = true;
             renderizarTabela();
-            box.innerHTML = lista.slice(0, 3).map(d => '<div style="border-bottom:1px solid rgba(46,60,86,0.5); padding:4px 0;"><strong style="color:#34d399;">[' + d.decisao + ']</strong> ' + d.motivo_gestor + '<div class="mono" style="font-size:9.5px; color:var(--text-muted);">ID #' + d.id_decisao + ' • ' + new Date(d.registrado_em).toLocaleString('pt-BR') + '</div></div>').join('');
+            box.replaceChildren();
+            lista.forEach(d => {
+                const item = document.createElement('div'), acao = document.createElement('strong'), data = document.createElement('div');
+                acao.textContent = '[' + d.decisao + '] ';
+                item.append(acao, document.createTextNode(d.motivo_gestor || 'Sem justificativa informada'));
+                data.className = 'mono';
+                data.textContent = 'ID #' + d.id_decisao + ' • ' + new Date(d.registrado_em).toLocaleString('pt-BR');
+                item.appendChild(data); box.appendChild(item);
+            });
         }
 
         async function registrarDecisao(decisao) {
             if (!operacaoSelecionadaId) return;
+            const selecionada = operacaoSelecionadaId, sessao = window.SESSION_EPOCH;
             const motivo = valOr(document.getElementById('input-motivo-gestor').value.trim(), 'Validado pelo operador');
-            const res = await fetch('/api/v1/logistica/operacoes/' + operacaoSelecionadaId + '/decisao', {
+            const res = await window.PainelSessao.request('/api/v1/logistica/operacoes/' + operacaoSelecionadaId + '/decisao', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-API-Key': window.API_KEY },
                 body: JSON.stringify({ decisao: decisao, motivo_gestor: motivo })
@@ -927,6 +1003,7 @@
             }
             if (res.ok) {
                 const info = await res.json();
+                if (sessao !== window.SESSION_EPOCH || selecionada !== operacaoSelecionadaId) return;
                 document.getElementById('feedback-decisao').style.color = '#34d399';
                 document.getElementById('feedback-decisao').innerText = 'Decisao [' + info.decisao_registrada + '] auditada (#' + info.id_decisao + ')';
                 await carregarHistoricoDecisoes(operacaoSelecionadaId);
@@ -936,5 +1013,6 @@
     <script src="/static/infraestrutura-caminhoes.js"></script>
     <script src="/static/dados-viagem.js"></script>
     <script src="/static/infraestrutura-cadastro.js"></script>
+    <script>window.PainelSessao.instalar();</script>
 </body>
 </html>
