@@ -16,6 +16,7 @@ from app.database import init_db_pool, close_db_pool
 from app.services.webhook_dispatcher import WebhookDispatcher
 from app.services.infraestrutura_viaria import garantir_schema as garantir_infraestrutura
 from app.services.dados_publicos import garantir_schema as garantir_dados_publicos
+from app.services.auditoria import garantir_schema as garantir_auditoria
 from app.services.painel import garantir_schema as garantir_painel
 from app.routers import painel
 from app.routers import acesso_painel
@@ -55,6 +56,7 @@ async def lifespan(app: FastAPI):
     await WebhookDispatcher.garantir_schema()
     await garantir_infraestrutura()
     await garantir_dados_publicos()
+    await garantir_auditoria()
     await garantir_painel()
     await garantir_acesso()
     task_clima = asyncio.create_task(agendador_telemetria_corredor())

@@ -627,9 +627,10 @@ async def obter_auditoria_acuracia(conn: asyncpg.Connection = Depends(get_connec
             COUNT(*) FILTER (WHERE resultado_classificacao = 'FALSO_POSITIVO') AS fp,
             COUNT(*) FILTER (WHERE resultado_classificacao = 'VERDADEIRO_NEGATIVO') AS vn,
             COUNT(*) FILTER (WHERE resultado_classificacao = 'FALSO_NEGATIVO') AS fn
-        FROM auditoria_previsao_realidade;
+        FROM auditoria_previsao_realidade
+        WHERE tenant_id = $1;
     """
-    row = await conn.fetchrow(query)
+    row = await conn.fetchrow(query, tenant_id)
 
     if row is None:
         raise HTTPException(status_code=500, detail="Falha ao consultar os dados.")
