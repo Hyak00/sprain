@@ -9,7 +9,11 @@ from fastapi import HTTPException
 from app.database import get_connection
 
 PREFIXO = 'sprain_session_'
-SCHEMA = (Path(__file__).resolve().parents[3]/'db/ci/11_acesso_painel.sql').read_text(encoding='utf-8')
+_SCHEMAS = Path(__file__).resolve().parents[3] / 'db/ci'
+SCHEMA = '\n'.join(
+    (_SCHEMAS / nome).read_text(encoding='utf-8')
+    for nome in ('11_acesso_painel.sql', '12_gestao_usuarios.sql')
+)
 hash_slots = asyncio.Semaphore(2)
 
 
