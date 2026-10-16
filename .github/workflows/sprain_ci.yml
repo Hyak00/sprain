@@ -51,7 +51,9 @@ jobs:
           docker exec -w /app/api sprain_api python -m pytest tests/ -v
 
       - name: Test Panel Session and Request Isolation
-        run: node --test api/tests/interface/*.test.cjs
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm test
 
       - name: Output API Logs on Failure
         if: failure()

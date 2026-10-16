@@ -1,0 +1,63 @@
+#portal-operacional {width:min(1100px,94vw); max-height:92dvh; padding:24px; background:#0f172a; color:#e2e8f0; border:1px solid #64748b; border-radius:12px; overflow:auto; font:14px/1.6 Inter,sans-serif;}
+#portal-operacional::backdrop {background:rgba(2,6,23,.8);}
+.portal-cab {display:flex; justify-content:space-between; align-items:center; gap:16px;}
+#portal-operacional nav {display:flex; flex-wrap:wrap; gap:8px; border-bottom:1px solid #475569; padding:12px 0; margin-bottom:16px;}
+#portal-operacional button {font:inherit; font-size:13px; padding:8px 12px; border:1px solid #64748b; border-radius:6px; background:#1e293b; color:#f1f5f9; margin:4px 6px 4px 0; cursor:pointer;}
+#portal-operacional button[aria-current="true"] {background:#075985; border-color:#7dd3fc;}
+#portal-operacional button:disabled {cursor:not-allowed;}
+#portal-operacional h3 {font-size:22px; margin:12px 0; color:#7dd3fc;}
+#portal-operacional h4 {font-size:17px; margin:20px 0 10px;}
+#portal-operacional p {margin:12px 0;}
+#portal-operacional label {display:block; margin:12px 0;}
+#portal-operacional select,#portal-operacional input {width:100%; max-width:680px; display:block; background:#020617; color:#f1f5f9; padding:10px; border:1px solid #64748b; border-radius:5px; font:inherit;}
+#portal-operacional ol {padding-left:24px;}
+#portal-operacional li {margin:8px 0;}
+#portal-operacional pre {white-space:pre-wrap; overflow-wrap:anywhere; font-size:12px; background:#020617; padding:12px;}
+#portal-operacional caption {text-align:left; color:#cbd5e1; padding:8px 0;}
+#portal-operacional th {position:static; font-size:12px;}
+#portal-operacional td {font-size:13px; vertical-align:top; overflow-wrap:anywhere; max-width:400px;}
+#portal-operacional tr:hover {cursor:default;}
+.portal-tabela {width:100%; overflow:auto;}
+.portal-aviso {border-left:4px solid #fbbf24; background:#1e293b; padding:10px;}
+textarea:focus-visible,a:focus-visible,dialog button:focus-visible,dialog select:focus-visible {outline:2px solid #38bdf8; outline-offset:3px;}
+#portal-modo {padding:6px 12px; background:#422006; color:#fef3c7; font-size:11px; text-align:center;}
+.portal-camadas {margin-top:8px; max-width:290px;}
+.portal-camadas label {display:block; margin-top:5px;}
+.portal-camadas input {margin-right:6px;}
+#modal-despacho .despacho-card {max-height:90dvh; overflow:auto;}
+#login-overlay .login-card {max-height:94dvh; overflow:auto;}
+#login-overlay .login-card {max-width:calc(100vw - 24px);}
+@media(max-width:1100px) {
+    header {height:auto; min-height:58px; flex-wrap:wrap; gap:10px; padding:10px;}
+    .top-controls {flex-wrap:wrap;}
+    #sidebar {width:380px; min-width:300px;}
+    #inspector {width:min(430px,calc(100% - 32px));}
+    .workspace {min-height:0;}
+}
+@media(max-width:800px) {
+    body {height:auto; min-height:100dvh; overflow:auto;}
+    header {position:relative; width:100%;}
+    .brand {min-width:0;}
+    .nav-tabs {width:100%; justify-content:space-between;}
+    .nav-tab {flex:1; padding:8px 4px;}
+    .top-controls {width:100%; gap:6px;}
+    .workspace {display:flex; flex-direction:column; height:auto; min-height:0;}
+    #sidebar {width:100%; min-width:0; border-right:0; flex:none;}
+    #table-container {max-height:42dvh; overflow:auto; flex:none;}
+    #frota-panel,#corredor-panel {max-height:none; overflow:visible;}
+    #map-container {flex:none; width:100%; height:auto; min-height:360px; display:flex; flex-direction:column;}
+    #map {height:360px; flex:none;}
+    .map-legend {position:static; margin:8px; max-width:none; order:1;}
+    #inspector {position:relative; width:calc(100% - 16px); margin:8px; top:auto; right:auto; max-height:none; order:2;}
+    #portal-operacional {width:96vw; max-height:94dvh; padding:14px;}
+    #portal-operacional nav {gap:4px;}
+    #portal-operacional nav button {flex:1 1 40%;}
+    #portal-operacional td {min-width:100px;}
+    .filter-bar,.control-row {flex-wrap:wrap;}
+    .filter-pills {flex-wrap:wrap;}
+    .kpi-grid {gap:4px; padding:10px 6px;}
+    .despacho-card {width:96vw; padding:16px;}
+    .ctrl-group {min-width:0;}
+    .ctrl-input {min-width:0; max-width:100%;}
+    .despacho-card [style*="grid-template-columns"] {grid-template-columns:1fr !important;}
+}

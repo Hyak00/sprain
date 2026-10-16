@@ -1,0 +1,41 @@
+name: Entrega verificável
+description: Funcionalidade, integração ou correção com evidência de aceite
+title: "[Área] Descrição da entrega"
+body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: Área
+      options:
+        - Dados e fontes
+        - Rotas e clima
+        - Backend e segurança
+        - Interface e onboarding
+        - Relatórios e demonstração
+        - Operação e qualidade
+    validations:
+      required: true
+  - type: textarea
+    id: problema
+    attributes:
+      label: Problema e resultado esperado
+      description: Inclua situação atual, usuário afetado e comportamento observável.
+    validations:
+      required: true
+  - type: textarea
+    id: contratos
+    attributes:
+      label: Contratos e dependências
+      description: Endpoints, campos, permissões, fonte/data e outro responsável necessário.
+  - type: textarea
+    id: aceite
+    attributes:
+      label: Critérios de aceite e evidências
+      description: Liste testes, cenários de falha, regressões a preservar e prova de cada critério.
+    validations:
+      required: true
+  - type: textarea
+    id: entrega
+    attributes:
+      label: Entrega e revisão
+      description: Branch/PR, revisor, riscos, rollback e itens que continuam pendentes.
