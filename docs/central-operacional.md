@@ -4,7 +4,7 @@ Entrega complementar ao painel existente; fluxo 3.1 atualizado sobre main `8c2c1
 
 ## Uso
 
-1. Entre com a conta apropriada e confira empresa/perfil. O endpoint de login atual é exclusivamente de demonstração e recusa produção.
+1. Entre com a conta apropriada e confira empresa/perfil. Há acesso individual provisionado no servidor e atalhos demo fora de produção. Consulte [a verificação do fluxo](homologacao-fluxo-painel.md).
 2. Em **Relatórios e exportações**, consulte o resumo do piloto ou selecione uma operação e carregue consulta e decisões.
 3. Baixe o PDF, CSV, JSON integral ou HTML compartilhável. Os arquivos contêm informações da empresa; encaminhe somente a destinatários autorizados. O código não envia relatórios a terceiros.
 4. Em **Qualidade e serviços**, atualize a situação da API/banco, idade das fontes, feedback e métricas permitidas ao perfil. Falhas são indicadas individualmente; a tela não transforma falta de dados em ausência de risco.

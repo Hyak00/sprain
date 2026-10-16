@@ -208,13 +208,13 @@ async def despachar(identificador: UUID, dados: Despacho, claims=Depends(get_cur
 @router.post('/consultas')
 async def consultar(dados: Consulta, claims=Depends(get_current_user_claims), conn=Depends(get_connection)):
     async with conn.transaction(isolation='repeatable_read'):
-        return await registrar_consulta(conn, claims['tenant_id'], claims['role'], dados.id_operacao)
+        return await registrar_consulta(conn, claims['tenant_id'], claims['role'], dados.id_operacao,claims.get('usuario_id'))
 
 
 @router.get('/consultas')
 async def consultas(id_operacao: str | None = None, offset: int = Query(0, ge=0), limite: int = Query(20, ge=1, le=100),
     claims=Depends(get_current_user_claims), conn=Depends(get_connection)):
-    rows = await conn.fetch('''SELECT id,id_operacao,perfil,criado_em FROM painel_consultas
+    rows = await conn.fetch('''SELECT id,id_operacao,perfil,criado_em,snapshot#>>'{contexto_consulta,autoria_individual}' AS usuario_id FROM painel_consultas
         WHERE tenant_id=$1 AND ($2::text IS NULL OR id_operacao=$2) ORDER BY criado_em DESC,id OFFSET $3 LIMIT $4''', claims['tenant_id'], id_operacao, offset, limite+1)
     return {'items':[serializar(r) for r in rows[:limite]], 'proximo_offset':offset+limite if len(rows)>limite else None}
 

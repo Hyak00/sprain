@@ -7,12 +7,12 @@
         }
     }
     function criarCliente({ fetcher, aoEncerrar = () => {}, timeoutMs = 90000 } = {}) {
-        let usuario = null, geracao = 0;
+        let usuario = null, geracao = 0, validade;
         const pendentes = new Set();
         const consultasPost = new Set(['/api/v1/infraestrutura/rota-caminhao', '/api/v1/infraestrutura/avaliar-mapa',
-            '/api/v1/dados-publicos/consultar-rota', '/api/v1/transito/comparar', '/api/v1/painel/consultas']);
+            '/api/v1/dados-publicos/consultar-rota', '/api/v1/transito/comparar', '/api/v1/painel/consultas','/api/v1/acesso/logout']);
         function encerrar(motivo = '') {
-            geracao++; usuario = null;
+            clearTimeout(validade);geracao++; usuario = null;
             pendentes.forEach(c => c.abort()); pendentes.clear(); aoEncerrar(motivo);
         }
         function entrar(dados) {
@@ -20,6 +20,13 @@
                 throw new ErroPainel('O servidor devolveu uma sessão incompleta. Entre novamente.');
             }
             encerrar(); usuario = { ...dados };
+            if(dados.expira_em){const ms=Date.parse(dados.expira_em)-Date.now();if(!Number.isFinite(ms)||ms<=0){encerrar();throw new ErroPainel('A sessão recebida expirou. Entre novamente.',401);}validade=setTimeout(()=>encerrar('Sua sessão expirou. Entre novamente.'),Math.min(ms,2147483647));validade?.unref?.();}
+        }
+        async function sair(){
+            let falhou=false;
+            try{if(usuario?.tipo_acesso==='INDIVIDUAL')await request('/api/v1/acesso/logout',{method:'POST',timeout:5000});}
+            catch(e){falhou=e.status!==401;}
+            finally{encerrar(falhou?'Acesso local encerrado. Não foi possível confirmar a revogação no servidor; a sessão expira no prazo informado.':'');}
         }
         function podeEscrever() { return usuario?.role === 'ADMIN' || usuario?.role === 'OPERATOR'; }
         async function request(path, options = {}) {
@@ -77,7 +84,7 @@
                 sinalExterno?.removeEventListener('abort', cancelar);
             }
         }
-        return { entrar, encerrar, request, podeEscrever,
+        return { entrar, encerrar, sair, request, podeEscrever,
             perfil: () => usuario?.role || null, empresa: () => usuario?.tenant_id || null };
     }
     if (typeof module !== 'undefined' && module.exports) { module.exports = { criarCliente, ErroPainel }; return; }
@@ -94,11 +101,12 @@
     }
     function permissoes() {
         const autenticado = cliente.perfil() !== null;
-        document.querySelectorAll('header, .workspace').forEach(el => { el.inert = !autenticado; });
+        const modalAberto=document.getElementById('modal-despacho')?.style.display==='flex';
+        document.querySelectorAll('header, .workspace').forEach(el => { el.inert = !autenticado||modalAberto; });
         document.getElementById('login-overlay').inert = autenticado;
         document.querySelectorAll('[data-escrita]').forEach(el => {
             const bloqueado = !cliente.podeEscrever();
-            el.disabled = bloqueado; el.setAttribute('aria-disabled', String(bloqueado));
+            el.disabled = bloqueado||el.getAttribute('aria-busy')==='true'; el.setAttribute('aria-disabled', String(el.disabled));
             el.title = bloqueado ? 'Seu perfil permite apenas consultas.' : '';
         });
         document.querySelectorAll('[data-admin]').forEach(el => { el.hidden = cliente.perfil() !== 'ADMIN'; });

@@ -195,6 +195,7 @@ async def test_contratos_http_usados_no_painel_existem_no_openapi(ambiente):
     _, cli, _, _ = ambiente
     spec = (await cli.get('http://127.0.0.1:8000/openapi.json')).json()['paths']
     contratos = {
+        '/api/v1/acesso/login':['post'],'/api/v1/acesso/logout':['post'],'/api/v1/acesso/configuracao':['get'],
         '/api/v1/logistica/auth/login':['post'], '/api/v1/logistica/veiculos':['get','post'],
         '/api/v1/logistica/operacoes':['get','post'], '/api/v1/logistica/operacoes/importar-lote':['post'],
         '/api/v1/logistica/vias/buscar':['get'], '/api/v1/logistica/simular-impacto':['post'],
@@ -225,3 +226,39 @@ async def test_contratos_http_usados_no_painel_existem_no_openapi(ambiente):
         assert normalizar(rota) in disponiveis, rota
         for metodo in metodos:
             assert metodo in disponiveis[normalizar(rota)], (metodo,rota)
+
+
+@pytest.mark.asyncio
+async def test_leituras_reais_de_todos_modulos_painel(ambiente):
+    _,cli,origem,_=ambiente
+    caminhos=['/logistica/veiculos','/logistica/operacoes','/logistica/alertas/ativos',
+        '/logistica/vias/buscar?q=Rua','/logistica/relatorios/sumario-executivo',
+        '/logistica/observabilidade/metricas','/infraestrutura/pontos?limite=1','/infraestrutura/pendencias',
+        '/infraestrutura/malha/trechos-proximos?somente_regional=false&longitude='+str(origem['origem_lon'])+'&latitude='+str(origem['origem_lat']),
+        '/dados-publicos/roubo-carga/por-regiao','/dados-publicos/fontes','/indicadores/qualidade',
+        '/health/liveness','/health/readiness','/alertas/precisao',
+        '/rotas/intermunicipal?origem=Araraquara&destino=Sao%20Paulo&tipo_veiculo=VUC',
+        '/painel/corredores','/painel/consultas','/painel/eventos','/acesso/configuracao']
+    for path in caminhos:
+        r=await cli.get(path,headers={'X-API-Key':'key_admin_demo'} if '/malha/' in path else OP)
+        assert r.status_code==200,(path,r.status_code,r.text[:200])
+        assert isinstance(r.json(),(dict,list)),path
+    csv=await cli.get('/logistica/exportar-contingencia/csv')
+    assert csv.status_code==200 and 'text/csv' in csv.headers['content-type']
+
+
+@pytest.mark.asyncio
+async def test_confianca_zero_preservada_e_data_real_da_frota(ambiente):
+    conn,cli,_,_=ambiente;op=await nova_operacao(ambiente)
+    await conn.execute('''INSERT INTO recomendacoes_operacao(id_operacao,tenant_id,nivel_risco,tipo_acao,motivo,confianca)
+        VALUES($1,'demo_corp','NORMAL','MANTER_ROTA_ORIGINAL','Teste de incerteza',0)''',op)
+    d=(await cli.post('/painel/consultas',json={'id_operacao':op})).json()
+    assert d['explicacao']['confianca']==0
+    ident='QA_FROTA_'+uuid4().hex[:12]
+    try:
+        r=await cli.post('/logistica/veiculos',json={'id_veiculo':ident,'placa':'QA00000','modelo':'Exemplo de teste','tipo_veiculo':'VUC','lat_atual':-23.5,'lon_atual':-46.4})
+        assert r.status_code==200,r.text
+        frota=(await cli.get('/logistica/veiculos')).json()
+        row=next(v for v in frota if v['id_veiculo']==ident)
+        assert datetime.fromisoformat(row['atualizado_em']).tzinfo is not None
+    finally:await conn.execute('DELETE FROM veiculos WHERE id_veiculo=$1',ident)

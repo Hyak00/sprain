@@ -15,7 +15,7 @@
         function formRecorrencia(c,r){editor.replaceChildren();const d=r?.dados||{},f=U.el(editor,'form');f.onsubmit=e=>e.preventDefault();U.el(f,'h4',(r?'Editar':'Cadastrar')+' recorrência · '+c.dados.nome);
             const nome=U.campo(f,'nome','Nome da recorrência','text',d.nome,{required:'',maxlength:150}),horario=U.campo(f,'horario','Horário de partida (São Paulo)','time',d.horario_local,{required:''}),janela=U.campo(f,'janela','Duração da janela (minutos)','number',d.janela_minutos,{required:'',min:1,max:2880,step:1});
             const checks=dias.map((dia,i)=>{const x=U.campo(f,'dia'+i,dia,'checkbox');x.checked=(d.dias_semana||[]).includes(i);return x;});
-            const l=U.el(f,'label','Caminhão da frota (opcional) '),veiculo=U.el(l,'select');U.el(veiculo,'option','Sem veículo vinculado').value='';
+            const l=U.el(f,'label','Caminhão da frota (opcional) '),veiculo=U.el(l,'select');veiculo.setAttribute('aria-label','Caminhão da frota (opcional)');U.el(veiculo,'option','Sem veículo vinculado').value='';
             frota.forEach(v=>U.el(veiculo,'option',v.id_veiculo+' · '+v.placa).value=v.id_veiculo);veiculo.value=d.id_veiculo||'';
             const m=U.formularioMedidas(f,d.dimensoes||{}),custos=U.formularioCustos(f,d.custos_operacionais||{}),ativo=U.campo(f,'ativo','Recorrência ativa','checkbox');ativo.checked=d.ativo!==false;
             U.botao(f,'Salvar recorrência',async()=>{if(!f.reportValidity())return;const selecionados=checks.flatMap((x,i)=>x.checked?[i]:[]);if(!selecionados.length)throw Error('Selecione pelo menos um dia da semana.');

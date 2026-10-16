@@ -12,6 +12,7 @@ SCHEMA = (Path(__file__).resolve().parents[3] / 'db' / 'ci' / '10_fluxo_painel.s
 async def garantir_schema():
     async for conn in get_connection():
         await conn.execute(SCHEMA)
+        await conn.execute((Path(__file__).resolve().parents[3]/'db/ci/12_metadados_frota.sql').read_text(encoding='utf-8'))
 
 
 def objeto(v):
@@ -37,14 +38,15 @@ async def selo(conn, tenant, id_operacao):
     return hashlib.sha256(json.dumps(dict(row), sort_keys=True, default=str).encode()).hexdigest()
 
 
-async def registrar_consulta(conn, tenant, perfil, id_operacao):
+async def registrar_consulta(conn, tenant, perfil, id_operacao, usuario_id=None):
     from app.routers.logistica import obter_explicacao_decisao
     explicacao = await obter_explicacao_decisao(id_operacao, tenant, conn)
     rec = await conn.fetchrow('''SELECT r.id_recomendacao,
-        r.gerado_em AT TIME ZONE current_setting('TimeZone') AS gerado_em,c.tipo,c.precipitacao_mm
+        r.gerado_em AT TIME ZONE current_setting('TimeZone') AS gerado_em,r.confianca,c.tipo,c.precipitacao_mm
         FROM recomendacoes_operacao r LEFT JOIN cenarios_clima c ON c.id_cenario=r.id_cenario AND c.tenant_id=r.tenant_id
         WHERE r.id_operacao=$1 AND r.tenant_id=$2 ORDER BY r.id_recomendacao DESC LIMIT 1''', id_operacao, tenant)
     op = await conn.fetchrow('SELECT custos_operacionais FROM operacoes WHERE id_operacao=$1 AND tenant_id=$2', id_operacao, tenant)
+    explicacao['confianca']=float(rec['confianca']) if rec and rec['confianca'] is not None else None
     if not rec:
         explicacao['confianca'] = None
         explicacao['acao_recomendada'] = 'SEM_RECOMENDACAO'
@@ -62,8 +64,8 @@ async def registrar_consulta(conn, tenant, perfil, id_operacao):
                   if rec else 'Cadastro da operacao e malha atual; nenhuma recomendacao calculada.'),
         'selo_premissas': await selo(conn, tenant, id_operacao),
         'premissas_editaveis': objeto(op['custos_operacionais']) or {},
-        'perfil': perfil, 'autoria_individual': None,
-        'aviso_autoria': 'Credencial compartilhada por empresa/papel; identidade individual nao fornecida pela autenticacao atual.'
+        'perfil': perfil, 'autoria_individual': usuario_id,
+        'aviso_autoria': 'Usuario individual autenticado.' if usuario_id else 'Credencial compartilhada por empresa/papel; identidade individual nao fornecida.'
     }
     identificador = uuid4()
     criado = await conn.fetchval('''INSERT INTO painel_consultas(id,tenant_id,id_operacao,perfil,snapshot)

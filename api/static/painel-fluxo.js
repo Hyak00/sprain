@@ -42,12 +42,13 @@
         root.PainelEventos?.consultar(false).catch(e=>{if(n===geracao&&!e?.silencioso)status(caixa,'Ocorrências do mapa indisponíveis. Atualize os alertas; isso não significa ausência de risco.');});
     }
     async function historico(p,ctx){
-        el(p,'p','Consultas persistidas no servidor por empresa. A fotografia histórica não autoriza uma decisão atual. Credenciais compartilhadas não identificam uma pessoa individual.');
+        el(p,'p','Consultas persistidas no servidor por empresa. A fotografia histórica não autoriza uma decisão atual. Acessos individuais registram o identificador do usuário; credenciais compartilhadas identificam somente empresa e papel.');
         let offset=0;const lista=el(p,'div'),detalhe=el(p,'div');
         const carregar=async()=>{lista.replaceChildren();detalhe.replaceChildren();status(lista,'Consultando histórico…');
             const d=await ctx.obter('/api/v1/painel/consultas?offset='+offset);if(!ctx.atual())return;lista.replaceChildren();
             if(!d.items.length)status(lista,'Nenhuma consulta registrada para esta empresa. Abra uma operação para registrar a primeira consulta.');
             for(const c of d.items){const a=el(lista,'article');el(a,'p',c.id_operacao+' · '+D.data(c.criado_em)+' · Perfil da credencial: '+c.perfil);
+                el(a,'p',c.usuario_id?'Usuário: '+c.usuario_id:'Identidade individual não fornecida (credencial compartilhada).');
                 botao(a,'Abrir fotografia '+c.id_operacao,async()=>{const r=await ctx.obter('/api/v1/painel/consultas/'+c.id);if(!ctx.atual())return;
                     detalhe.replaceChildren();el(detalhe,'h4','Consulta histórica '+r.id_operacao);el(detalhe,'p','Registrada em '+D.data(r.criado_em)+'. Estes dados são os que foram guardados na consulta, não o cadastro atual.');
                     const s=r.snapshot;el(detalhe,'p',s.justificativa||'Justificativa não informada.');

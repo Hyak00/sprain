@@ -55,11 +55,11 @@ async def cadastrar_veiculo(dados: VeiculoCreate, conn: asyncpg.Connection = Dep
         raise HTTPException(status_code=403, detail="Veiculo pertence a outro tenant.")
 
     query = """
-    INSERT INTO veiculos (id_veiculo, placa, modelo, tipo_veiculo, lat_atual, lon_atual, tenant_id, dimensoes, custos_operacionais)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb)
+    INSERT INTO veiculos (id_veiculo, placa, modelo, tipo_veiculo, lat_atual, lon_atual, tenant_id, dimensoes, custos_operacionais,atualizado_em)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb,now())
     ON CONFLICT (id_veiculo) DO UPDATE
     SET placa = EXCLUDED.placa, modelo = EXCLUDED.modelo, tipo_veiculo = EXCLUDED.tipo_veiculo, lat_atual = EXCLUDED.lat_atual, lon_atual = EXCLUDED.lon_atual,
-        dimensoes=COALESCE(EXCLUDED.dimensoes,veiculos.dimensoes),
+        atualizado_em=now(),dimensoes=COALESCE(EXCLUDED.dimensoes,veiculos.dimensoes),
         custos_operacionais=CASE WHEN EXCLUDED.custos_operacionais IS NULL THEN veiculos.custos_operacionais
             ELSE COALESCE(veiculos.custos_operacionais,'{}'::jsonb) || EXCLUDED.custos_operacionais END
     WHERE veiculos.tenant_id = EXCLUDED.tenant_id
@@ -1083,11 +1083,11 @@ async def registrar_decisao_gestor(id_operacao: str, payload: DecisaoGestorReque
         );
     """)
     row = await conn.fetchrow("""
-        INSERT INTO decisoes_gestor_operacao (id_operacao, tenant_id, decisao, motivo_gestor, consulta_id, perfil_registro, snapshot)
-        VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)
+        INSERT INTO decisoes_gestor_operacao (id_operacao, tenant_id, decisao, motivo_gestor, consulta_id, perfil_registro, snapshot,usuario_id)
+        VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb,$8)
         RETURNING id_decisao, registrado_em;
     """, id_operacao, tenant_id, payload.decisao, payload.motivo_gestor, payload.consulta_id, perfil_consulta,
-        json.dumps(fotografia,default=str) if fotografia else None)
+        json.dumps(fotografia,default=str) if fotografia else None,UUID(claims['usuario_id']) if claims.get('usuario_id') else None)
     return {
         "sucesso": True,
         "id_decisao": row["id_decisao"],
@@ -1111,7 +1111,7 @@ async def listar_decisoes_gestor(id_operacao: str, tenant_id: str = Depends(reso
         );
     """)
     rows = await conn.fetch("""
-        SELECT id_decisao, id_operacao, tenant_id, decisao, motivo_gestor, registrado_em, consulta_id, perfil_registro
+        SELECT id_decisao, id_operacao, tenant_id, decisao, motivo_gestor, registrado_em, consulta_id, perfil_registro,usuario_id
         FROM decisoes_gestor_operacao
         WHERE id_operacao = $1 AND tenant_id = $2
         ORDER BY id_decisao DESC;
@@ -1125,6 +1125,7 @@ async def listar_decisoes_gestor(id_operacao: str, tenant_id: str = Depends(reso
             "motivo_gestor": r["motivo_gestor"],
             "consulta_id": str(r['consulta_id']) if r['consulta_id'] else None,
             "perfil_consulta": r['perfil_registro'],
+            "usuario_id": str(r['usuario_id']) if r['usuario_id'] else None,
             "registrado_em": r["registrado_em"].isoformat()
         }
         for r in rows
