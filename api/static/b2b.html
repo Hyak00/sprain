@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SPRain • Plataforma Corporativa de Resiliência Logística</title>
     <link rel="stylesheet" href="/static/painel-sessao.css">
+    <link rel="stylesheet" href="/static/alertas-comparacao.css">
     <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
     <link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
@@ -538,6 +539,7 @@
         }
 
         function limparRotasExibidas() {
+            window.AlertasComparacao?.limpar();
             window.DadosViagem?.limpar();
             ['rota-original','rota-segura','trechos-criticos','infra-pontos','infra-limites'].forEach(id => {
                 map.getSource(id)?.setData({type:'FeatureCollection',features:[]});
@@ -903,7 +905,7 @@
             acaoEl.innerText = data.acao_recomendada;
             acaoEl.className = 'badge ' + (data.acao_recomendada === 'ALTERAR_ROTA' ? 'badge-CRITICO' : 'badge-DECIDIDO');
 
-            document.getElementById('modal-confianca').innerText = 'Confianca: ' + (data.confianca * 100).toFixed(0) + '%';
+            document.getElementById('modal-confianca').innerText = 'Confiança heurística: ' + (data.confianca * 100).toFixed(0) + '%';
             document.getElementById('box-orig-km').innerText = data.metricas.distancia_original_km.toFixed(2) + ' km';
             document.getElementById('box-orig-min').innerText = data.metricas.tempo_original_min.toFixed(1) + ' min nominais';
             document.getElementById('box-alt-km').innerText = data.metricas.distancia_alternativa_km.toFixed(2) + ' km';
@@ -912,6 +914,7 @@
             document.getElementById('modal-prejuizo').innerText = 'R$ ' + data.metricas.prejuizo_evitado_brl.toFixed(2);
             document.getElementById('modal-justificativa').innerText = data.justificativa;
             document.getElementById('modal-limitacao').innerText = data.validacao_rota ? data.validacao_rota.avisos_limitacao : '';
+            window.AlertasComparacao?.exibir(data);
 
             if (data.geometrias) {
                 const emptyFc = { type: 'FeatureCollection', features: [] };
@@ -1013,6 +1016,7 @@
     <script src="/static/infraestrutura-caminhoes.js"></script>
     <script src="/static/dados-viagem.js"></script>
     <script src="/static/infraestrutura-cadastro.js"></script>
+    <script src="/static/alertas-comparacao.js"></script>
     <script>window.PainelSessao.instalar();</script>
 </body>
 </html>
