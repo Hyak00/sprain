@@ -22,7 +22,7 @@ window.DadosViagem = (() => {
         const coordenadas=geometrias.flatMap(linhas);
         if(!coordenadas.length){aviso.textContent='Sem geometria disponivel para consultar.';return;}
         const headers={'Content-Type':'application/json','X-API-Key':window.API_KEY};
-        async function consultar(url,body){const r=await fetch(url,{headers,signal:controle.signal,...(body?{method:'POST',body:JSON.stringify(body)}:{})});if(!r.ok)throw new Error('Consulta indisponivel ('+r.status+').');return r.json();}
+        async function consultar(url,body){const r=await window.PainelSessao.request(url,{headers,signal:controle.signal,...(body?{method:'POST',body:JSON.stringify(body)}:{})});if(!r.ok)throw new Error('Consulta indisponivel ('+r.status+').');return r.json();}
         try{
             const resultados=await Promise.allSettled([
                 consultar('/api/v1/dados-publicos/consultar-rota',{rota:{type:'MultiLineString',coordinates:coordenadas},incluir_postos_nao_verificados:incluirAproximados}),

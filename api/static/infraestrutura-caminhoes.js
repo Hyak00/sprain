@@ -148,7 +148,7 @@ window.InfraCaminhoes = (() => {
         if(dims.eixos!==eixos) {
             texto(avisoBase,'p','A categoria selecionada não corresponde aos eixos informados. Ajuste a categoria ou o caminhão.');return;
         }
-        const res=await fetch('/api/v1/infraestrutura/rota-caminhao',{
+        const res=await window.PainelSessao.request('/api/v1/infraestrutura/rota-caminhao',{
             method:'POST',headers:{'Content-Type':'application/json','X-API-Key':window.API_KEY},
             body:JSON.stringify({origem_lon:-48.1867913,origem_lat:-21.8126273,
                 destino_lon:-46.7561156,destino_lat:-23.444725,veiculo:dims,perfil:'FASTEST',

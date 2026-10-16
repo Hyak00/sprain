@@ -1,0 +1,6 @@
+/* Complemento de estado, sem substituir a organizacao ou o tema existente. */
+#painel-status { position: fixed; z-index: 1100; bottom: 16px; left: 50%; transform: translateX(-50%); max-width: min(90vw, 680px); padding: 12px 18px; background: #142a3a; color: #e2e8f0; border: 1px solid #38bdf8; border-radius: 8px; font-size: 13px; }
+#painel-status[data-erro="true"] { border-color: #f87171; }
+button:disabled { cursor: not-allowed; opacity: .55; }
+button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible { outline: 2px solid #38bdf8; outline-offset: 3px; }
+#login-erro, #desp-feedback, #feedback-decisao, #veic-feedback { overflow-wrap: anywhere; }
