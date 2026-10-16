@@ -38,6 +38,12 @@ Estes passos complementam os scripts existentes; devem ser revisados com o respo
 
 **Incidente:** registrar horário/commit/sintoma/escopo; restringir ou revogar credenciais afetadas pelo mecanismo do backend; preservar logs com acesso controlado, sem publicar segredos; isolar a instância afetada sem destruir dados; avaliar restauração/rollback com infraestrutura; validar isolamento de empresas e comunicar ao responsável. Falha de fonte deve aparecer como indisponibilidade, nunca como ausência de risco.
 
+**Saída de webhooks:** o envio conecta diretamente ao IP público validado no
+momento da requisição, sem seguir redirecionamentos ou usar proxy de ambiente.
+Em HTTPS, o certificado continua sendo verificado contra o nome original.
+Se o ambiente exigir proxy de saída, configure um gateway que preserve essa
+validação antes de ativar webhooks externos.
+
 ## Testes e revisão
 
 `npm ci --ignore-scripts --no-audit --no-fund && npm test` executa testes de sessão, normalização, geração de PDF/CSV e fluxos DOM da central. A suíte Python e contratos de importação exigem banco isolado. A inspeção manual deve incluir desktop/mobile, teclado, troca de sessão, arquivos inválidos e resultados parciais.

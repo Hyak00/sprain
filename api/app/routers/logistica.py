@@ -1,11 +1,11 @@
 from fastapi import Request, APIRouter, Depends, HTTPException, Header, Query
 from fastapi.responses import StreamingResponse
+import asyncio
 import io
 import csv
 import json
 import uuid
 import asyncpg
-import urllib.request
 from typing import List, Dict, Any, Optional, Literal
 
 from app.services.rate_limiter import TenantRateLimiter
@@ -24,15 +24,9 @@ from app.services.custo_combustivel import custo_quilometrico, resolver_custos
 from app.services.viagem_caminhao import ContextoViagens, dados_viagem, objeto, gravar_recomendacao
 from app.services.infraestrutura_viaria import dimensoes_veiculo
 from app.schemas_infraestrutura import VeiculoDimensoes
-from app.url_segura import is_safe_url
+from app.url_segura import is_safe_url, post_seguro
 
 router = APIRouter(prefix="/api/v1/logistica", tags=["Logistica B2B"])
-
-class _SemRedirect(urllib.request.HTTPRedirectHandler):
-    def redirect_request(self, req, fp, code, msg, headers, newurl):
-        return None
-
-_opener_seguro = urllib.request.build_opener(_SemRedirect)
 
 async def aplicar_rate_limit(request: Request, claims: dict = Depends(get_current_user_claims)):
     limite, restantes = TenantRateLimiter.check_rate_limit(claims["tenant_id"])
@@ -468,10 +462,10 @@ async def importar_operacoes_lote(lote: List[Dict[str, Any]], tenant_id: str = D
 
 @router.post("/alertas/disparar-webhook", dependencies=[Depends(require_role(["ADMIN", "OPERATOR"]))])
 async def disparar_alerta_webhook(dados: WebhookAlertaRequest, conn: asyncpg.Connection = Depends(get_connection), tenant_autenticado: str = Depends(resolve_tenant)):
-    if not is_safe_url(dados.webhook_url):
-        raise HTTPException(status_code=400, detail="SSRF bloqueado")
     if dados.tenant_id != tenant_autenticado:
         raise HTTPException(status_code=403, detail="Tenant mismatch")
+    if not is_safe_url(dados.webhook_url):
+        raise HTTPException(status_code=400, detail="SSRF bloqueado")
     op = await conn.fetchrow("SELECT * FROM operacoes WHERE id_operacao = $1 AND tenant_id = $2;", dados.id_operacao, dados.tenant_id)
     if not op:
         raise HTTPException(status_code=404, detail="Operacao nao encontrada.")
@@ -513,17 +507,14 @@ async def disparar_alerta_webhook(dados: WebhookAlertaRequest, conn: asyncpg.Con
     status_code = 200
     try:
         req_data = json.dumps(payload_alerta).encode("utf-8")
-        req = urllib.request.Request(
-            dados.webhook_url,
-            data=req_data,
-            headers={"Content-Type": "application/json", "User-Agent": "SPRain-Resilience-Engine/1.0"},
-            method="POST"
+        status_code = await asyncio.to_thread(
+            post_seguro, dados.webhook_url,
+            {"Content-Type": "application/json", "User-Agent": "SPRain-Resilience-Engine/1.0"},
+            req_data, 4.0
         )
-        with _opener_seguro.open(req, timeout=4.0) as resp:
-            status_code = resp.getcode()
-            status_envio = "ENVIADO"
-    except Exception as e:
-        status_envio = f"FALHA_ENVIO: {str(e)}"
+        status_envio = "ENVIADO"
+    except Exception:
+        status_envio = "FALHA_ENVIO"
         status_code = 502
 
     return {

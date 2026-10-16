@@ -7,9 +7,11 @@ import os
 import subprocess
 import sys
 import time
-import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "api"))
+from app.url_segura import post_seguro
 
 logger = logging.getLogger(__name__)
 
@@ -27,13 +29,14 @@ def disparar_alerta(fonte: str, erro: str) -> None:
         "erro": erro[-1000:]
     }
     try:
-        req = urllib.request.Request(
+        status = post_seguro(
             webhook_url,
-            data=json.dumps(payload).encode("utf-8"),
-            headers={"Content-Type": "application/json"},
-            method="POST"
+            {"Content-Type": "application/json"},
+            json.dumps(payload).encode("utf-8"),
+            timeout=10,
         )
-        urllib.request.urlopen(req, timeout=10)
+        if not 200 <= status < 300:
+            raise RuntimeError(f"destino respondeu HTTP {status}")
     except Exception as e:
         print(f"Falha ao enviar alerta para webhook: {e}", file=sys.stderr, flush=True)
 

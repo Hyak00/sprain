@@ -54,6 +54,8 @@ No ambiente Windows local, use as credenciais de desenvolvimento configuradas
 no Compose override; nao use credenciais de producao. O servico inicia com uma
 sincronizacao, repete a cada 24 horas e isola falhas por fonte. Tambem pode ser
 executado uma vez com `python scripts/worker_dados_publicos.py --once`.
+O webhook opcional `WEBHOOK_ALERTA_DADOS` envia falhas para um endereço público;
+destinos internos/privados são recusados e redirecionamentos não são seguidos.
 
 O importador procura os anos recentes no catalogo da ARTESP, o CSV mensal mais
 recente de diesel e gasolina na ANP, o cadastro georreferenciado da ANP e os
