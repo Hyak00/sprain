@@ -16,6 +16,28 @@ Plataforma corporativa B2B que ajuda transportadoras a identificar riscos climá
 
 ## Como Executar
 
+Para começar em **demonstração local isolada**, com o esquema e a base de testes:
+
+```bash
+docker compose -f compose.demo.yml up -d --build
+python scripts/verificar_portal.py
+```
+
+Abra http://127.0.0.1:18000/static/b2b.html e use os acessos rápidos de
+demonstração. A **Central de trabalho** reúne relatórios PDF/CSV, qualidade,
+prévia/importação de operações e orientações. Dados do CI são exemplos, não
+evidências históricas ou viagens reais. Esse Compose usa banco, volume e rede
+próprios; não reaproveita o banco operacional e não configura produção.
+
+Pré-requisitos: Git, Docker com Compose e Python 3.9+ para a sonda opcional.
+Instruções completas, limitações e dependências estão no
+[guia da central](docs/central-operacional.md) e no
+[roteiro de instalação e demonstração](docs/instalacao-demonstracao.md).
+
+O comando abaixo mantém o ambiente operacional existente. Ele exige que a base
+e as variáveis de ambiente tenham sido provisionadas; não substitui o bootstrap
+isolado acima:
+
 ```bash
 docker compose up --build -d
 ```

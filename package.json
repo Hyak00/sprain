@@ -1,0 +1,6 @@
+{
+  "name": "sprain-interface-tests",
+  "private": true,
+  "scripts": {"test": "node --test api/tests/interface/*.test.cjs"},
+  "devDependencies": {"linkedom": "0.18.13"}
+}

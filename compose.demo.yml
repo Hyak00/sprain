@@ -1,0 +1,37 @@
+name: sprain-demo
+services:
+  db:
+    image: pgrouting/pgrouting@sha256:5e6767abbd1fd9ead84c9988aa31bac71ca292ef8a1fc2e4a5ee2b613ac6a7bb
+    environment:
+      POSTGRES_DB: sprain_demo
+      POSTGRES_USER: sprain_demo
+      POSTGRES_PASSWORD: somente-demonstracao-local
+    volumes:
+      - demo_pgdata:/var/lib/postgresql/data
+      - ./db/ci:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U sprain_demo -d sprain_demo"]
+      interval: 3s
+      timeout: 3s
+      retries: 60
+  api:
+    build: .
+    environment:
+      ENVIRONMENT: development
+      DB_HOST: db
+      DB_USER: sprain_demo
+      DB_PASSWORD: somente-demonstracao-local
+      DB_NAME: sprain_demo
+      API_KEYS: key_admin_demo,key_operator_demo,key_viewer_demo,key_admin_express
+      TENANT_API_KEYS: key_admin_demo:ADMIN:demo_corp;key_operator_demo:OPERATOR:demo_corp;key_viewer_demo:VIEWER:demo_corp;key_admin_express:ADMIN:log_express
+    ports: ["127.0.0.1:18000:8000"]
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/api/v1/health/readiness"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+volumes:
+  demo_pgdata:

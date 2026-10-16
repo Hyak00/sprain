@@ -130,6 +130,7 @@
         .ac-item:hover { background: var(--bg-hover); }
     </style>
     <link rel="stylesheet" href="/static/infraestrutura-caminhoes.css">
+    <link rel="stylesheet" href="/static/portal-operacional.css">
 </head>
 <body>
 
@@ -494,6 +495,7 @@
 
                 const user = await res.json();
                 window.PainelSessao.entrar(user);
+                window.PortalOperacional?.sessao(user);
                 window.API_KEY = user.api_key;
                 window.CadastroInfra.sessao(user.role);
                 window.PainelSessao.permissoes();
@@ -517,6 +519,8 @@
         }
 
         function limparPainelSessao() {
+            window.PainelAcessibilidade?.limpar();
+            window.PortalOperacional?.limpar();
             window.API_KEY = '';
             window.InfraCaminhoes?.limpar();
             window.CadastroInfra?.sessao(null);
@@ -699,6 +703,14 @@
 
         async function criarOperacaoRoteada() {
             const fb = document.getElementById('desp-feedback');
+            for (const tipo of ['orig','dest']) {
+                const lat=Number(document.getElementById('desp-'+tipo+'-lat').value);
+                const lon=Number(document.getElementById('desp-'+tipo+'-lon').value);
+                if(!Number.isFinite(lat)||!Number.isFinite(lon)||lat===0||lon===0) {
+                    fb.textContent='Selecione uma sugestão de origem e destino para confirmar as coordenadas antes de despachar.';
+                    document.getElementById('desp-'+tipo+'-nome').focus(); return;
+                }
+            }
             fb.style.color = '#38bdf8';
             fb.innerText = 'Calculando rota sobre a malha PostGIS...';
 
@@ -915,6 +927,7 @@
             document.getElementById('modal-justificativa').innerText = data.justificativa;
             document.getElementById('modal-limitacao').innerText = data.validacao_rota ? data.validacao_rota.avisos_limitacao : '';
             window.AlertasComparacao?.exibir(data);
+            window.PortalOperacional?.selecionar(data);
 
             if (data.geometrias) {
                 const emptyFc = { type: 'FeatureCollection', features: [] };
@@ -1017,6 +1030,10 @@
     <script src="/static/dados-viagem.js"></script>
     <script src="/static/infraestrutura-cadastro.js"></script>
     <script src="/static/alertas-comparacao.js"></script>
+    <script src="/static/portal-dados.js"></script>
+    <script src="/static/portal-pdf.js"></script>
+    <script src="/static/portal-operacional.js"></script>
+    <script src="/static/painel-acessibilidade.js"></script>
     <script>window.PainelSessao.instalar();</script>
 </body>
 </html>

@@ -34,6 +34,14 @@ class VeiculoCreate(BaseModel):
     custos_operacionais: Optional[CustosCaminhao] = None
 
 class OperacaoCreate(BaseModel):
+    model_config = {'json_schema_extra': {'examples': [{
+        'id_operacao': 'EXEMPLO_OP_001', 'origem_nome': 'Origem de demonstracao',
+        'origem_lat': -23.542, 'origem_lon': -46.468,
+        'destino_nome': 'Destino de demonstracao', 'destino_lat': -23.55, 'destino_lon': -46.45,
+        'janela_inicio': '2026-10-20T08:00:00-03:00', 'janela_fim': '2026-10-20T12:00:00-03:00',
+        'dimensoes': {'altura_m': 4, 'largura_m': 2.6, 'comprimento_m': 15, 'peso_total_t': 30, 'eixos': 4},
+        'custos_operacionais': {'consumo_km_l': 3, 'custo_por_km_sem_combustivel': 1.5}
+    }]}}
     tenant_id: str = "demo_corp"
     id_operacao: str
     id_veiculo: Optional[str] = None
