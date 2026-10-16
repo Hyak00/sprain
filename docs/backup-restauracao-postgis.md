@@ -23,6 +23,22 @@ Se ocorrer falha durante a criação, um arquivo `.partial` pode permanecer na
 pasta; ele **não** é um backup válido. O script nunca sobrescreve um arquivo
 existente.
 
+Para uma checagem automatizável da cópia completa mais recente, use:
+
+```powershell
+python scripts/postgres_backup.py verify-latest `
+  --database enchentes `
+  --output-dir "$HOME\sprain-backups" `
+  --max-age-hours 36
+```
+
+O comando retorna código 0 se o manifesto, o tamanho, o SHA-256 e a idade
+estiverem corretos; retorna 1 caso contrário. Ele não acessa Docker nem o banco,
+não modifica arquivos e não considera um `.partial` como backup. Configure seu
+monitor para alertar quando o código for 1. Essa checagem não substitui o teste
+de restauração: um hash válido só confirma que o arquivo ainda corresponde ao
+manifesto criado no backup.
+
 ## Testar a restauração
 
 Restaure sempre primeiro em **um banco novo**, de nome distinto. O script
@@ -48,7 +64,7 @@ docker exec sprain_audit_20261014_db psql -U enchentes -d sprain_restore_test -c
 O backup inclui a estrutura e os dados do banco especificado. Ele não inclui
 arquivos `.env`, imagens Docker, segredos, nem outros bancos/volumes. Para uma
 rotina de produção ainda faltam agendamento, retenção, cópia externa protegida,
-monitoramento de falhas e testes periódicos de restauração. Não considere um
+destino para os alertas e testes periódicos de restauração. Não considere um
 backup operacional até verificar uma restauração com dados reais do ambiente.
 
 `scripts/check_deploy.ps1` faz apenas verificações básicas de Compose e
