@@ -112,7 +112,7 @@
             const tempo=Date.parse(s.ultimo_sucesso_em),horas=(Date.now()-tempo)/3600000;
             return [s.nome,D.data(s.ultimo_sucesso_em),!Number.isFinite(horas)||horas<0?'Data ausente/inconsistente':horas.toFixed(1)+' h',s.registros_importados];
         }));else mensagem(p,Array.isArray(f?.fontes)?'Nenhuma fonte cadastrada/importada foi retornada.':'Consulta de fontes indisponível.');
-        el(p,'p','Histórico de tentativas e falhas de importação: não fornecido pelos endpoints atuais. Último sucesso não comprova ausência de falhas posteriores.');
+        el(p,'p','Último sucesso não comprova ausência de falhas posteriores. O Painel operacional interno apresenta a auditoria instrumentada e os erros recentes para ADMIN.');
         if(q){const detalhes=el(p,'details');el(detalhes,'summary','Classificação de prazo declarada pela API');el(detalhes,'pre',JSON.stringify(q,null,2));}
         el(p,'h4','Qualidade a partir do feedback da empresa');
         if(precisao){el(p,'p','Amostra: '+precisao.total_eventos_analisados+' evento(s) avaliados. Não representa homologação independente.');
@@ -197,7 +197,7 @@
     function selecionar(op){selecionada=op;}
     function registrarSecao(id,label,fn){
         if(telas[id])throw Error('Seção já registrada.');rotulos[id]=label;
-        telas[id]=(p,v)=>fn(p,{atual:()=>atual(v),obter:path=>obter(path,v),recarregar:()=>render(id)});
+        telas[id]=(p,v)=>fn(p,{atual:()=>atual(v),obter:(path,options)=>obter(path,v,options),recarregar:()=>render(id)});
         const b=botao(nav,label,()=>render(id));b.dataset.secao=id;
     }
     function navegar(id){if(!usuario)return;if(!dialog.open)dialog.showModal();render(id);}

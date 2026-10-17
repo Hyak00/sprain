@@ -38,6 +38,9 @@ Para gestão de usuários, premissas financeiras, recuperação assistida de ace
 exportação privada, veja [Administração na interface](docs/administracao-interface.md).
 As funções administrativas exigem ADMIN com acesso individual.
 
+ADMIN também pode consultar fontes, falhas de importação, serviços e métricas
+na central: [Painel operacional interno](docs/painel-operacional-interno.md).
+
 Os formatos PDF/CSV/HTML e os critérios de custos, fontes e fotografias históricas
 estão descritos em [Relatórios na interface](docs/relatorios-painel.md).
 

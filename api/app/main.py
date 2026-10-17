@@ -25,6 +25,7 @@ from app.routers import acesso_painel
 from app.routers import gestao_usuarios
 from app.routers import administracao_painel
 from app.routers import relatorios_painel
+from app.routers import operacional_interno
 from app.services.administracao_painel import garantir_schema as garantir_administracao
 from app.services.acesso_painel import garantir_schema as garantir_acesso
 from app.routers import infraestrutura, malha, dados_publicos, transito, indicadores, demonstracao, feedback_alertas, operacoes_cliente
@@ -147,6 +148,7 @@ app.include_router(acesso_painel.router)
 app.include_router(gestao_usuarios.router)
 app.include_router(administracao_painel.router)
 app.include_router(relatorios_painel.router)
+app.include_router(operacional_interno.router)
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 static_dir = BASE_DIR / "static"

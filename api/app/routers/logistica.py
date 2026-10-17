@@ -447,6 +447,8 @@ async def importar_operacoes_lote(lote: List[Dict[str, Any]], tenant_id: str = D
     from pydantic import ValidationError
     sucessos=0
     erros=[]
+    monitor_id=uuid.uuid4()
+    await conn.execute("INSERT INTO monitor_importacoes(id,fonte,tenant_id,status) VALUES($1,'OPERACOES_CLIENTE',$2,'EM_EXECUCAO')",monitor_id,tenant_id)
     for item in lote:
         try:
             agora=datetime.now(timezone.utc)
@@ -459,6 +461,10 @@ async def importar_operacoes_lote(lote: List[Dict[str, Any]], tenant_id: str = D
         except (HTTPException,ValidationError,ValueError,TypeError,asyncpg.PostgresError) as exc:
             erros.append({'id_operacao':item.get('id_operacao'),
                 'erro':exc.detail if isinstance(exc,HTTPException) else 'Cadastro invalido ou rota indisponivel.'})
+    await conn.execute('''UPDATE monitor_importacoes SET encerrado_em=now(),status=$2,registros=$3,falhas=$4,
+        motivo_codigo=$5 WHERE id=$1 AND tenant_id=$6''',monitor_id,
+        'PARCIAL' if erros and sucessos else 'FALHA' if erros else 'CONCLUIDO',sucessos,len(erros),
+        'ITENS_REJEITADOS' if erros else None,tenant_id)
     return {'total_recebido':len(lote),'tenant_id':tenant_id,'sucessos':sucessos,
             'falhas':len(erros),'detalhe_falhas':erros}
 
