@@ -154,6 +154,26 @@ async def test_evento_publico_geometria_fonte_natureza(ambiente):
     d=(await cli.get('/painel/eventos')).json();e=next(x for x in d['items'] if x['id_evento']==identificador)
     assert e['natureza']=='PREVISAO' and e['fonte']=='Fonte de teste'
     assert e['consequencia_possivel'] and any(f['properties']['id_evento']==identificador for f in d['mapa']['features'])
+    geometria=next(f for f in d['mapa']['features'] if f['properties']['id_evento']==identificador)
+    assert geometria['properties']['expiracao']==e['expiracao_em']
+
+
+@pytest.mark.asyncio
+async def test_relato_idempotente_nao_duplica_e_recusa_conflito(ambiente):
+    conn,cli,origem,ids=ambiente
+    chave=uuid4()
+    payload={'categoria':'OUTRO','descricao':'Relato de teste idempotente',
+        'ocorrido_em':datetime.now(timezone.utc).isoformat(),'latitude':origem['origem_lat'],
+        'longitude':origem['origem_lon'],'chave_idempotencia':str(chave)}
+    primeiro=await cli.post('/painel/relatos',json=payload);assert primeiro.status_code==200,primeiro.text
+    identificador=__import__('uuid').UUID(primeiro.json()['id']);ids['relatos'].append(identificador)
+    repetido=await cli.post('/painel/relatos',json=payload);assert repetido.status_code==200,repetido.text
+    assert repetido.json()['id']==primeiro.json()['id'] and repetido.json()['reutilizado'] is True
+    assert await conn.fetchval('SELECT count(*) FROM painel_relatos WHERE id=$1',identificador)==1
+    assert (await cli.post('/painel/relatos',json={**payload,'descricao':'Alteracao conflitante'})).status_code==409
+    outro=await cli.post('/painel/relatos',headers=OUTRA,json=payload);assert outro.status_code==200,outro.text
+    ids['relatos'].append(__import__('uuid').UUID(outro.json()['id']))
+    assert outro.json()['id']!=primeiro.json()['id']
 
 
 @pytest.mark.asyncio

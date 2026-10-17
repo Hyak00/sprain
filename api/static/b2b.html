@@ -267,7 +267,7 @@
                 </div>
                 <div class="kpi-box">
                     <div class="kpi-value mono" id="kpi-evitado" style="color:#34d399;">R$ 0</div>
-                    <div class="kpi-label">Risco Mitigado</div>
+                    <div class="kpi-label">Perda Potencial Evitada</div>
                 </div>
             </div>
 
@@ -363,9 +363,9 @@
 
             <div class="map-legend">
                 <div style="font-size:10px; font-weight:700; text-transform:uppercase; color:var(--text-muted);">Legenda Operacional</div>
-                <div class="legend-row"><div class="line-sample" style="background:#38bdf8;"></div> <span>Rota Alternativa Recomendada (SAFEST)</span></div>
-                <div class="legend-row"><div class="line-dashed"></div> <span>Rota Original (Intercepta Alagamento)</span></div>
-                <div class="legend-row"><div class="line-sample" style="background:#ef4444; height:6px;"></div> <span>Trecho Crítico Bloqueado (IVI ≥ 70)</span></div>
+                <div class="legend-row"><div class="line-sample" style="background:#38bdf8;"></div> <span>Alternativa Calculada (SAFEST)</span></div>
+                <div class="legend-row"><div class="line-dashed"></div> <span>Rota Original Planejada</span></div>
+                <div class="legend-row"><div class="line-sample" style="background:#ef4444; height:6px;"></div> <span>Vulnerabilidade Física (IVI)</span></div>
             </div>
 
             <div id="inspector">
@@ -398,14 +398,14 @@
 
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; background:var(--bg-base); padding:8px 12px; border-radius:8px; border:1px solid var(--border); font-size:12px;">
                     <div><span style="color:var(--text-muted);">Custo Desvio:</span> <strong class="mono" id="modal-custo" style="color:#fbbf24;"></strong></div>
-                    <div><span style="color:var(--text-muted);">Risco Mitigado:</span> <strong class="mono" id="modal-prejuizo" style="color:#34d399;"></strong></div>
+                    <div><span style="color:var(--text-muted);">Perda Potencial Evitada:</span> <strong class="mono" id="modal-prejuizo" style="color:#34d399;"></strong></div>
                 </div>
 
                 <div class="justificativa-box" id="modal-justificativa"></div>
                 <div class="disclaimer-box" id="modal-limitacao"></div>
 
                 <div>
-                    <div style="font-size:10.5px; font-weight:700; text-transform:uppercase; color:var(--text-muted); margin-bottom:4px;">Trechos Críticos Evitados:</div>
+                    <div style="font-size:10.5px; font-weight:700; text-transform:uppercase; color:var(--text-muted); margin-bottom:4px;">Vulnerabilidade na Rota Original (IVI):</div>
                     <div class="trechos-list" id="modal-trechos-lista"></div>
                 </div>
 

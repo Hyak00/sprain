@@ -78,6 +78,7 @@ class Relato(BaseModel):
     ocorrido_em: datetime
     latitude: float = Field(ge=-90, le=90)
     longitude: float = Field(ge=-180, le=180)
+    chave_idempotencia: UUID | None = None
 
     @model_validator(mode='after')
     def horario(self):
@@ -257,9 +258,16 @@ async def premissas(identificador: str, dados: Premissas, claims=Depends(get_cur
 
 @router.post('/relatos', dependencies=[escrita])
 async def relatar(dados: Relato, claims=Depends(get_current_user_claims), conn=Depends(get_connection)):
+    payload=dados.model_dump_json(exclude_none=True)
+    identificador=uuid5(NAMESPACE_URL,'relato:'+claims['tenant_id']+':'+str(dados.chave_idempotencia)) if dados.chave_idempotencia else uuid4()
     row = await conn.fetchrow('''INSERT INTO painel_relatos(id,tenant_id,dados,perfil)
-        VALUES($1,$2,$3::jsonb,$4) RETURNING *''', uuid4(), claims['tenant_id'], dados.model_dump_json(), claims['role'])
-    return {**serializar(row), 'status':'PENDENTE_VALIDACAO', 'aviso':'Relato privado registrado. Nao confirma interdicao nem altera automaticamente o roteamento.'}
+        VALUES($1,$2,$3::jsonb,$4) ON CONFLICT(id) DO NOTHING RETURNING *''', identificador, claims['tenant_id'], payload, claims['role'])
+    reutilizado=row is None
+    if reutilizado:
+        row=await conn.fetchrow('SELECT * FROM painel_relatos WHERE id=$1 AND tenant_id=$2',identificador,claims['tenant_id'])
+        if not row or objeto(row['dados'])!=json.loads(payload):
+            raise HTTPException(409,'Identificador de relato ja utilizado; confira os dados do envio.')
+    return {**serializar(row), 'reutilizado':reutilizado,'status':'PENDENTE_VALIDACAO', 'aviso':'Relato privado registrado. Nao confirma interdicao nem altera automaticamente o roteamento.'}
 
 
 @router.get('/eventos')
@@ -281,7 +289,7 @@ async def eventos(claims=Depends(get_current_user_claims), conn=Depends(get_conn
         items.append(e)
         for t in trechos:
             if t['geo']:
-                features.append({'type':'Feature','geometry':json.loads(t['geo']),'properties':{'id_evento':e['id_evento'],'natureza':natureza,'fonte':e['fonte'],'atualizacao':e['ultima_atualizacao']}})
+                features.append({'type':'Feature','geometry':json.loads(t['geo']),'properties':{'id_evento':e['id_evento'],'natureza':natureza,'fonte':e['fonte'],'atualizacao':e['ultima_atualizacao'],'expiracao':e['expiracao_em']}})
     relatos = await conn.fetch('SELECT * FROM painel_relatos WHERE tenant_id=$1 ORDER BY criado_em DESC LIMIT 51', claims['tenant_id'])
     for r in relatos[:50]:
         d = objeto(r['dados'])
@@ -293,6 +301,6 @@ async def eventos(claims=Depends(get_current_user_claims), conn=Depends(get_conn
             'o_que_nao_sabemos':'Confirmacao, duracao, extensao e restricoes reais da ocorrencia.'}
         items.append(e)
         features.append({'type':'Feature','geometry':{'type':'Point','coordinates':[d['longitude'],d['latitude']]},
-            'properties':{'id_evento':e['id_evento'],'natureza':e['natureza'],'fonte':e['fonte'],'atualizacao':e['ultima_atualizacao']}})
+            'properties':{'id_evento':e['id_evento'],'natureza':e['natureza'],'fonte':e['fonte'],'atualizacao':e['ultima_atualizacao'],'expiracao':None}})
     return {'items':items,'mapa':{'type':'FeatureCollection','features':features},'limites':{'publicos':50,'relatos':50,'relatos_truncados':len(relatos)>50},
         'aviso':'Geometria por trechos associados ou coordenada do relato; nao representa extensao confirmada de interdicao.'}

@@ -1,5 +1,7 @@
 # Verificação do fluxo 3.1
 
+Revisão posterior: [validação sobre main e450ec5](validacao-painel-atual.md), incluindo correções de concorrência no histórico, expiração no mapa e reenvio idempotente de relatos. As contagens abaixo registram a execução anterior.
+
 Revisão sobre main `797a071`, em 16/10/2026. O painel existente foi complementado sem remover seus 69 IDs ou o CSS inline. Não há nova dependência de produção.
 
 ## Critérios e evidências
