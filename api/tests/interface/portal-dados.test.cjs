@@ -32,3 +32,7 @@ test('PDF contém páginas, fonte com acentos, offsets válidos e conteúdo esca
     if(process.env.SPRAIN_PDF_QA)fs.writeFileSync(process.env.SPRAIN_PDF_QA,b);
 });
 test('PDF limita documentos excessivos em vez de bloquear a interface',()=>assert.throws(()=>gerar(['a'.repeat(300001)])));
+
+test('PDF normaliza acentos e preserva caracteres fora da fonte como codigo Unicode explicito',()=>{
+    const s=Buffer.from(gerar(['Decisa\u0303o 😀 漢'])).toString('latin1');assert(s.includes('Decisão'));assert(s.includes('[U+1F600]'));assert(s.includes('[U+6F22]'));assert(s.includes('UTF-8'));
+});

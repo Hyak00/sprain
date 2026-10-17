@@ -57,11 +57,12 @@
     }
     const moeda=v=>finito(v)?v.toLocaleString('pt-BR',{style:'currency',currency:'BRL'}):'Não informado';
     const data=v=>iso(v)?new Date(v).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo'})+' (Brasília)':'Não informado';
+    const dataRelatorio=v=>iso(v)?data(v):typeof v==='string'&&/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?$/.test(v)?v+' (fuso não registrado na fonte)':'Não informado';
     function linhasDecisao(op,historico,empresa,recebido){
         const f=op?.infraestrutura?.financeiro||{},m=op?.metricas||{};
         const alternativa=op?.validacao_rota?.rota_alternativa_disponivel===true&&op?.geometrias?.rota_alternativa_geojson?.features?.some(v=>['LineString','MultiLineString'].includes(v?.geometry?.type)&&v.geometry.coordinates?.length>0);
         const linhas=['SPRain | Relatório de consulta e decisões','Empresa: '+empresa,'Operação: '+(op?.id_operacao||'Não informada'),
-            'Consulta recebida em: '+data(recebido),'Fotografia do cálculo: '+data(op?.contexto_consulta?.calculo_gerado_em),
+            'Consulta recebida em: '+data(recebido),'Fotografia do cálculo: '+dataRelatorio(op?.contexto_consulta?.calculo_gerado_em),
             'Origem: '+(op?.coordenadas?.origem_nome||'Não informada'),'Destino: '+(op?.coordenadas?.destino_nome||'Não informado'),
             'Caminhão: '+(op?.id_veiculo||'Não informado')+' | '+(op?.placa||'Sem placa'),
             'Recomendação: '+(op?.acao_recomendada||'Não informada'),'Justificativa: '+(op?.justificativa||'Não informada'),
@@ -79,8 +80,14 @@
             'Infraestrutura: '+(op?.infraestrutura?.aviso||'Não informada.'),'Histórico de decisões:'];
         if(!Array.isArray(historico))linhas.push('Indisponível nesta consulta.');
         else if(!historico.length)linhas.push('Nenhuma decisão retornada.');
-        else historico.forEach(d=>linhas.push('#'+d.id_decisao+' | '+d.decisao+' | '+data(d.registrado_em),'Motivo: '+d.motivo_gestor,'Autoria individual: não fornecida neste contrato.'));
-        linhas.push('Fontes: endpoints explicacao e decisoes da operação autenticada.','Medidas efetivas atuais (não são fotografia datada da recomendação):');
+        else historico.forEach(d=>linhas.push('#'+d.id_decisao+' | '+d.decisao+' | '+data(d.registrado_em),'Motivo: '+d.motivo_gestor,
+            'Autoria individual: '+(d.usuario_id||'Não fornecida no registro.')+' | Papel: '+(d.perfil_registro||d.perfil_consulta||'Não informado'),
+            'Consulta vinculada: '+(d.consulta_id||'Não informada')));
+        linhas.push('Fonte do cenário: '+(op?.contexto_consulta?.fonte||'Não informada'),
+            'Natureza: '+(op?.contexto_consulta?.natureza||'Não informada'),
+            'Recomendação registrada: '+(op?.contexto_consulta?.id_recomendacao??'Não informada'),
+            'Fontes: fotografia da consulta e registros de decisão da empresa autenticada.',
+            'Medidas retornadas nesta fotografia; não confirmam condições atuais de passagem:');
         const medidas={altura_m:'Altura (m)',largura_m:'Largura (m)',comprimento_m:'Comprimento (m)',peso_total_t:'Peso total (t)',eixos:'Eixos'};
         for(const [k,label]of Object.entries(medidas))linhas.push(label+': '+(op?.infraestrutura?.dimensoes?.[k]??'Não informado'));
         linhas.push('Premissas financeiras retornadas pelo cálculo:');
@@ -95,6 +102,6 @@
         }
         return linhas;
     }
-    root.PortalDados={validarImportacao,csv,moeda,data,linhasDecisao};
+    root.PortalDados={validarImportacao,csv,moeda,data,dataRelatorio,linhasDecisao};
     if(typeof module!=='undefined'&&module.exports)module.exports=root.PortalDados;
 })(typeof window!=='undefined'?window:globalThis);
