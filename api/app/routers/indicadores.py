@@ -1,4 +1,5 @@
 import asyncpg
+import math
 from fastapi import APIRouter, Depends
 from app.database import get_connection
 from app.seguranca import require_role
@@ -20,16 +21,18 @@ async def obter_indicadores_qualidade(conn: asyncpg.Connection = Depends(get_con
     lista_fontes = []
     fontes_no_prazo = 0
     for f in fontes:
-        horas = float(f["horas_desde_ultima_atualizacao"] or 0.0)
-        atualizada = horas <= 48.0
+        valor=f['horas_desde_ultima_atualizacao']
+        horas=float(valor) if valor is not None else None
+        valida=horas is not None and math.isfinite(horas) and horas>=0
+        atualizada = valida and horas <= 48.0
         if atualizada:
             fontes_no_prazo += 1
         lista_fontes.append({
             "fonte": f["nome"],
             "registros_importados": f["registros_importados"],
-            "ultimo_sucesso_em": f["ultimo_sucesso_em"].isoformat(),
-            "horas_desde_ultima_atualizacao": round(horas, 1),
-            "status_prazo": "ATUALIZADA" if atualizada else "ATRASADA"
+            "ultimo_sucesso_em": f["ultimo_sucesso_em"].isoformat() if f['ultimo_sucesso_em'] else None,
+            "horas_desde_ultima_atualizacao": round(horas, 1) if valida else None,
+            "status_prazo": "SEM_DATA_VALIDA" if not valida else "ATUALIZADA" if atualizada else "ATRASADA"
         })
 
     pct_atualizadas = round((fontes_no_prazo / max(1, len(lista_fontes))) * 100.0, 1)

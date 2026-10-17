@@ -26,7 +26,7 @@ def main():
                     '/api/v1/acesso/configuracao','/static/painel-homologacao.js',
                     '/api/v1/administracao/financeiro','/static/painel-administracao.js',
                     '/api/v1/painel/relatorios/piloto','/api/v1/painel/relatorios/decisoes',
-                    '/static/painel-relatorios.js','/api/v1/demonstracao/estado','/static/painel-demonstracao.js']:
+                    '/static/painel-relatorios.js','/api/v1/demonstracao/estado','/static/painel-demonstracao.js','/static/painel-interno.js']:
         req = urllib.request.Request(args.base_url.rstrip('/') + caminho, headers={'X-API-Key': chave} if caminho.startswith('/api/') else {})
         try:
             # Nao seguir redirecionamento para outro host com a chave.
