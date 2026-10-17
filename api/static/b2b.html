@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SPRain • Plataforma Corporativa de Resiliência Logística</title>
+    <script src="/static/painel-apresentacao.js"></script>
     <link rel="stylesheet" href="/static/painel-sessao.css">
     <link rel="stylesheet" href="/static/alertas-comparacao.css">
     <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
@@ -131,6 +132,7 @@
     </style>
     <link rel="stylesheet" href="/static/infraestrutura-caminhoes.css">
     <link rel="stylesheet" href="/static/portal-operacional.css">
+    <link rel="stylesheet" href="/static/painel-fluxo.css">
 </head>
 <body>
 
@@ -145,16 +147,16 @@
             </div>
             <div class="login-field">
                 <label for="login-email">E-mail Corporativo</label>
-                <input type="email" id="login-email" autocomplete="username" class="login-input" value="operacoes@democorp.com.br">
+                <input type="email" id="login-email" autocomplete="username" class="login-input" required>
             </div>
             <div class="login-field">
                 <label for="login-senha">Senha de Acesso</label>
-                <input type="password" id="login-senha" autocomplete="current-password" class="login-input" value="sprain2026">
+                <input type="password" id="login-senha" autocomplete="current-password" class="login-input" required maxlength="256">
             </div>
             <div role="status" aria-live="polite" id="login-erro" style="color:#f87171; font-size:12px; margin-bottom:8px; min-height:16px;"></div>
             <button class="btn-login" data-acao="realizarLogin" onclick="realizarLogin()">Entrar na Torre de Controle</button>
 
-            <div class="demo-accounts">
+            <div class="demo-accounts" hidden>
                 <div style="font-size:10.5px; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:4px;">Contas Homologadas (Acesso Rápido Demo):</div>
                 <button class="demo-btn" onclick="preencherLogin('operacoes@democorp.com.br', 'sprain2026')">
                     <span><strong>TransPaulista S.A.</strong> (Mesa Operacional)</span>
@@ -265,7 +267,7 @@
                 </div>
                 <div class="kpi-box">
                     <div class="kpi-value mono" id="kpi-evitado" style="color:#34d399;">R$ 0</div>
-                    <div class="kpi-label">Risco Mitigado</div>
+                    <div class="kpi-label">Perda Potencial Evitada</div>
                 </div>
             </div>
 
@@ -361,9 +363,9 @@
 
             <div class="map-legend">
                 <div style="font-size:10px; font-weight:700; text-transform:uppercase; color:var(--text-muted);">Legenda Operacional</div>
-                <div class="legend-row"><div class="line-sample" style="background:#38bdf8;"></div> <span>Rota Alternativa Recomendada (SAFEST)</span></div>
-                <div class="legend-row"><div class="line-dashed"></div> <span>Rota Original (Intercepta Alagamento)</span></div>
-                <div class="legend-row"><div class="line-sample" style="background:#ef4444; height:6px;"></div> <span>Trecho Crítico Bloqueado (IVI ≥ 70)</span></div>
+                <div class="legend-row"><div class="line-sample" style="background:#38bdf8;"></div> <span>Alternativa Calculada (SAFEST)</span></div>
+                <div class="legend-row"><div class="line-dashed"></div> <span>Rota Original Planejada</span></div>
+                <div class="legend-row"><div class="line-sample" style="background:#ef4444; height:6px;"></div> <span>Vulnerabilidade Física (IVI)</span></div>
             </div>
 
             <div id="inspector">
@@ -396,14 +398,14 @@
 
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; background:var(--bg-base); padding:8px 12px; border-radius:8px; border:1px solid var(--border); font-size:12px;">
                     <div><span style="color:var(--text-muted);">Custo Desvio:</span> <strong class="mono" id="modal-custo" style="color:#fbbf24;"></strong></div>
-                    <div><span style="color:var(--text-muted);">Risco Mitigado:</span> <strong class="mono" id="modal-prejuizo" style="color:#34d399;"></strong></div>
+                    <div><span style="color:var(--text-muted);">Perda Potencial Evitada:</span> <strong class="mono" id="modal-prejuizo" style="color:#34d399;"></strong></div>
                 </div>
 
                 <div class="justificativa-box" id="modal-justificativa"></div>
                 <div class="disclaimer-box" id="modal-limitacao"></div>
 
                 <div>
-                    <div style="font-size:10.5px; font-weight:700; text-transform:uppercase; color:var(--text-muted); margin-bottom:4px;">Trechos Críticos Evitados:</div>
+                    <div style="font-size:10.5px; font-weight:700; text-transform:uppercase; color:var(--text-muted); margin-bottom:4px;">Vulnerabilidade na Rota Original (IVI):</div>
                     <div class="trechos-list" id="modal-trechos-lista"></div>
                 </div>
 
@@ -427,6 +429,7 @@
         <script>
         window.API_KEY = '';
         let operacaoSelecionadaId = null;
+        let consultaSelecionadaId = null;
         let recomendacoesAtuais = [];
         let frotaAtual = [];
         let corredorAtualizacao = 0;
@@ -479,7 +482,8 @@
             erroEl.innerText = 'Autenticando...';
 
             try {
-                const res = await window.PainelSessao.request('/api/v1/logistica/auth/login', {
+                if(!document.getElementById('login-email').reportValidity()||!document.getElementById('login-senha').reportValidity())return;
+                const res = await window.PainelSessao.request('/api/v1/acesso/login', {
                     method: 'POST',
                     publico: true,
                     headers: { 'Content-Type': 'application/json' },
@@ -494,6 +498,7 @@
                 }
 
                 const user = await res.json();
+                document.getElementById('login-senha').value='';
                 window.PainelSessao.entrar(user);
                 window.PortalOperacional?.sessao(user);
                 window.API_KEY = user.api_key;
@@ -515,10 +520,11 @@
         }
 
         function sairSessao() {
-            window.PainelSessao.encerrar();
+            return window.PainelSessao.sair();
         }
 
         function limparPainelSessao() {
+            window.PainelEventos?.limpar();window.PainelCorredores?.limpar();
             window.PainelAcessibilidade?.limpar();
             window.PortalOperacional?.limpar();
             window.API_KEY = '';
@@ -543,6 +549,7 @@
         }
 
         function limparRotasExibidas() {
+            consultaSelecionadaId=null;window.FluxoPainel?.limpar();
             window.AlertasComparacao?.limpar();
             window.DadosViagem?.limpar();
             ['rota-original','rota-segura','trechos-criticos','infra-pontos','infra-limites'].forEach(id => {
@@ -552,6 +559,12 @@
         }
 
         function falhaPainel(acao) {
+            if(acao==='carregarCorredorRegional')document.getElementById('corredor-detalhes').textContent='Corredor indisponível. Abra a aba para tentar novamente; não é confirmação de pista livre.';
+            if(acao==='abrirExplicacaoDecisao'){
+                document.getElementById('inspector').style.display='flex';
+                ['modal-op-title','modal-origem-destino','modal-acao','modal-confianca','box-orig-km','box-orig-min','box-alt-km','box-alt-min','modal-custo','modal-prejuizo','modal-limitacao','modal-trechos-lista'].forEach(id=>document.getElementById(id).textContent='Indisponível');
+                document.getElementById('modal-justificativa').textContent='Não foi possível consultar a operação. Selecione-a novamente para tentar.';
+            }
             if (acao === 'executarSimulacao') {
                 recomendacoesAtuais = []; operacaoSelecionadaId = null;
                 limparRotasExibidas();
@@ -583,6 +596,7 @@
         }
 
         async function carregarFrota() {
+            document.getElementById('lista-frota-cards').textContent='Carregando frota…';
             const sessao=window.SESSION_EPOCH;
             const res = await window.PainelSessao.request('/api/v1/logistica/veiculos', { headers: { 'X-API-Key': window.API_KEY } });
             if (!res.ok) return;
@@ -592,7 +606,7 @@
             document.getElementById('count-frota').innerText = frotaAtual.length;
 
             const sel = document.getElementById('desp-veiculo');
-            sel.innerHTML = frotaAtual.map(v => '<option value="' + v.id_veiculo + '">' + v.id_veiculo + ' • ' + v.placa + ' (' + v.modelo + ' - ' + v.tipo_veiculo + ')</option>').join('');
+            sel.innerHTML = frotaAtual.map(v => '<option value="' + window.PainelApresentacao.escapar(v.id_veiculo) + '">' + window.PainelApresentacao.escapar(v.id_veiculo) + ' • ' + window.PainelApresentacao.escapar(v.placa) + ' (' + window.PainelApresentacao.escapar(v.modelo) + ' - ' + window.PainelApresentacao.escapar(v.tipo_veiculo) + ')</option>').join('');
 
             const container = document.getElementById('lista-frota-cards');
             if (frotaAtual.length === 0) {
@@ -605,13 +619,14 @@
             frotaAtual.forEach(v => {
                 const div = document.createElement('div');
                 div.style.cssText = 'display:flex; justify-content:space-between; align-items:center; background:var(--bg-panel); border:1px solid var(--border); padding:8px 10px; border-radius:6px; font-size:12px;';
-                div.innerHTML = '<div><strong class="mono" style="color:#fff;">' + v.id_veiculo + '</strong> • <span class="mono" style="color:var(--accent);">' + v.placa + '</span><div style="font-size:11px; color:var(--text-muted);">' + v.modelo + ' (' + v.tipo_veiculo + ')</div></div>';
+                div.innerHTML = '<div><strong class="mono" style="color:#fff;">' + window.PainelApresentacao.escapar(v.id_veiculo) + '</strong> • <span class="mono" style="color:var(--accent);">' + window.PainelApresentacao.escapar(v.placa) + '</span><div style="font-size:11px; color:var(--text-muted);">' + window.PainelApresentacao.escapar(v.modelo) + ' (' + window.PainelApresentacao.escapar(v.tipo_veiculo) + ')</div></div>';
                 const btn = document.createElement('button');
                 btn.className = 'btn-top';
                 btn.innerText = 'Tracar Rota ->';
                 btn.dataset.escrita = '';
                 btn.onclick = () => abrirModalDespachoComVeiculo(v.id_veiculo);
                 div.appendChild(btn);
+                const origem=document.createElement('small');origem.className='mvp-proveniencia';origem.textContent='Fonte: cadastro da empresa. Atualização: '+window.PortalDados.data(v.atualizado_em);div.appendChild(origem);
                 container.appendChild(div);
             });
             window.InfraCaminhoes.frota(frotaAtual);
@@ -619,6 +634,10 @@
         }
 
         async function cadastrarNovoCaminhao() {
+            for(const id of ['veic-id','veic-placa','veic-modelo'])if(!document.getElementById(id).value.trim()){
+                document.getElementById('veic-feedback').textContent='Informe identificação, placa e modelo antes de cadastrar.';
+                document.getElementById(id).focus();return;
+            }
             const payload = {
                 id_veiculo: document.getElementById('veic-id').value.trim(),
                 placa: document.getElementById('veic-placa').value.trim(),
@@ -645,22 +664,20 @@
             await carregarFrota();
         }
 
-        function abrirModalDespacho() {
-            carregarFrota();
+        async function abrirModalDespacho() {
             const elId = document.getElementById('desp-id-op') ? document.getElementById('desp-id-op') : document.getElementById(' desp-id-op');
             if (elId) elId.value = 'OP-' + Math.floor(100 + Math.random() * 899);
             document.getElementById('desp-feedback').innerText = '';
             document.getElementById('modal-despacho').style.display = 'flex';
+            await carregarFrota();
         }
 
-        function abrirModalDespachoComVeiculo(idVeic) {
+        async function abrirModalDespachoComVeiculo(idVeic) {
             const sessao = window.SESSION_EPOCH;
-            abrirModalDespacho();
-            setTimeout(() => {
+            await abrirModalDespacho();
                 if (sessao !== window.SESSION_EPOCH || !window.PainelSessao.podeEscrever()) return;
                 document.getElementById('desp-veiculo').value = idVeic;
                 window.InfraCaminhoes.preencher('infra-desp',frotaAtual.find(v=>v.id_veiculo===idVeic));
-            }, 150);
         }
 
         function fecharModalDespacho() {
@@ -687,7 +704,7 @@
             vias.forEach(v => {
                 const item = document.createElement('div');
                 item.className = 'ac-item';
-                item.innerHTML = '<span><strong>' + v.nome_via + '</strong></span><span class="mono" style="font-size:10.5px; color:var(--accent);">IVI ' + v.ivi_medio + ' (' + v.classe_risco + ')</span>';
+                item.innerHTML = '<span><strong>' + window.PainelApresentacao.escapar(v.nome_via) + '</strong></span><span class="mono" style="font-size:10.5px; color:var(--accent);">IVI ' + window.PainelApresentacao.escapar(v.ivi_medio) + ' (' + window.PainelApresentacao.escapar(v.classe_risco) + ')</span>';
                 item.onclick = () => selecionarViaAutocomplete(tipo, v.nome_via, v.lat, v.lon);
                 drop.appendChild(item);
             });
@@ -728,8 +745,8 @@
                 destino_nome: valOr(document.getElementById('desp-dest-nome').value.trim(), 'Destino Selecionado'),
                 destino_lat: parseFloat(valOr(document.getElementById('desp-dest-lat').value, 0)),
                 destino_lon: parseFloat(valOr(document.getElementById('desp-dest-lon').value, 0)),
-                janela_inicio: agora.toISOString().slice(0, 19),
-                janela_fim: fim.toISOString().slice(0, 19)
+                janela_inicio: agora.toISOString(),
+                janela_fim: fim.toISOString()
             };
 
             try { Object.assign(payload,window.InfraCaminhoes.ler('infra-desp')); }
@@ -754,6 +771,7 @@
         }
 
         async function carregarCorredorRegional() {
+            document.getElementById('corredor-detalhes').textContent='Consultando corredor e fontes…';
             const atualizacao=++corredorAtualizacao,sessao=window.SESSION_EPOCH;
             const cat = document.getElementById('sel-veiculo-corredor').value;
             const container = document.getElementById('corredor-detalhes');
@@ -768,11 +786,11 @@
                 const cor = s.status === 'LIBERADA' ? '#34d399' : '#94a3b8';
                 const st = valOr(s.status, 'sem dado');
                 const ch = (s.precipitacao_mm_h !== null && s.precipitacao_mm_h !== undefined) ? s.precipitacao_mm_h + ' mm/h' : 'sem dado';
-                segHtml += '<div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid rgba(46,60,86,0.4); font-size:11.5px;"><span><strong>' + valOr(s.nome, 'Trecho ' + s.id) + '</strong> (' + s.distancia_km + ' km)</span><span class="mono" style="color:' + cor + ';">' + st + ' - ' + ch + '</span></div>';
+                segHtml += '<div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid rgba(46,60,86,0.4); font-size:11.5px;"><span><strong>' + window.PainelApresentacao.escapar(valOr(s.nome, 'Trecho ' + s.id)) + '</strong> (' + s.distancia_km + ' km)</span><span class="mono" style="color:' + cor + ';">' + window.PainelApresentacao.escapar(st) + ' - ' + window.PainelApresentacao.escapar(ch) + '</span></div>';
             });
             const tempoTxt = (d.resumo && d.resumo.tempo_real_estimado_min !== null && d.resumo.tempo_real_estimado_min !== undefined) ? d.resumo.tempo_real_estimado_min + ' min' : 'sem dado';
             const acaoTxt = (d.decisao_logistica && d.decisao_logistica.recomendacao) ? d.decisao_logistica.recomendacao : 'sem dado';
-            container.innerHTML = '<div class="panel-card"><div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:12px;"><div>Distancia: <strong class="mono">' + d.resumo.distancia_total_km + ' km</strong></div><div>Tempo Estimado: <strong class="mono">' + tempoTxt + '</strong></div><div>Pedagios (' + d.pedagios.quantidade_pracas + '): <strong class="mono" style="color:#fbbf24;">R$ ' + d.pedagios.custo_total_pedagio_reais.toFixed(2) + '</strong></div><div>Acao: <strong style="color:#34d399;">' + acaoTxt + '</strong></div></div></div><div class="panel-card"><div style="font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:8px;">Segmentos Monitorados</div>' + segHtml + '</div>';
+            container.innerHTML = '<div class="panel-card"><div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:12px;"><div>Distancia: <strong class="mono">' + d.resumo.distancia_total_km + ' km</strong></div><div>Tempo Estimado: <strong class="mono">' + tempoTxt + '</strong></div><div>Pedagios (' + d.pedagios.quantidade_pracas + '): <strong class="mono" style="color:#fbbf24;">R$ ' + window.PainelApresentacao.numero(d.pedagios.custo_total_pedagio_reais,2) + '</strong></div><div>Acao: <strong style="color:#34d399;">' + window.PainelApresentacao.escapar(acaoTxt) + '</strong></div></div></div><div class="panel-card"><div style="font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:8px;">Segmentos Monitorados</div>' + segHtml + '</div>';
             await window.InfraCaminhoes.corredor(frotaAtual);
         }
 
@@ -829,20 +847,26 @@
                 document.getElementById('kpi-total').innerText = data.resumo_operacional ? data.resumo_operacional.total_operacoes : recomendacoesAtuais.length;
             }
 
+            atualizarResumoOperacoes();
+        }
+
+        function atualizarResumoOperacoes() {
             recomendacoesAtuais.sort((a, b) => b.impacto.custo_desvio_brl - a.impacto.custo_desvio_brl);
 
-            let custoTotal = 0, prejuizoTotal = 0, comDesvioReal = 0;
+            let custoTotal = 0, prejuizoTotal = 0, comDesvioReal = 0, semCusto=0, semPrejuizo=0;
             recomendacoesAtuais.forEach(rec => {
-                custoTotal += rec.impacto.custo_desvio_brl;
-                prejuizoTotal += rec.impacto.prejuizo_potencial_evitado_brl;
+                if(typeof rec.impacto.custo_desvio_brl==='number')custoTotal += rec.impacto.custo_desvio_brl;else semCusto++;
+                if(typeof rec.impacto.prejuizo_potencial_evitado_brl==='number')prejuizoTotal += rec.impacto.prejuizo_potencial_evitado_brl;else semPrejuizo++;
                 if (rec.acao === 'ALTERAR_ROTA' || rec.impacto.km_adicionais > 0) comDesvioReal++;
             });
 
             document.getElementById('kpi-afetadas').innerText = comDesvioReal;
-            document.getElementById('kpi-custo').innerText = 'R$ ' + custoTotal.toLocaleString('pt-BR', { maximumFractionDigits: 0 });
+            document.getElementById('kpi-custo').innerText = (semCusto===recomendacoesAtuais.length&&semCusto?'Sem dado':'R$ ' + custoTotal.toLocaleString('pt-BR', { maximumFractionDigits: 0 }))+(semCusto?' *':'');
             document.getElementById('kpi-custo').title = 'Diferença dos custos conhecidos; valor negativo indica economia operacional. Tarifas pendentes podem alterar o resultado.';
             document.getElementById('kpi-evitado').title = 'Perda potencial informada para as operações com risco climático; não é economia efetivamente realizada.';
-            document.getElementById('kpi-evitado').innerText = 'R$ ' + prejuizoTotal.toLocaleString('pt-BR', { maximumFractionDigits: 0 });
+            document.getElementById('kpi-evitado').innerText = (semPrejuizo===recomendacoesAtuais.length&&semPrejuizo?'Sem dado':'R$ ' + prejuizoTotal.toLocaleString('pt-BR', { maximumFractionDigits: 0 }))+(semPrejuizo?' *':'');
+            if(semCusto)document.getElementById('kpi-custo').title+=' Soma parcial: '+semCusto+' operação(ões) sem comparação disponível.';
+            if(semPrejuizo)document.getElementById('kpi-evitado').title+=' Soma parcial: '+semPrejuizo+' operação(ões) sem comparação disponível.';
 
             renderizarTabela();
             if (recomendacoesAtuais.length > 0 && !operacaoSelecionadaId) {
@@ -860,7 +884,7 @@
                 if (filtroAtivo === 'COM_DESVIO' && r.acao !== 'ALTERAR_ROTA' && r.impacto.km_adicionais <= 0) return false;
                 if (busca) {
                     const matchOp = r.id_operacao.toLowerCase().includes(busca);
-                    const matchVeic = r.id_veiculo.toLowerCase().includes(busca);
+                    const matchVeic = String(r.id_veiculo||'').toLowerCase().includes(busca);
                     if (!matchOp && !matchVeic) return false;
                 }
                 return true;
@@ -877,16 +901,16 @@
                 const tagDecisao = decisoesMap[rec.id_operacao] ? '<span class="badge badge-DECIDIDO">OK</span>' : '';
                 const deltaTxt = rec.acao === 'AGUARDAR_MELHORA' ? 'Sem alternativa' :
                     (rec.acao === 'ALTERAR_ROTA' || rec.impacto.km_adicionais !== 0)
-                    ? (rec.impacto.km_adicionais >= 0 ? '+' : '') + rec.impacto.km_adicionais.toFixed(2) + ' km (' +
-                        (rec.impacto.minutos_adicionais >= 0 ? '+' : '') + rec.impacto.minutos_adicionais.toFixed(1) + 'm)'
+                    ? (rec.impacto.km_adicionais >= 0 ? '+' : '') + window.PainelApresentacao.numero(rec.impacto.km_adicionais,2) + ' km (' +
+                        (rec.impacto.minutos_adicionais >= 0 ? '+' : '') + window.PainelApresentacao.numero(rec.impacto.minutos_adicionais,1) + 'm)'
                     : 'Rota mantida';
 
                 const corCusto = rec.impacto.custo_desvio_brl > 0 ? '#fbbf24' : 'var(--text-muted)';
-                tr.innerHTML = '<td class="mono" style="font-weight:700; color:#fff;">' + rec.id_operacao + tagDecisao + '</td>' +
-                    '<td class="mono" style="color:var(--text-muted);">' + rec.id_veiculo + '</td>' +
-                    '<td><span class="badge badge-' + rec.nivel_risco + '">' + rec.nivel_risco + '</span></td>' +
+                tr.innerHTML = '<td class="mono" style="font-weight:700; color:#fff;">' + window.PainelApresentacao.escapar(rec.id_operacao) + tagDecisao + '</td>' +
+                    '<td class="mono" style="color:var(--text-muted);">' + window.PainelApresentacao.escapar(rec.id_veiculo) + '</td>' +
+                    '<td><span class="badge badge-' + window.PainelApresentacao.escapar(rec.nivel_risco) + '">' + window.PainelApresentacao.escapar(rec.nivel_risco) + '</span></td>' +
                     '<td class="mono" style="font-size:11px;">' + deltaTxt + '</td>' +
-                    '<td class="mono" style="font-weight:600; color:' + corCusto + ';">R$ ' + rec.impacto.custo_desvio_brl.toFixed(2) + '</td>';
+                    '<td class="mono" style="font-weight:600; color:' + corCusto + ';">R$ ' + window.PainelApresentacao.numero(rec.impacto.custo_desvio_brl,2) + '</td>';
                 tr.onclick = () => selecionarOperacao(rec.id_operacao);
                 tbody.appendChild(tr);
             });
@@ -904,12 +928,22 @@
             await carregarHistoricoDecisoes(idOp);
         }
 
+        let leituraExplicacao=0;
         async function abrirExplicacaoDecisao(idOperacao) {
+            const leitura=++leituraExplicacao;
             const sessao=window.SESSION_EPOCH;
-            const res = await window.PainelSessao.request('/api/v1/logistica/operacoes/' + idOperacao + '/explicacao', { headers: { 'X-API-Key': window.API_KEY } });
+            const res = await window.PainelSessao.request('/api/v1/painel/consultas', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id_operacao:idOperacao})});
             if (!res.ok) return;
-            const data = await res.json();
-            if(sessao!==window.SESSION_EPOCH || idOperacao!==operacaoSelecionadaId) return;
+            const respostaConsulta = await res.json();
+            const data = respostaConsulta.explicacao;
+            if(sessao!==window.SESSION_EPOCH || idOperacao!==operacaoSelecionadaId || leitura!==leituraExplicacao) return;
+            consultaSelecionadaId=respostaConsulta.consulta.id;
+            const indice=recomendacoesAtuais.findIndex(r=>r.id_operacao===data.id_operacao);
+            const linha={id_operacao:data.id_operacao,id_veiculo:data.id_veiculo,nivel_risco:data.nivel_risco,acao:data.acao_recomendada,
+                impacto:{km_adicionais:data.metricas.delta_km,minutos_adicionais:data.metricas.delta_tempo_min,custo_desvio_brl:data.metricas.custo_desvio_brl,prejuizo_potencial_evitado_brl:data.metricas.prejuizo_evitado_brl}};
+            if(indice>=0)recomendacoesAtuais[indice]=linha;else recomendacoesAtuais.push(linha);
+            atualizarResumoOperacoes();
+            window.FluxoPainel?.exibir(data,respostaConsulta.consulta);
 
             window.InfraCaminhoes.inspector(data.infraestrutura);
             window.DadosViagem.exibir([data.geometrias?.rota_original_geojson,data.geometrias?.rota_alternativa_geojson]);
@@ -921,13 +955,13 @@
             acaoEl.innerText = data.acao_recomendada;
             acaoEl.className = 'badge ' + (data.acao_recomendada === 'ALTERAR_ROTA' ? 'badge-CRITICO' : 'badge-DECIDIDO');
 
-            document.getElementById('modal-confianca').innerText = 'Confiança heurística: ' + (data.confianca * 100).toFixed(0) + '%';
-            document.getElementById('box-orig-km').innerText = data.metricas.distancia_original_km.toFixed(2) + ' km';
-            document.getElementById('box-orig-min').innerText = data.metricas.tempo_original_min.toFixed(1) + ' min nominais';
-            document.getElementById('box-alt-km').innerText = data.metricas.distancia_alternativa_km.toFixed(2) + ' km';
-            document.getElementById('box-alt-min').innerText = data.metricas.tempo_alternativo_min.toFixed(1) + ' min (+' + data.metricas.delta_tempo_min.toFixed(1) + ' min)';
-            document.getElementById('modal-custo').innerText = 'R$ ' + data.metricas.custo_desvio_brl.toFixed(2);
-            document.getElementById('modal-prejuizo').innerText = 'R$ ' + data.metricas.prejuizo_evitado_brl.toFixed(2);
+            document.getElementById('modal-confianca').innerText = 'Confiança heurística: ' + (typeof data.confianca==='number' ? (data.confianca * 100).toFixed(0)+'%' : 'Sem dado');
+            document.getElementById('box-orig-km').innerText = window.PainelApresentacao.numero(data.metricas.distancia_original_km,2) + ' km';
+            document.getElementById('box-orig-min').innerText = window.PainelApresentacao.numero(data.metricas.tempo_original_min,1) + ' min nominais';
+            document.getElementById('box-alt-km').innerText = window.PainelApresentacao.numero(data.metricas.distancia_alternativa_km,2) + ' km';
+            document.getElementById('box-alt-min').innerText = window.PainelApresentacao.numero(data.metricas.tempo_alternativo_min,1) + ' min (' + (data.metricas.delta_tempo_min>=0?'+':'') + window.PainelApresentacao.numero(data.metricas.delta_tempo_min,1) + ' min)';
+            document.getElementById('modal-custo').innerText = 'R$ ' + window.PainelApresentacao.numero(data.metricas.custo_desvio_brl,2);
+            document.getElementById('modal-prejuizo').innerText = 'R$ ' + window.PainelApresentacao.numero(data.metricas.prejuizo_evitado_brl,2);
             document.getElementById('modal-justificativa').innerText = data.justificativa;
             document.getElementById('modal-limitacao').innerText = data.validacao_rota ? data.validacao_rota.avisos_limitacao : '';
             window.AlertasComparacao?.exibir(data);
@@ -976,7 +1010,7 @@
                 data.pontos_bloqueio.forEach(t => {
                     const item = document.createElement('div');
                     item.className = 'trecho-item';
-                    item.innerHTML = '<span><strong style="color:#f87171;">[' + t.status + ']</strong> ' + t.nome_via + '</span><span class="mono" style="color:var(--text-muted);">' + t.extensao_metros + 'm • IVI ' + t.score_risco + '</span>';
+                    item.innerHTML = '<span><strong style="color:#f87171;">[' + window.PainelApresentacao.escapar(t.status) + ']</strong> ' + window.PainelApresentacao.escapar(t.nome_via) + '</span><span class="mono" style="color:var(--text-muted);">' + window.PainelApresentacao.escapar(t.extensao_metros) + 'm • IVI ' + window.PainelApresentacao.escapar(t.score_risco) + '</span>';
                     trechosDiv.appendChild(item);
                 });
             }
@@ -1003,18 +1037,20 @@
                 item.append(acao, document.createTextNode(d.motivo_gestor || 'Sem justificativa informada'));
                 data.className = 'mono';
                 data.textContent = 'ID #' + d.id_decisao + ' • ' + new Date(d.registrado_em).toLocaleString('pt-BR');
+                data.textContent += d.usuario_id?' • Usuário '+d.usuario_id:' • Identidade individual não fornecida';
                 item.appendChild(data); box.appendChild(item);
             });
         }
 
         async function registrarDecisao(decisao) {
             if (!operacaoSelecionadaId) return;
+            if (!consultaSelecionadaId) {document.getElementById('feedback-decisao').textContent='Consulte a operação com sucesso antes de registrar uma decisão.';return;}
             const selecionada = operacaoSelecionadaId, sessao = window.SESSION_EPOCH;
             const motivo = valOr(document.getElementById('input-motivo-gestor').value.trim(), 'Validado pelo operador');
             const res = await window.PainelSessao.request('/api/v1/logistica/operacoes/' + operacaoSelecionadaId + '/decisao', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-API-Key': window.API_KEY },
-                body: JSON.stringify({ decisao: decisao, motivo_gestor: motivo })
+                body: JSON.stringify({ decisao: decisao, motivo_gestor: motivo, consulta_id:consultaSelecionadaId })
             });
             if (res.status === 403) {
                 document.getElementById('feedback-decisao').style.color = '#f87171';
@@ -1038,6 +1074,10 @@
     <script src="/static/portal-pdf.js"></script>
     <script src="/static/portal-operacional.js"></script>
     <script src="/static/painel-acessibilidade.js"></script>
+    <script src="/static/painel-fluxo.js"></script>
+    <script src="/static/painel-corredores.js"></script>
+    <script src="/static/painel-eventos.js"></script>
     <script>window.PainelSessao.instalar();</script>
+    <script src="/static/painel-homologacao.js"></script>
 </body>
 </html>

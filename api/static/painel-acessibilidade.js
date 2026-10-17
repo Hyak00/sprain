@@ -17,8 +17,8 @@
     let anterior,aberto=false;
     new MutationObserver(()=>{
         const visivel=despacho.style.display==='flex';
-        if(visivel&&!aberto){anterior=document.activeElement;despacho.querySelector('input:not([type="hidden"])')?.focus();}
-        if(!visivel&&aberto&&anterior?.isConnected)anterior.focus();aberto=visivel;
+        if(visivel&&!aberto){anterior=document.activeElement;document.querySelectorAll('header,.workspace').forEach(x=>x.inert=true);despacho.querySelector('input:not([type="hidden"])')?.focus();}
+        if(!visivel&&aberto){window.PainelSessao.permissoes();if(anterior?.isConnected)anterior.focus();}aberto=visivel;
     }).observe(despacho,{attributes:true,attributeFilter:['style']});
     despacho.addEventListener('keydown',e=>{
         if(e.key==='Escape'){e.preventDefault();fecharModalDespacho();return;}
@@ -28,7 +28,7 @@
         if(e.shiftKey&&document.activeElement===primeiro){e.preventDefault();ultimo.focus();}else if(!e.shiftKey&&document.activeElement===ultimo){e.preventDefault();primeiro.focus();}
     });
     const detalhes=document.createElement('details');detalhes.className='portal-camadas';const resumo=document.createElement('summary');resumo.textContent='Controlar camadas do mapa';detalhes.appendChild(resumo);document.querySelector('.map-legend').appendChild(detalhes);
-    for(const [id,titulo]of [['layer-rota-original','Rota original (tracejada)'],['layer-rota-segura','Alternativa (azul)'],['layer-trechos-criticos','Trechos críticos (vermelho espesso)'],['infra-pontos','Pedágios e limites cadastrados'],['infra-limites','Estruturas e restrições'],['dados-viagem','Postos e histórico']]){
+    for(const [id,titulo]of [['layer-rota-original','Rota original (tracejada)'],['layer-rota-segura','Alternativa (azul)'],['layer-trechos-criticos','Vulnerabilidade da malha (vermelho espesso)'],['infra-pontos','Pedágios e limites cadastrados'],['infra-limites','Estruturas e restrições'],['dados-viagem','Postos e histórico'],['mvp-eventos-linhas','Ocorrências nos trechos'],['mvp-eventos-pontos','Relatos georreferenciados']]){
         const label=document.createElement('label'),input=document.createElement('input');input.type='checkbox';input.checked=true;label.append(input,document.createTextNode(titulo));detalhes.appendChild(label);
         input.onchange=()=>{if(map.getLayer(id))map.setLayoutProperty(id,'visibility',input.checked?'visible':'none');};
     }

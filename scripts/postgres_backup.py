@@ -1,6 +1,7 @@
 """Backup e restauração segura de PostgreSQL/PostGIS em contêiner Docker.
 
-Requer Python 3.9+ e o cliente Docker. Não recebe nem imprime senhas.
+Requer Python 3.9+; backup e restore também requerem o cliente Docker.
+Não recebe nem imprime senhas.
 """
 
 from __future__ import annotations
@@ -8,6 +9,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 import re
 import subprocess
 import sys
@@ -62,6 +64,30 @@ def sha256_and_size(path: Path) -> tuple[str, int]:
     return digest.hexdigest(), size
 
 
+def positive_hours(value: str) -> float:
+    try:
+        hours = float(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("informe um número positivo de horas") from exc
+    if not math.isfinite(hours) or hours <= 0:
+        raise argparse.ArgumentTypeError("informe um número positivo de horas")
+    return hours
+
+
+def verify_archive(archive: Path) -> dict:
+    manifest_path = archive.with_name(f"{archive.name}.json")
+    with manifest_path.open(encoding="utf-8") as stream:
+        metadata = json.load(stream)
+    if not isinstance(metadata, dict):
+        raise RuntimeError("manifesto inválido")
+    if metadata.get("format") != "pg_dump-custom" or metadata.get("archive_file") != archive.name:
+        raise RuntimeError("manifesto não corresponde a este backup customizado")
+    digest, size = sha256_and_size(archive)
+    if digest != metadata.get("sha256") or size != metadata.get("bytes"):
+        raise RuntimeError("SHA-256 ou tamanho do backup não corresponde ao manifesto")
+    return metadata
+
+
 def backup(args: argparse.Namespace) -> None:
     output_dir = args.output_dir.expanduser().resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -113,14 +139,7 @@ def backup(args: argparse.Namespace) -> None:
 
 def restore(args: argparse.Namespace) -> None:
     archive = args.backup.expanduser().resolve(strict=True)
-    manifest_path = archive.with_name(f"{archive.name}.json")
-    with manifest_path.open(encoding="utf-8") as stream:
-        metadata = json.load(stream)
-    if metadata.get("format") != "pg_dump-custom" or metadata.get("archive_file") != archive.name:
-        raise RuntimeError("manifesto não corresponde a este backup customizado")
-    digest, size = sha256_and_size(archive)
-    if digest != metadata.get("sha256") or size != metadata.get("bytes"):
-        raise RuntimeError("SHA-256 ou tamanho do backup não corresponde ao manifesto")
+    verify_archive(archive)
 
     with archive.open("rb") as stream:
         run_docker(
@@ -155,6 +174,36 @@ def restore(args: argparse.Namespace) -> None:
     print(f"Restauração concluída no banco novo {args.new_database!r} do contêiner {args.container!r}")
 
 
+def verify_latest(args: argparse.Namespace) -> None:
+    output_dir = args.output_dir.expanduser().resolve(strict=True)
+    if not output_dir.is_dir():
+        raise RuntimeError("pasta de backups inválida")
+    manifests = sorted(output_dir.glob(f"sprain-{args.database}-*.dump.json"), reverse=True)
+    if not manifests:
+        raise RuntimeError(f"nenhum backup completo de {args.database!r} encontrado")
+
+    # O nome contém o instante UTC; um backup mais recente inválido não pode ser
+    # escondido pela existência de uma cópia antiga íntegra.
+    archive = manifests[0].with_suffix("")
+    metadata = verify_archive(archive)
+    if metadata.get("source_database") != args.database:
+        raise RuntimeError("o banco do manifesto não corresponde ao solicitado")
+    try:
+        created_at = datetime.fromisoformat(metadata["created_at_utc"])
+    except (KeyError, TypeError, ValueError) as exc:
+        raise RuntimeError("data UTC do manifesto inválida") from exc
+    if created_at.tzinfo is None or created_at.utcoffset() is None:
+        raise RuntimeError("data do manifesto não tem fuso horário")
+    age_hours = (datetime.now(timezone.utc) - created_at).total_seconds() / 3600
+    if age_hours < -5 / 60:
+        raise RuntimeError("data do backup está no futuro")
+    if age_hours > args.max_age_hours:
+        raise RuntimeError(
+            f"backup mais recente está antigo: {age_hours:.1f} h (limite {args.max_age_hours:g} h)"
+        )
+    print(f"Backup recente com SHA-256 válido: {archive} ({max(age_hours, 0):.1f} h)")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     subcommands = parser.add_subparsers(dest="operation", required=True)
@@ -171,6 +220,14 @@ def main() -> int:
     restore_parser.add_argument("--user", type=database_identifier, required=True)
     restore_parser.add_argument("--backup", type=Path, required=True)
     restore_parser.set_defaults(action=restore)
+
+    verify_parser = subcommands.add_parser(
+        "verify-latest", help="conferir hash e idade do backup completo mais recente"
+    )
+    verify_parser.add_argument("--database", type=database_identifier, required=True)
+    verify_parser.add_argument("--output-dir", type=Path, required=True)
+    verify_parser.add_argument("--max-age-hours", type=positive_hours, required=True)
+    verify_parser.set_defaults(action=verify_latest)
 
     args = parser.parse_args()
     try:

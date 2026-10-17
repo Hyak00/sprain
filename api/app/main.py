@@ -16,6 +16,13 @@ from app.database import init_db_pool, close_db_pool
 from app.services.webhook_dispatcher import WebhookDispatcher
 from app.services.infraestrutura_viaria import garantir_schema as garantir_infraestrutura
 from app.services.dados_publicos import garantir_schema as garantir_dados_publicos
+from app.services.esquema_operacional import garantir_schema as garantir_esquema_operacional
+from app.services.auditoria import garantir_schema as garantir_auditoria
+from app.services.painel import garantir_schema as garantir_painel
+from app.routers import painel
+from app.routers import acesso_painel
+from app.routers import gestao_usuarios
+from app.services.acesso_painel import garantir_schema as garantir_acesso
 from app.routers import infraestrutura, malha, dados_publicos, transito, indicadores, demonstracao, feedback_alertas, operacoes_cliente
 from app.routers import (
     estatisticas,
@@ -51,6 +58,10 @@ async def lifespan(app: FastAPI):
     await WebhookDispatcher.garantir_schema()
     await garantir_infraestrutura()
     await garantir_dados_publicos()
+    await garantir_esquema_operacional()
+    await garantir_auditoria()
+    await garantir_painel()
+    await garantir_acesso()
     task_clima = asyncio.create_task(agendador_telemetria_corredor())
     try:
         yield
@@ -124,6 +135,9 @@ app.include_router(indicadores.router)
 app.include_router(demonstracao.router)
 app.include_router(feedback_alertas.router)
 app.include_router(operacoes_cliente.router)
+app.include_router(painel.router)
+app.include_router(acesso_painel.router)
+app.include_router(gestao_usuarios.router)
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 static_dir = BASE_DIR / "static"

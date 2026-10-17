@@ -20,7 +20,7 @@
         const tb=el(t,'tbody');linhas.forEach(l=>{const tr=el(tb,'tr');l.forEach(v=>el(tr,'td',v??'Não informado'));});return t;}
     function textoErro(e){return e?.name==='ErroPainel'?e.message:'Não foi possível concluir. Atualize a consulta e tente novamente.';}
     function atual(v){return v===versao&&usuario!==null;}
-    async function obter(path,v){const r=await root.PainelSessao.request(path,{signal:controle.signal});const d=await r.json();if(!atual(v))throw Object.assign(new Error(),{silencioso:true});return d;}
+    async function obter(path,v,options={}){const r=await root.PainelSessao.request(path,{...options,signal:controle.signal});const d=await r.json();if(!atual(v))throw Object.assign(new Error(),{silencioso:true});return d;}
     function download(nome,dados,tipo){
         if(!usuario||!root.PainelSessao.perfil())return;
         const blob=new Blob([dados],{type:tipo}),url=URL.createObjectURL(blob);urls.add(url);
@@ -69,9 +69,9 @@
             const l=++leitura;carregar.disabled=true;area.replaceChildren();const st=mensagem(area,'Consultando operação e histórico…');
             try{
                 const id=select.value,base='/api/v1/logistica/operacoes/'+encodeURIComponent(id);
-                const dados=await Promise.allSettled([obter(base+'/explicacao',v),obter(base+'/decisoes',v)]);
+                const dados=await Promise.allSettled([obter('/api/v1/painel/consultas',v,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id_operacao:id})}),obter(base+'/decisoes',v)]);
                 if(!atual(v)||l!==leitura)return;
-                const op=dados[0].status==='fulfilled'?dados[0].value:null,hist=dados[1].status==='fulfilled'?dados[1].value:null;
+                const op=dados[0].status==='fulfilled'?dados[0].value.explicacao:null,hist=dados[1].status==='fulfilled'?dados[1].value:null;
                 if(!op||op.id_operacao!==id)throw Error('Consulta indisponível');
                 const horario=new Date().toISOString(),linhas=D.linhasDecisao(op,hist,usuario.tenant_id,horario);
                 area.replaceChildren();el(area,'h4',id+' · '+op.acao_recomendada);el(area,'p',op.justificativa||'Justificativa não informada.');
@@ -95,7 +95,7 @@
             finally{if(atual(v)&&l===leitura)carregar.disabled=false;}
         });
         select.onchange=()=>{leitura++;area.replaceChildren();carregar.disabled=false;};
-        el(p,'p','Histórico de consultas persistente e exportação integral dos dados pessoais/administrativos dependem de contratos adicionais. Os arquivos acima representam somente a consulta carregada e o histórico retornado.');
+        el(p,'p','As consultas são guardadas no servidor e podem ser abertas na seção Histórico de consultas. Os arquivos acima representam a consulta carregada e as decisões retornadas. Exportação administrativa integral continua fora deste relatório.');
     }
     async function qualidade(p,v){
         el(p,'p','Atualização manual. Os indicadores de fontes são públicos/globais; feedback e métricas operacionais são da empresa autenticada. O critério de 48 horas é o adotado pelo endpoint, não a frequência homologada de cada fonte.');
@@ -162,18 +162,19 @@
     }
     function configuracao(p){
         tabela(p,['Sessão','Valor'],[['Empresa',usuario.tenant_id],['Perfil',usuario.role],['Acesso',usuario.email||'Não informado']]);
-        el(p,'h4','Premissas de caminhões e viagens');el(p,'p','As medidas e custos são cadastrados nos formulários existentes de frota e novo despacho. A comparação mostra as premissas retornadas pelo cálculo. Não há endpoint de configuração financeira global da empresa ou de alteração de custos de uma viagem existente.');
+        el(p,'h4','Premissas de caminhões e viagens');el(p,'p','As medidas e custos são cadastrados na frota e no despacho. Nos detalhes da operação, Editar premissas permite salvar custos e recalcular a comparação. A configuração financeira global da empresa continua separada desses valores por viagem.');
         const novo=botao(p,'Abrir formulário de novo despacho',()=>{encerrar();root.abrirModalDespacho();});novo.disabled=!root.PainelSessao.podeEscrever();
         botao(p,'Abrir minha frota',()=>{encerrar();root.alternarAba('FROTA');});
         el(p,'h4','Gestão de usuários e recuperação de acesso');
-        el(p,'p','O acesso atual é de demonstração. Criar/desativar usuários, mudar papéis e recuperar acesso exigem endpoints de identidade do backend. Essas ações ainda não estão disponíveis; nenhuma alteração de usuário é simulada neste navegador.');
-        el(p,'h4','Corredores e rotas recorrentes');el(p,'p','A aba SP-310/SP-348 é uma consulta do corredor de referência. Cadastro, edição e recorrência persistentes dependem de contrato adicional do backend.');
+        el(p,'p','O login individual usa contas provisionadas no servidor e sessões com validade e revogação. Contas demo permanecem disponíveis somente fora de produção. Criação e gestão de usuários e recuperação de senha não são feitas por esta tela; o administrador usa o procedimento documentado.');
+        el(p,'h4','Corredores e rotas recorrentes');el(p,'p','A aba SP-310/SP-348 consulta o corredor de referência. Use Corredores e recorrências para cadastrar e editar corredores e agendas da sua empresa.');
+        botao(p,'Cadastrar corredores e recorrências',()=>navegar('corredores'));
         botao(p,'Consultar corredor existente',()=>{encerrar();root.alternarAba('CORREDOR');});
         el(p,'h4','Exportação');el(p,'p','Relatórios permitem exportar o resumo, a consulta e as decisões retornadas. Exportação integral de dados pessoais, usuários e registros de auditoria depende do backend e não é substituída por esses arquivos.');
         botao(p,'Abrir relatórios e exportações',()=>render('relatorios'));
     }
     function demonstracao(p){
-        el(p,'p','DEMONSTRAÇÃO — o login disponível neste painel é de demonstração e é bloqueado pelo backend em produção. Chuva simulada não é medição em campo.');
+        el(p,'p','DEMONSTRAÇÃO — os atalhos de contas demo funcionam somente fora de produção. O acesso individual é separado desses atalhos. Chuva simulada não é medição em campo.');
         const passos=['Entre com uma conta de demonstração em ambiente separado.','Cadastre um caminhão de teste com medidas explicitamente identificadas como exemplo.','Despache uma rota dentro da malha disponível e confira as coordenadas.','Compare cenários de chuva, rota original, alternativa, limitações e custos.','Registre uma decisão com motivo, confira o histórico e exporte o relatório.'];
         const ol=el(p,'ol');passos.forEach(s=>el(ol,'li',s));
         el(p,'p','Cenário histórico SP-310: aguardando fonte primária e associação dos trechos. O endpoint atual contém distâncias substitutas e não é acionado por esta tela como se fosse histórico validado.');
@@ -183,13 +184,19 @@
     function ajuda(p){
         const passos=['Confira a empresa e o perfil antes de cadastrar ou importar.','Cadastre a frota com medidas reais, peso carregado e eixos. Dados ausentes exigem conferência.','Despache pela tela existente ou importe operações após validar o arquivo.','Abra a operação: confira fonte, data, limitações, restrições físicas, pedágios e premissas.','Compare as rotas. Se não houver alternativa ou os dados estiverem indisponíveis, não trate isso como passagem segura.','Registre a decisão e o motivo; confira se o servidor confirmou a gravação.','Na central, carregue a consulta e as decisões para baixar PDF/CSV e compartilhar internamente.'];
         const ol=el(p,'ol');passos.forEach(s=>el(ol,'li',s));
-        el(p,'h4','Como ler o mapa');el(p,'p','Azul contínuo: alternativa recomendada. Vermelho tracejado: rota original. Vermelho espesso: trechos críticos. Pedágios e restrições mantêm as camadas próprias, com dados e limitações nos detalhes.');
+        el(p,'h4','Como ler o mapa');el(p,'p','Azul contínuo: alternativa calculada. Vermelho tracejado: rota original. Vermelho espesso: vulnerabilidade física da malha; não confirma interdição. Pedágios e restrições mantêm as camadas próprias, com dados e limitações nos detalhes.');
         el(p,'p','Histórico descreve o passado; previsão estima condições futuras; observação registra uma leitura; confirmação é o estado declarado pela fonte. Uma informação não substitui outra.');
         el(p,'p','Tempo desta sessão até a primeira consulta de relatório útil: '+(primeiro?((primeiro-inicio)/1000).toFixed(1)+' s':'ainda não registrado nesta sessão')+'. Medição apenas em memória: não é evento auditável persistido. Esse evento de onboarding ainda precisa de endpoint.');
         el(p,'h4','Quando pedir suporte');el(p,'p','Em falha de fonte, atualize a consulta e confira a idade dos dados. Em conflito de decisão, recalcule a rota. Em resultado incerto de importação, consulte as operações antes de reenviar. Nunca envie sua chave de API em relatórios ou mensagens de suporte.');
     }
-    function sessao(user){limpar();usuario={tenant_id:user.tenant_id,role:user.role,email:user.email};inicio=Date.now();aviso.hidden=false;}
+    function sessao(user){limpar();usuario={tenant_id:user.tenant_id,role:user.role,email:user.email};inicio=Date.now();aviso.hidden=user.tipo_acesso==='INDIVIDUAL';}
     function limpar(){usuario=null;selecionada=null;primeiro=null;versao++;controle?.abort();dialog.close();conteudo.replaceChildren();urls.forEach(u=>URL.revokeObjectURL(u));urls.clear();}
     function selecionar(op){selecionada=op;}
-    root.PortalOperacional={sessao,limpar,selecionar,abrir:abrir.onclick};
+    function registrarSecao(id,label,fn){
+        if(telas[id])throw Error('Seção já registrada.');rotulos[id]=label;
+        telas[id]=(p,v)=>fn(p,{atual:()=>atual(v),obter:path=>obter(path,v),recarregar:()=>render(id)});
+        const b=botao(nav,label,()=>render(id));b.dataset.secao=id;
+    }
+    function navegar(id){if(!usuario)return;if(!dialog.open)dialog.showModal();render(id);}
+    root.PortalOperacional={sessao,limpar,selecionar,abrir:abrir.onclick,registrarSecao,navegar};
 })(window);

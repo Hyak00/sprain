@@ -6,6 +6,22 @@ const leitor = { ...operador, role: 'VIEWER' };
 const resposta = (body = '{}', status = 200, type = 'application/json') => new Response(body, { status, headers: { 'Content-Type': type } });
 const diferida = () => { let resolve; const promise = new Promise(r => { resolve = r; }); return { promise, resolve }; };
 
+test('logout individual revoga no servidor antes de limpar a sessao de leitura',async()=>{
+    const chamadas=[];let encerramentos=0;
+    const c=criarCliente({fetcher:async(p,o)=>{chamadas.push({p,o});return resposta();},aoEncerrar:()=>encerramentos++});
+    c.entrar({...leitor,tipo_acesso:'INDIVIDUAL',expira_em:new Date(Date.now()+60000).toISOString()});
+    await c.sair();assert.equal(chamadas[0].p,'/api/v1/acesso/logout');assert.equal(chamadas[0].o.method,'POST');assert.equal(c.perfil(),null);assert.equal(encerramentos,2);
+});
+test('logout offline limpa acesso local e informa revogacao nao confirmada',async()=>{
+    let motivo;const c=criarCliente({fetcher:async()=>{throw Error('offline');},aoEncerrar:m=>motivo=m});
+    c.entrar({...operador,tipo_acesso:'INDIVIDUAL'});await c.sair();assert.equal(c.perfil(),null);assert.match(motivo,/Não foi possível confirmar/);
+});
+test('sessao recebida expirada ou com validade invalida e recusada',()=>{
+    const c=criarCliente();
+    for(const expira_em of ['invalida','2000-01-01T00:00:00Z'])assert.throws(()=>c.entrar({...operador,expira_em}));
+    assert.equal(c.perfil(),null);
+});
+
 test('sem sessao nao consulta a API', async () => {
     let chamadas = 0;
     const c = criarCliente({ fetcher: async () => { chamadas++; return resposta(); } });
@@ -17,7 +33,9 @@ test('leitor nao envia gravacao, mas pode consultar rota por POST', async () => 
     const c = criarCliente({ fetcher: async p => { caminhos.push(p); return resposta(); } }); c.entrar(leitor);
     await assert.rejects(c.request('/api/v1/logistica/veiculos', { method: 'POST' }), { status: 403 });
     await c.request('/api/v1/infraestrutura/rota-caminhao', { method: 'POST' });
-    assert.deepEqual(caminhos, ['/api/v1/infraestrutura/rota-caminhao']);
+    await c.request('/api/v1/painel/consultas', { method: 'POST' });
+    await assert.rejects(c.request('/api/v1/painel/operacoes/OP1/premissas', { method: 'PUT' }), { status: 403 });
+    assert.deepEqual(caminhos, ['/api/v1/infraestrutura/rota-caminhao', '/api/v1/painel/consultas']);
 });
 test('chave usada vem da sessao e transporte recusa redirecionamento', async () => {
     let opcoes;

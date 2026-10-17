@@ -61,7 +61,7 @@
         const f=op?.infraestrutura?.financeiro||{},m=op?.metricas||{};
         const alternativa=op?.validacao_rota?.rota_alternativa_disponivel===true&&op?.geometrias?.rota_alternativa_geojson?.features?.some(v=>['LineString','MultiLineString'].includes(v?.geometry?.type)&&v.geometry.coordinates?.length>0);
         const linhas=['SPRain | Relatório de consulta e decisões','Empresa: '+empresa,'Operação: '+(op?.id_operacao||'Não informada'),
-            'Consulta recebida em: '+data(recebido),'Data da fotografia do cálculo: não fornecida pela API.',
+            'Consulta recebida em: '+data(recebido),'Fotografia do cálculo: '+data(op?.contexto_consulta?.calculo_gerado_em),
             'Origem: '+(op?.coordenadas?.origem_nome||'Não informada'),'Destino: '+(op?.coordenadas?.destino_nome||'Não informado'),
             'Caminhão: '+(op?.id_veiculo||'Não informado')+' | '+(op?.placa||'Sem placa'),
             'Recomendação: '+(op?.acao_recomendada||'Não informada'),'Justificativa: '+(op?.justificativa||'Não informada'),

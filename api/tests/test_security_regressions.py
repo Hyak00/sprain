@@ -68,7 +68,12 @@ async def test_monitoramento_so_operador_ou_admin(rota, chaves_teste, monkeypatc
 
 
 @pytest.mark.asyncio
-async def test_reset_global_exige_admin(chaves_teste):
+async def test_reset_global_nao_esta_disponivel_para_nenhuma_empresa(chaves_teste, monkeypatch):
+    monkeypatch.setenv(
+        "TENANT_API_KEYS",
+        "monitor_admin:ADMIN:empresa_a;monitor_operator:OPERATOR:empresa_a;"
+        "monitor_admin_b:ADMIN:empresa_b",
+    )
     conn = ConexaoFalsa()
 
     async def conexao_teste():
@@ -82,10 +87,15 @@ async def test_reset_global_exige_admin(chaves_teste):
                                           headers={"X-API-Key": "monitor_operator"})
             admin = await client.post("/api/v1/ocorrencias/resetar-todas",
                                        headers={"X-API-Key": "monitor_admin"})
+            outra_empresa = await client.post("/api/v1/ocorrencias/resetar-todas",
+                                               headers={"X-API-Key": "monitor_admin_b"})
+            contrato = await client.get("/openapi.json")
         assert sem_chave.status_code == 401
         assert operador.status_code == 403
-        assert admin.status_code == 200
-        assert conn.gravacoes == 2
+        assert admin.status_code == 403
+        assert outra_empresa.status_code == 403
+        assert "/api/v1/ocorrencias/resetar-todas" not in contrato.json()["paths"]
+        assert conn.gravacoes == 0
     finally:
         app.dependency_overrides.pop(get_connection, None)
 

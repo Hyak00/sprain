@@ -1,11 +1,11 @@
 from fastapi import Request, APIRouter, Depends, HTTPException, Header, Query
 from fastapi.responses import StreamingResponse
+import asyncio
 import io
 import csv
 import json
 import uuid
 import asyncpg
-import urllib.request
 from typing import List, Dict, Any, Optional, Literal
 
 from app.services.rate_limiter import TenantRateLimiter
@@ -24,15 +24,9 @@ from app.services.custo_combustivel import custo_quilometrico, resolver_custos
 from app.services.viagem_caminhao import ContextoViagens, dados_viagem, objeto, gravar_recomendacao
 from app.services.infraestrutura_viaria import dimensoes_veiculo
 from app.schemas_infraestrutura import VeiculoDimensoes
-from app.url_segura import is_safe_url
+from app.url_segura import is_safe_url, post_seguro
 
 router = APIRouter(prefix="/api/v1/logistica", tags=["Logistica B2B"])
-
-class _SemRedirect(urllib.request.HTTPRedirectHandler):
-    def redirect_request(self, req, fp, code, msg, headers, newurl):
-        return None
-
-_opener_seguro = urllib.request.build_opener(_SemRedirect)
 
 async def aplicar_rate_limit(request: Request, claims: dict = Depends(get_current_user_claims)):
     limite, restantes = TenantRateLimiter.check_rate_limit(claims["tenant_id"])
@@ -55,11 +49,11 @@ async def cadastrar_veiculo(dados: VeiculoCreate, conn: asyncpg.Connection = Dep
         raise HTTPException(status_code=403, detail="Veiculo pertence a outro tenant.")
 
     query = """
-    INSERT INTO veiculos (id_veiculo, placa, modelo, tipo_veiculo, lat_atual, lon_atual, tenant_id, dimensoes, custos_operacionais)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb)
+    INSERT INTO veiculos (id_veiculo, placa, modelo, tipo_veiculo, lat_atual, lon_atual, tenant_id, dimensoes, custos_operacionais,atualizado_em)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb,now())
     ON CONFLICT (id_veiculo) DO UPDATE
     SET placa = EXCLUDED.placa, modelo = EXCLUDED.modelo, tipo_veiculo = EXCLUDED.tipo_veiculo, lat_atual = EXCLUDED.lat_atual, lon_atual = EXCLUDED.lon_atual,
-        dimensoes=COALESCE(EXCLUDED.dimensoes,veiculos.dimensoes),
+        atualizado_em=now(),dimensoes=COALESCE(EXCLUDED.dimensoes,veiculos.dimensoes),
         custos_operacionais=CASE WHEN EXCLUDED.custos_operacionais IS NULL THEN veiculos.custos_operacionais
             ELSE COALESCE(veiculos.custos_operacionais,'{}'::jsonb) || EXCLUDED.custos_operacionais END
     WHERE veiculos.tenant_id = EXCLUDED.tenant_id
@@ -468,10 +462,10 @@ async def importar_operacoes_lote(lote: List[Dict[str, Any]], tenant_id: str = D
 
 @router.post("/alertas/disparar-webhook", dependencies=[Depends(require_role(["ADMIN", "OPERATOR"]))])
 async def disparar_alerta_webhook(dados: WebhookAlertaRequest, conn: asyncpg.Connection = Depends(get_connection), tenant_autenticado: str = Depends(resolve_tenant)):
-    if not is_safe_url(dados.webhook_url):
-        raise HTTPException(status_code=400, detail="SSRF bloqueado")
     if dados.tenant_id != tenant_autenticado:
         raise HTTPException(status_code=403, detail="Tenant mismatch")
+    if not is_safe_url(dados.webhook_url):
+        raise HTTPException(status_code=400, detail="SSRF bloqueado")
     op = await conn.fetchrow("SELECT * FROM operacoes WHERE id_operacao = $1 AND tenant_id = $2;", dados.id_operacao, dados.tenant_id)
     if not op:
         raise HTTPException(status_code=404, detail="Operacao nao encontrada.")
@@ -513,17 +507,14 @@ async def disparar_alerta_webhook(dados: WebhookAlertaRequest, conn: asyncpg.Con
     status_code = 200
     try:
         req_data = json.dumps(payload_alerta).encode("utf-8")
-        req = urllib.request.Request(
-            dados.webhook_url,
-            data=req_data,
-            headers={"Content-Type": "application/json", "User-Agent": "SPRain-Resilience-Engine/1.0"},
-            method="POST"
+        status_code = await asyncio.to_thread(
+            post_seguro, dados.webhook_url,
+            {"Content-Type": "application/json", "User-Agent": "SPRain-Resilience-Engine/1.0"},
+            req_data, 4.0
         )
-        with _opener_seguro.open(req, timeout=4.0) as resp:
-            status_code = resp.getcode()
-            status_envio = "ENVIADO"
-    except Exception as e:
-        status_envio = f"FALHA_ENVIO: {str(e)}"
+        status_envio = "ENVIADO"
+    except Exception:
+        status_envio = "FALHA_ENVIO"
         status_code = 502
 
     return {
@@ -553,6 +544,8 @@ async def listar_alertas_ativos(tenant_id: str = Depends(resolve_tenant), conn: 
         JOIN operacoes o ON o.id_operacao = r.id_operacao AND o.tenant_id = r.tenant_id
         LEFT JOIN veiculos v ON v.id_veiculo = o.id_veiculo AND v.tenant_id = o.tenant_id
         WHERE r.tenant_id = $1 AND r.nivel_risco IN ('CRITICO', 'RISCO')
+          AND r.id_recomendacao = (SELECT max(atual.id_recomendacao) FROM recomendacoes_operacao atual
+              WHERE atual.id_operacao=r.id_operacao AND atual.tenant_id=r.tenant_id)
         ORDER BY r.id_recomendacao DESC
         LIMIT 50;
     """
@@ -625,9 +618,10 @@ async def obter_auditoria_acuracia(conn: asyncpg.Connection = Depends(get_connec
             COUNT(*) FILTER (WHERE resultado_classificacao = 'FALSO_POSITIVO') AS fp,
             COUNT(*) FILTER (WHERE resultado_classificacao = 'VERDADEIRO_NEGATIVO') AS vn,
             COUNT(*) FILTER (WHERE resultado_classificacao = 'FALSO_NEGATIVO') AS fn
-        FROM auditoria_previsao_realidade;
+        FROM auditoria_previsao_realidade
+        WHERE tenant_id = $1;
     """
-    row = await conn.fetchrow(query)
+    row = await conn.fetchrow(query, tenant_id)
 
     if row is None:
         raise HTTPException(status_code=500, detail="Falha ao consultar os dados.")
@@ -774,6 +768,7 @@ async def obter_sumario_executivo(tenant_id: str = Depends(resolve_tenant), conn
 
 from app.services.webhook_dispatcher import WebhookDispatcher
 from pydantic import BaseModel
+from uuid import UUID
 
 class WebhookConfigRequest(BaseModel):
     url: str
@@ -1033,14 +1028,27 @@ async def resetar_rate_limit_servidor(tenant_id: str = Depends(resolve_tenant)):
 class DecisaoGestorRequest(BaseModel):
     decisao: str
     motivo_gestor: str = "Validado pela mesa operacional"
+    consulta_id: UUID | None = None
 
 @router.post("/operacoes/{id_operacao}/decisao", dependencies=[Depends(require_role(["ADMIN", "OPERATOR"])), Depends(aplicar_rate_limit)])
-async def registrar_decisao_gestor(id_operacao: str, payload: DecisaoGestorRequest, tenant_id: str = Depends(resolve_tenant), conn: asyncpg.Connection = Depends(get_connection)):
+async def registrar_decisao_gestor(id_operacao: str, payload: DecisaoGestorRequest, tenant_id: str = Depends(resolve_tenant), conn: asyncpg.Connection = Depends(get_connection), claims=Depends(get_current_user_claims)):
     if payload.decisao not in ("APROVAR_DESVIO", "MANTER_ROTA_ORIGINAL", "AGUARDAR_MELHORA"):
         raise HTTPException(status_code=400, detail="Decisao invalida.")
     op = await conn.fetchrow("SELECT id_operacao FROM operacoes WHERE id_operacao = $1 AND tenant_id = $2;", id_operacao, tenant_id)
     if not op:
         raise HTTPException(status_code=404, detail="Operacao nao encontrada.")
+    fotografia = None
+    perfil_consulta = None
+    if payload.consulta_id:
+        from app.services.painel import selo
+        consulta = await conn.fetchrow('''SELECT snapshot,perfil FROM painel_consultas
+            WHERE id=$1 AND tenant_id=$2 AND id_operacao=$3''', payload.consulta_id, tenant_id, id_operacao)
+        if not consulta:
+            raise HTTPException(404, 'Consulta nao encontrada para esta operacao.')
+        fotografia = objeto(consulta['snapshot'])
+        perfil_consulta = claims['role']
+        if fotografia.get('contexto_consulta',{}).get('selo_premissas') != await selo(conn, tenant_id, id_operacao):
+            raise HTTPException(409, 'A consulta ficou desatualizada. Atualize a operacao antes de decidir.')
     if payload.decisao in ('MANTER_ROTA_ORIGINAL','APROVAR_DESVIO'):
         contexto=await ContextoViagens.carregar(conn,tenant_id,id_operacao)
         viagem=contexto.ops[0]
@@ -1067,10 +1075,11 @@ async def registrar_decisao_gestor(id_operacao: str, payload: DecisaoGestorReque
         );
     """)
     row = await conn.fetchrow("""
-        INSERT INTO decisoes_gestor_operacao (id_operacao, tenant_id, decisao, motivo_gestor)
-        VALUES ($1, $2, $3, $4)
+        INSERT INTO decisoes_gestor_operacao (id_operacao, tenant_id, decisao, motivo_gestor, consulta_id, perfil_registro, snapshot,usuario_id)
+        VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb,$8)
         RETURNING id_decisao, registrado_em;
-    """, id_operacao, tenant_id, payload.decisao, payload.motivo_gestor)
+    """, id_operacao, tenant_id, payload.decisao, payload.motivo_gestor, payload.consulta_id, perfil_consulta,
+        json.dumps(fotografia,default=str) if fotografia else None,UUID(claims['usuario_id']) if claims.get('usuario_id') else None)
     return {
         "sucesso": True,
         "id_decisao": row["id_decisao"],
@@ -1094,7 +1103,7 @@ async def listar_decisoes_gestor(id_operacao: str, tenant_id: str = Depends(reso
         );
     """)
     rows = await conn.fetch("""
-        SELECT id_decisao, id_operacao, tenant_id, decisao, motivo_gestor, registrado_em
+        SELECT id_decisao, id_operacao, tenant_id, decisao, motivo_gestor, registrado_em, consulta_id, perfil_registro,usuario_id
         FROM decisoes_gestor_operacao
         WHERE id_operacao = $1 AND tenant_id = $2
         ORDER BY id_decisao DESC;
@@ -1106,6 +1115,9 @@ async def listar_decisoes_gestor(id_operacao: str, tenant_id: str = Depends(reso
             "tenant_id": r["tenant_id"],
             "decisao": r["decisao"],
             "motivo_gestor": r["motivo_gestor"],
+            "consulta_id": str(r['consulta_id']) if r['consulta_id'] else None,
+            "perfil_consulta": r['perfil_registro'],
+            "usuario_id": str(r['usuario_id']) if r['usuario_id'] else None,
             "registrado_em": r["registrado_em"].isoformat()
         }
         for r in rows
