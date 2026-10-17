@@ -1,6 +1,6 @@
 # Checklist rastreável da interface
 
-Revalidação de 3.1 sobre main `e450ec5`: [correções e evidências atuais](validacao-painel-atual.md), com 197 testes da API e 58 da interface aprovados. Os estados das demais seções abaixo não são encerrados por esta validação.
+Atualização 3.6 em 17/10/2026, sobre main `2eb0d3c`. Evidências atuais em [validação](evidencias-validacao-3-6.md). Registros anteriores continuam no histórico Git e nos guias específicos.
 
 Referência: seções 3.1–3.7 da lista técnica enviada, páginas 9–11. Atualização do fluxo 3.1 sobre main `8c2c188`, 16/10/2026. Aceites e limites em [fluxo-mvp-painel.md](fluxo-mvp-painel.md). **Implementado** significa o comportamento descrito existe; não equivale à homologação de todo o MVP. **Parcial** e **dependência** não devem ser encerrados como concluídos.
 
@@ -21,26 +21,26 @@ Referência: seções 3.1–3.7 da lista técnica enviada, páginas 9–11. Atua
 | 3.1 Reporte de erro/evento ausente | Implementado | Feedback existente e relato privado georreferenciado pendente; não bloqueia rotas automaticamente |
 | 3.1 Estados em todas as telas | Implementado nos fluxos do painel | Central, frota, corredor, operações e novos formulários têm carregamento/erro/vazio ou validação; falha não mantém comparação anterior como atual |
 | 3.1 Responsividade/acessibilidade | Implementado em nível básico | Rótulos, foco, teclado/Escape, fundo do despacho inerte, texto além de cor; 320/768/1280 px verificados; não equivale a auditoria WCAG integral |
-| 3.2 Gestão de usuários | Dependência | Não existe CRUD de identidade; tela explica indisponibilidade, sem simular gravação |
-| 3.2 Premissas da empresa | Dependência | Formulários por frota/despacho existentes; persistência global ausente |
-| 3.2 Recuperação de acesso | Dependência | Login atual é demo; não há recuperação |
-| 3.2 Exportação de dados do cliente | Parcial | Resumo/consulta/decisões exportáveis; não é exportação integral administrativa/LGPD |
-| 3.3 PDF | Implementado | Download local do piloto e consulta/decisões, texto extraído e renderizado para QA |
-| 3.3 CSV de consultas/decisões | Parcial | Consulta carregada e histórico retornado; consultas agora persistidas, exportação agregada de todas as fotografias ainda não criada |
-| 3.3 Relatório do piloto | Parcial | Modelo separa observado/comprovado/estimado/potencial; observado/comprovado não disponíveis |
-| 3.3 Decisão compartilhável | Parcial | PDF/HTML da consulta e histórico; fotografia vinculada agora existe, identidade individual depende de 3.2 |
+| 3.2 Gestão de usuários | Implementado e testado | CRUD permitido, papel e desativação por ADMIN individual; API/DOM/Chromium. Ver administracao-interface.md |
+| 3.2 Premissas da empresa | Implementado e testado | Padrões financeiros versionados e conflitos; não reescrevem fotografias antigas |
+| 3.2 Recuperação de acesso | Implementado | Recuperação assistida, liberação por ADMIN e código de uso único; sem envio automático de e-mail |
+| 3.2 Exportação de dados do cliente | Implementado | ZIP privado com manifesto/JSON Lines, limites explícitos e sem credenciais; não constitui parecer de conformidade LGPD |
+| 3.3 PDF | Implementado e testado | PDF piloto e decisão individual, gerado localmente; assinatura de arquivo verificada no Chromium |
+| 3.3 CSV de consultas/decisões | Implementado e testado | Históricos persistentes via endpoints CSV por empresa, limites de exportação explícitos |
+| 3.3 Relatório do piloto | Implementado com lacunas de evidência explícitas | Modelo separa observado/comprovado/estimado/potencial. Observado e comprovado exigem viagens reais |
+| 3.3 Decisão compartilhável | Implementado e testado | PDF/HTML individual com fotografia vinculada e identificação disponível; não inventa autoria antiga |
 | 3.4 Dados isolados | Implementado para base sintética | compose.demo.yml, bootstrap CI, rede/volume/porta separados |
-| 3.4 Evento histórico | Dependência | Fonte primária/trechos a conferir; endpoint atual possui substitutos |
+| 3.4 Evento histórico | Referência pesquisada; evento da equipe pendente | Referência primária ARTESP identificada separadamente do exercício sintético. Evento originalmente fornecido não foi identificado; não alegar sua reprodução |
 | 3.4 Identificação da demo | Implementado na central | Banner explícito e roteiro; login demonstrativo bloqueado em produção |
-| 3.5 Idade/fontes/saúde/qualidade | Parcial | Central consome endpoints; histórico de falhas/periodicidade por fonte não fornecido |
-| 3.6 Testes de interface | Parcial | Testes DOM/sessão e navegador manual; falta automação completa de navegador |
-| 3.6 Testes de endpoints | Parcial | Suíte existente + leitura da central + concorrência; não é cobertura de todos os endpoints |
-| 3.6 Swagger | Parcial | Exemplo de operação e semântica de importação documentados; revisão integral pendente |
-| 3.6 Instalação limpa | Parcial | Bootstrap em volume novo validado; máquina independente e outra pessoa pendentes |
-| 3.6 Onboarding técnico | Documentado | Fluxo e lacunas em onboarding-arquitetura-operacao.md; ativação real depende do backend |
-| 3.6 Arquitetura/fontes | Documentado | Diagrama e módulos, referências às fontes existentes e limitações |
-| 3.6 Runbooks conjuntos | Parcial | Roteiro e scripts existentes referenciados; revisão conjunta e simulado de restauração/rollback pendentes |
-| 3.6 GitHub Projects/modelo de issue | Parcial | Template com seis áreas propostas; API recusou Projects por INSUFFICIENT_SCOPES, quadro não criado |
+| 3.5 Idade/fontes/saúde/qualidade | Implementado e testado | ADMIN consulta fontes, falhas auditadas, serviços e qualidade; não reconstrói histórico anterior à instrumentação |
+| 3.6 Testes de interface | Automação implementada | 89 testes DOM e sete cenários Chromium com backend real e banco reservado; ver evidencias-validacao-3-6.md |
+| 3.6 Testes de endpoints | Contratos e regressões automatizados | Rotas de leitura usadas pelo painel, inventário de prefixos e testes de escrita/RBAC/isolamento; cobertura não equivale a prova de todo cenário possível |
+| 3.6 Swagger | Implementado e testado | Descrições, segurança, exemplos validados contra modelos reais e tipos CSV/ZIP; sem mudar handlers |
+| 3.6 Instalação limpa | Validado em ambiente isolado novo | Cópia de trabalho sem dependências locais, volume/rede novos e sondas. Repetição por outra pessoa em máquina limpa permanece pendente |
+| 3.6 Onboarding técnico | Documentado | onboarding-tecnico-cliente.md: empresa lógica, primeiro ADMIN, usuários, frota, corredores, premissas e aceite |
+| 3.6 Arquitetura/fontes | Documentado | arquitetura-e-fontes.md: módulos, origem, frequência de tentativa/publicação e limites |
+| 3.6 Runbooks conjuntos | Procedimentos e ensaio; revisão humana pendente | runbook-operacao.md e backup/restore em banco novo; yanpefnsc indicado para revisão conjunta, sem presumir aceite |
+| 3.6 GitHub Projects/modelo de issue | Quadro criado e modelo disponível | Quadro privado YoshiroD/projects/1, seis áreas e issues #46–#51; veja quadro-github.md |
 | 3.7 Importar arquivo/premissas | Parcial | JSON validado com prévia e resultados por item; recorrência agora disponível; importação condicional/atômica permanece pendente |
 | 3.7 Primeiro resultado útil | Dependência | Tempo local de sessão não substitui evento persistido de onboarding |
 | Compartilhado: corredor/piloto | Pendente de equipe | Escolha com dados reais, não apenas corredor de referência |

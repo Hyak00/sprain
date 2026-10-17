@@ -14,3 +14,5 @@ cache/
 backup_*.sql
 *.zip
 *.log
+test-results/
+playwright-report/

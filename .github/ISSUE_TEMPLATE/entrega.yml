@@ -39,3 +39,10 @@ body:
     attributes:
       label: Entrega e revisão
       description: Branch/PR, revisor, riscos, rollback e itens que continuam pendentes.
+  - type: input
+    id: responsavel
+    attributes:
+      label: Responsável pela entrega
+      description: Informe o usuário GitHub e atribua a issue no campo Assignees.
+    validations:
+      required: true
