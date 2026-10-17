@@ -59,8 +59,9 @@ de aplicação neste caso; não homologa downgrade de uma migration futura.
 ## Entrega e limites
 
 O CI executa API, DOM e Chromium e publica artefatos de falha por sete dias.
-O [quadro](quadro-github.md) tem seis áreas e acompanhamento sem marcar revisão
-humana como concluída. [Runbook](runbook-operacao.md) preparado para revisão com
+As [seis áreas e issues](quadro-github.md) estão preparadas no repositório oficial;
+o quadro na conta do proprietário continua pendente e o quadro pessoal não o
+substitui. [Runbook](runbook-operacao.md) preparado para revisão com
 `yanpefnsc`; aprovação conjunta não foi recebida nesta validação.
 
 Não comprovados por estes testes: condições reais de rodovia/ponte/tarifa,

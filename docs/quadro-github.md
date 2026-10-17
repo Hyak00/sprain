@@ -1,14 +1,17 @@
 # Quadro do MVP e modelo de entrega
 
-Quadro: [SPRain · MVP — entregas e qualidade](https://github.com/users/YoshiroD/projects/1).
-Pertence à conta YoshiroD e permanece privado. O repositório padrão é
-`yanpefnsc/sprain`. Associar issue ao quadro não concede acesso a pessoas.
-As issues do repositório estão vinculadas ao quadro. A associação pela aba
-Projects do repositório não foi oferecida pelo GitHub nesta conta: a janela
-mostrou “No projects are available to link”. O quadro pode ser aberto pelo link
-direto acima; não foi mudado para público para contornar essa restrição.
+Repositório oficial: [yanpefnsc/sprain](https://github.com/yanpefnsc/sprain).
+Código, branches, PRs e issues desta entrega estão nesse repositório, sem fork.
+O quadro oficial deve pertencer ao proprietário/equipe do projeto.
 
-O campo **Área** tem seis opções e a visualização Board usa essas colunas:
+**Pendente:** criar ou disponibilizar um Project na conta do proprietário.
+A sessão autenticada é YoshiroD; o quadro pessoal criado nela não é o quadro
+oficial da equipe. Sua configuração foi interrompida após a correção de escopo.
+A janela de associação no repositório não apresentou projetos disponíveis.
+Não foram solicitadas credenciais de outra pessoa nem alteradas permissões
+do repositório para contornar essa limitação.
+
+A configuração preparada usa o campo **Área**, com estas seis opções:
 
 | Área | Issue de acompanhamento da validação |
 | --- | --- |
@@ -25,7 +28,10 @@ contratos/dependências, aceite, branch/PR e revisão. Atribuir responsável no 
 Assignees, linkar PR e atualizar Status. Não encerrar só porque o código existe:
 anexar evidência e limites. Não publicar dados de clientes, dumps ou credenciais.
 
-Há duas visualizações: **Por área** (Board) e **Entregas** (Table).
-Status mantém Todo / In Progress / Done.
+Quando o proprietário disponibilizar o quadro, adicionar as seis issues por URL,
+criar **Área** como Single select com as opções da tabela e usar **Por área**
+(Board, colunas por Área) e **Entregas** (Table).
+Status usa Todo / In Progress / Done. Permissão de edição deve ser concedida
+aos responsáveis pelo proprietário do quadro; isso não concede acesso ao código.
 Revisões humanas, evento histórico ainda não identificado e validação por outra
 pessoa devem continuar pendentes até existir evidência.

@@ -40,7 +40,7 @@ Referência: seções 3.1–3.7 da lista técnica enviada, páginas 9–11. Atua
 | 3.6 Onboarding técnico | Documentado | onboarding-tecnico-cliente.md: empresa lógica, primeiro ADMIN, usuários, frota, corredores, premissas e aceite |
 | 3.6 Arquitetura/fontes | Documentado | arquitetura-e-fontes.md: módulos, origem, frequência de tentativa/publicação e limites |
 | 3.6 Runbooks conjuntos | Procedimentos e ensaio; revisão humana pendente | runbook-operacao.md e backup/restore em banco novo; yanpefnsc indicado para revisão conjunta, sem presumir aceite |
-| 3.6 GitHub Projects/modelo de issue | Quadro criado e modelo disponível | Quadro privado YoshiroD/projects/1, seis áreas e issues #46–#51; veja quadro-github.md |
+| 3.6 GitHub Projects/modelo de issue | Modelo e issues prontos; quadro oficial pendente | Seis áreas e issues #46–#51 no repositório yanpefnsc/sprain; quadro pessoal não substitui o quadro da equipe. Veja quadro-github.md |
 | 3.7 Importar arquivo/premissas | Parcial | JSON validado com prévia e resultados por item; recorrência agora disponível; importação condicional/atômica permanece pendente |
 | 3.7 Primeiro resultado útil | Dependência | Tempo local de sessão não substitui evento persistido de onboarding |
 | Compartilhado: corredor/piloto | Pendente de equipe | Escolha com dados reais, não apenas corredor de referência |
