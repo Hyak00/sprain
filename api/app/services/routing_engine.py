@@ -64,7 +64,13 @@ class RoutingEngine:
             if not vehicle_dimensions or any(vehicle_dimensions[medida] > limites[limite] for medida,limite in LIMITES.items() if limite in limites):
                 restritos.append(trecho["id_trecho"])
         
-        alertas = await conn.fetch("SELECT trechos_afetados, confianca, status_evento FROM alertas_operacionais WHERE expiracao_em > now() AND status_evento != 'DESCARTADO'")
+        alertas = await conn.fetch("""
+            SELECT trechos_afetados, confianca, status_evento 
+            FROM alertas_operacionais 
+            WHERE expiracao_em > now() 
+              AND status_evento != 'DESCARTADO'
+              AND (tenant_id = $1 OR escopo = 'GLOBAL' OR tenant_id = 'GLOBAL')
+        """, tenant_id)
         for a in alertas:
             if a["status_evento"] == "CONFIRMADO":
                 restritos.extend(a["trechos_afetados"])
@@ -74,6 +80,17 @@ class RoutingEngine:
         blocked_edge_ids = sorted(set(int(edge) for edge in (blocked_edge_ids or [])))
         cache_key += ":blocked=" + ",".join(str(edge) for edge in blocked_edge_ids)
         cache_key += ":dimensions=" + json.dumps(vehicle_dimensions, sort_keys=True)
+
+        # Inclui os alertas incertos ativos na chave para evitar rotas desatualizadas.
+        assinatura_alertas_incertos = sorted(
+            (
+                tuple(sorted(int(edge) for edge in (a["trechos_afetados"] or []))),
+                round(float(a["confianca"] or 0.0), 6),
+            )
+            for a in alertas
+            if a["status_evento"] == "INCERTO"
+        )
+        cache_key += ":alertas_incerto=" + json.dumps(assinatura_alertas_incertos)
         
         cached_result = cls._get_from_cache(cache_key)
         if cached_result is not None:
@@ -100,8 +117,9 @@ class RoutingEngine:
         else:
             cost_sql = "t.length / CASE WHEN t.highway IN ('primary', 'trunk') THEN 40.0 WHEN t.highway IN ('secondary', 'tertiary') THEN 30.0 ELSE 20.0 END"
 
-        if any(a.get("status_evento") == "INCERTO" for a in alertas):
-            penalidade_alerta = " * (1.0 + COALESCE((SELECT MAX(a.confianca) * 10.0 FROM alertas_operacionais a WHERE a.expiracao_em > now() AND a.status_evento = 'INCERTO' AND t.id_trecho = ANY(a.trechos_afetados)), 0.0))"
+        empresa_sql = "'" + tenant_id.replace("'", "''") + "'"
+        if any(a["status_evento"] == "INCERTO" for a in alertas):
+            penalidade_alerta = f" * (1.0 + COALESCE((SELECT MAX(a.confianca) * 10.0 FROM alertas_operacionais a WHERE a.expiracao_em > now() AND a.status_evento = 'INCERTO' AND (a.tenant_id = {empresa_sql} OR a.escopo = 'GLOBAL' OR a.tenant_id = 'GLOBAL') AND t.id_trecho = ANY(a.trechos_afetados)), 0.0))"
             cost_sql += penalidade_alerta
 
         restricao = ""
@@ -118,6 +136,20 @@ class RoutingEngine:
         pgr_query = "SELECT r.seq, r.node, r.edge, r.cost, t.id_trecho, t.name, t.length, t.highway, t.classe_declividade, t.ivi_score, t.sentido, t.limites_malha, t.fonte_malha, t.limites_verificado_em, t.limites_valido_ate, ST_AsGeoJSON(ST_Transform(t.geom, 4326)) AS geojson FROM pgr_dijkstra($3::text, $1::bigint, $2::bigint, true) r LEFT JOIN trechos_osm t ON t.id_trecho = r.edge WHERE r.edge != -1 ORDER BY r.seq;"
 
         rows = await conn.fetch(pgr_query, int(orig_vert), int(dest_vert), arestas_sql)
+        if not rows:
+            raio_ajuste_m = 75.0
+            vert_alt = "SELECT v.id, ST_Distance(ST_Transform(v.the_geom,4326)::geography, ST_SetSRID(ST_Point($1,$2),4326)::geography) AS distancia_m FROM trechos_osm_vertices_pgr v WHERE EXISTS (SELECT 1 FROM trechos_osm t WHERE (SENTIDO_OK) AND (t.tenant_malha IS NULL OR t.tenant_malha=$3) AND (t.importacao_malha_id IS NULL OR EXISTS(SELECT 1 FROM malha_importacoes m WHERE m.id=t.importacao_malha_id AND m.ativo))) ORDER BY v.the_geom <-> ST_Transform(ST_SetSRID(ST_Point($1, $2), 4326), 31983) LIMIT 5;"
+            saida = "(t.source=v.id AND t.sentido IS DISTINCT FROM 'INVERSO') OR (t.target=v.id AND t.sentido IS DISTINCT FROM 'DIRETO')"
+            entrada = "(t.target=v.id AND t.sentido IS DISTINCT FROM 'INVERSO') OR (t.source=v.id AND t.sentido IS DISTINCT FROM 'DIRETO')"
+            alt_origem = await conn.fetch(vert_alt.replace("SENTIDO_OK", saida), orig_lon, orig_lat, tenant_id)
+            alt_destino = await conn.fetch(vert_alt.replace("SENTIDO_OK", entrada), dest_lon, dest_lat, tenant_id)
+            dist_origem = {int(r["id"]): float(r["distancia_m"]) for r in alt_origem if float(r["distancia_m"]) <= raio_ajuste_m}
+            dist_destino = {int(r["id"]): float(r["distancia_m"]) for r in alt_destino if float(r["distancia_m"]) <= raio_ajuste_m}
+            if dist_origem and dist_destino:
+                pares = await conn.fetch("SELECT start_vid, end_vid, agg_cost FROM pgr_dijkstraCost($1::text, $2::bigint[], $3::bigint[], true) WHERE start_vid <> end_vid;", arestas_sql, list(dist_origem), list(dist_destino))
+                if pares:
+                    melhor = min(pares, key=lambda p: (round(dist_origem[int(p["start_vid"])] + dist_destino[int(p["end_vid"])], 1), float(p["agg_cost"])))
+                    rows = await conn.fetch(pgr_query, int(melhor["start_vid"]), int(melhor["end_vid"]), arestas_sql)
         if not rows:
             return None
 
@@ -220,3 +252,5 @@ class RoutingEngine:
             "max_capacidade": cls._max_cache_size,
             "ttl_segundos": cls._cache_ttl_seconds
         }
+
+
