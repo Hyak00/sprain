@@ -20,8 +20,20 @@ async def test_corredor_nao_inventa_tempo_desvio_nem_meteorologia():
         assert data["decisao_logistica"]["desvio"] is None
         assert data["decisao_logistica"]["analise_financeira"]["beneficio_liquido_reais"] is None
         assert data["pedagios"]["cobertura_completa"] is False
-        assert all(s["status"] == "SEM_DADO_METEOROLOGICO" for s in data["segmentos"])
-        assert all(s["precipitacao_mm_h"] is None for s in data["segmentos"])
+        assert data["resumo"]["status_geral"] in {
+            "SEM_DADOS_METEOROLOGICOS",
+            "DADOS_METEOROLOGICOS_RECENTES",
+            "DADOS_METEOROLOGICOS_PARCIAIS_OU_INDISPONIVEIS",
+        }
+        for segmento in data["segmentos"]:
+            assert segmento["status"] in {
+                "SEM_DADO_METEOROLOGICO", "DADO_METEOROLOGICO_RECENTE"
+            }
+            if segmento["status"] == "SEM_DADO_METEOROLOGICO":
+                assert segmento["precipitacao_mm_h"] is None
+            else:
+                assert segmento["precipitacao_mm_h"] is not None
+                assert segmento["coletado_em"] is not None
 
 
 @pytest.mark.asyncio

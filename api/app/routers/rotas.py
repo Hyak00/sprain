@@ -106,7 +106,7 @@ async def calcular_rota(dados: RotaRequest, conn: asyncpg.Connection = Depends(g
 EIXOS_POR_CATEGORIA = {"VUC": 2, "TRUCK_3_EIXOS": 3, "CARRETA_5_EIXOS": 5}
 CORREDORES_DISPONIVEIS = {("araraquara", "sao paulo"), ("araraquara", "s\u00e3o paulo")}
 MOTIVO_TEMPO = "Tempo por segmento depende de velocidade calibrada por classe de via; ainda nao implementado."
-MOTIVO_METEOROLOGIA = "A associacao entre estacao meteorologica e segmento do corredor nao foi verificada; nenhuma condicao e exibida."
+MOTIVO_METEOROLOGIA = "Chuva observada em pontos de referencia; isso nao confirma pista livre nem substitui validacao de alagamentos e interdiccoes."
 MOTIVO_DESVIO = "Sem risco de alagamento calculado para o corredor, nao ha base para sugerir desvio."
 AVISO_PEDAGIOS = "Somente pedagios cadastrados e conferidos pela empresa a ate o raio informado do corredor de referencia; cobertura parcial. custo_total_pedagio_reais e o subtotal das tarifas conhecidas, sem as pendentes."
 
@@ -127,11 +127,47 @@ async def calcular_rota_intermunicipal(
         raise HTTPException(status_code=422, detail="Categoria invalida. Use VUC, TRUCK_3_EIXOS ou CARRETA_5_EIXOS.")
 
     segmentos = await conn.fetch("""
-        SELECT id_trecho, name, ROUND((length / 1000.0)::numeric, 1) AS distancia_km
-        FROM corredor_sp_araraquara
-        ORDER BY id_trecho
+        SELECT c.id_trecho, c.name,
+               ROUND((c.length / 1000.0)::numeric, 1) AS distancia_km,
+               cc.precipitacao_mm_h, cc.atualizado_em
+        FROM corredor_sp_araraquara c
+        LEFT JOIN condicoes_corredor cc ON cc.id_trecho = c.id_trecho
+        ORDER BY c.id_trecho
     """)
+    agora_utc = datetime.now(timezone.utc)
+    segmentos_clima = []
+    for s in segmentos:
+        coletado = s["atualizado_em"]
+        if coletado is not None and coletado.tzinfo is None:
+            coletado = coletado.replace(tzinfo=timezone.utc)
+        idade_min = (
+            (agora_utc - coletado).total_seconds() / 60
+            if coletado is not None else None
+        )
+        chuva = s["precipitacao_mm_h"]
+        recente = (
+            idade_min is not None and 0 <= idade_min <= 60
+            and chuva is not None
+        )
+        segmentos_clima.append({
+            "id": s["id_trecho"],
+            "nome": s["name"],
+            "distancia_km": float(s["distancia_km"]),
+            "tempo_nominal_min": None,
+            "tempo_real_min": None,
+            "status": (
+                "DADO_METEOROLOGICO_RECENTE"
+                if recente else "SEM_DADO_METEOROLOGICO"
+            ),
+            "precipitacao_mm_h": float(chuva) if recente else None,
+            "coletado_em": coletado.isoformat() if recente else None,
+            "idade_dado_min": round(idade_min, 1) if recente else None,
+        })
     total_km = sum(float(s["distancia_km"]) for s in segmentos)
+    todos_recentes = bool(segmentos_clima) and all(
+        s["status"] == "DADO_METEOROLOGICO_RECENTE"
+        for s in segmentos_clima
+    )
 
     pontos = await conn.fetch(
         SELECT_PONTOS + """ AND tipo = 'PEDAGIO' AND EXISTS (
@@ -179,7 +215,7 @@ async def calcular_rota_intermunicipal(
             "tempo_nominal_min": None,
             "tempo_real_estimado_min": None,
             "atraso_climatico_min": None,
-            "status_geral": "SEM_DADOS_METEOROLOGICOS",
+            "status_geral": ("DADOS_METEOROLOGICOS_RECENTES" if todos_recentes else "DADOS_METEOROLOGICOS_PARCIAIS_OU_INDISPONIVEIS"),
             "motivo_indisponivel": MOTIVO_TEMPO + " " + MOTIVO_METEOROLOGIA
         },
         "decisao_logistica": {
@@ -203,18 +239,7 @@ async def calcular_rota_intermunicipal(
             "aviso": AVISO_PEDAGIOS,
             "pracas_detalhadas": pedagios
         },
-        "segmentos": [
-            {
-                "id": s["id_trecho"],
-                "nome": s["name"],
-                "distancia_km": float(s["distancia_km"]),
-                "tempo_nominal_min": None,
-                "tempo_real_min": None,
-                "status": "SEM_DADO_METEOROLOGICO",
-                "precipitacao_mm_h": None
-            }
-            for s in segmentos
-        ],
+        "segmentos": segmentos_clima,
         "rastreabilidade": {
             "versao_malha": None,
             "regra_utilizada": "consulta_corredor_referencia",

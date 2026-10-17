@@ -4,7 +4,16 @@ import math
 import urllib.request
 from sqlalchemy import create_engine, text
 
-URL_BANCO = os.getenv("URL_BANCO", "postgresql+psycopg2://enchentes:enchentes@sprain_db:5432/enchentes")
+from sqlalchemy.engine import URL
+
+URL_BANCO = URL.create(
+    "postgresql+psycopg2",
+    username=os.getenv("DB_USER", "enchentes"),
+    password=os.getenv("DB_PASSWORD", "enchentes"),
+    host=os.getenv("DB_HOST", "db"),
+    port=int(os.getenv("DB_PORT", "5432")),
+    database=os.getenv("DB_NAME", "enchentes"),
+)
 
 COORDENADAS_SEGMENTOS = {
     1: {"nome": "Araraquara/Sao Carlos", "lat": -21.90, "lon": -48.03},
