@@ -42,6 +42,7 @@
     const telas={relatorios,qualidade,importacao,configuracao,demonstracao,ajuda};
     for(const [id,label]of Object.entries(rotulos)){const b=botao(nav,label,()=>render(id));b.dataset.secao=id;}
     async function relatorios(p,v){
+        if(root.RelatoriosPainel)return root.RelatoriosPainel.render(p,{atual:()=>atual(v),obter:(path,options)=>obter(path,v,options),download,nome,tabela,usuario:()=>usuario});
         el(p,'p','Exportações geradas no seu computador, com os dados disponíveis para a empresa autenticada. Compartilhe os arquivos apenas com pessoas autorizadas.');
         const resultados=await Promise.allSettled([obter('/api/v1/logistica/operacoes',v),obter('/api/v1/logistica/relatorios/sumario-executivo',v)]);if(!atual(v))return;
         const [operacoes,sumario]=resultados.map(r=>r.status==='fulfilled'?r.value:null);

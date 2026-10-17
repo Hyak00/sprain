@@ -33,6 +33,9 @@ Para gestão de usuários, premissas financeiras, recuperação assistida de ace
 exportação privada, veja [Administração na interface](docs/administracao-interface.md).
 As funções administrativas exigem ADMIN com acesso individual.
 
+Os formatos PDF/CSV/HTML e os critérios de custos, fontes e fotografias históricas
+estão descritos em [Relatórios na interface](docs/relatorios-painel.md).
+
 Pré-requisitos: Git, Docker com Compose e Python 3.9+ para a sonda opcional.
 Instruções completas, limitações e dependências estão no
 [guia da central](docs/central-operacional.md) e no
