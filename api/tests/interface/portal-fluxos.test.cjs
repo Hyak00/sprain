@@ -3,7 +3,7 @@ const viagem={id_operacao:'NOVA_01',origem_nome:'Origem',origem_lat:-23.54,orige
 const base='/api/v1/logistica/';
 const resposta={
     [base+'operacoes']:[{id_operacao:'OP1',origem_nome:'Origem',destino_nome:'Destino'}],
-    [base+'relatorios/sumario-executivo']:{periodo:'D-0 / D+1',kpis:{total_operacoes:1,rotas_em_risco_alagamento:0,rotas_recalculadas_com_sucesso:0,prejuizo_estimado_evitado_brl:0}},
+    [base+'relatorios/sumario-executivo']:{periodo:'Todo o historico disponivel; sem filtro de datas',kpis:{total_operacoes:1,rotas_em_risco_alagamento:0,rotas_com_alternativa_sugerida:0,impacto_potencial_cenario_brl:0,economia_comprovada_brl:null}},
     [base+'operacoes/OP1/explicacao']:{id_operacao:'OP1',acao_recomendada:'MANTER_ROTA',justificativa:'<img src=x onerror=alert(1)>',infraestrutura:{}},
     '/api/v1/painel/consultas':{consulta:{id:'consulta-teste'},explicacao:{id_operacao:'OP1',acao_recomendada:'MANTER_ROTA',justificativa:'<img src=x onerror=alert(1)>',infraestrutura:{}}},
     [base+'operacoes/OP1/decisoes']:[],
@@ -27,6 +27,7 @@ async function ambiente(role='OPERATOR',handler){
 }
 test('central carrega relatórios, exporta PDF e não interpreta dados como HTML',async()=>{
     const a=await ambiente();a.app.abrir();await tick();await a.clicar('Carregar consulta e decisões');
+    assert(a.document.body.textContent.includes('Impacto potencial do cenário'));
     assert(a.document.body.textContent.includes('<img src=x'));assert.equal(a.document.querySelectorAll('img').length,0);
     await a.clicar('Baixar PDF da consulta e decisões');assert.equal(a.downloads[0].type,'application/pdf');assert((await a.downloads[0].text()).startsWith('%PDF-1.4'));
     assert(!a.document.body.textContent.includes('api_key'));a.encerrar();
