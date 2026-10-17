@@ -230,10 +230,13 @@ async def test_sql_rota_evitar_ponte_pedagio_filtrado_e_isolamento():
             assert (await client.post('/api/v1/logistica/veiculos',json=pequeno)).status_code==200
             econ=await client.post('/api/v1/logistica/decisao-economica',json={
                 **{k:payload[k] for k in ('origem_lon','origem_lat','destino_lon','destino_lat')},
-                'id_veiculo':pequeno['id_veiculo'],'precipitacao_mm':0})
+                'id_veiculo':pequeno['id_veiculo'],'precipitacao_mm':0,
+                'parametros':{'tempo_espera_min':30}})
             assert econ.status_code==200,econ.text
             assert econ.json()['infraestrutura']['original']['pedagios']['subtotal_conhecido_reais']==17.8
             assert econ.json()['decisao']['tradeoff']['rota_direta']['origem_custo_variavel']=='CUSTO_POR_KM_INFORMADO'
+            assert econ.json()['decisao']['tradeoff']['rota_direta']['custo_combustivel_brl'] is None
+            assert econ.json()['decisao']['tradeoff']['aguardar']['tempo_espera_informado_min']==30
             sessao=(await client.get("/api/v1/infraestrutura/sessao")).json()
             assert sessao=={"tenant_id":"demo_corp","perfil":"ADMIN"}
             mapa=(await client.post("/api/v1/infraestrutura/avaliar-mapa",json={"veiculo":VEICULO},

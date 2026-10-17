@@ -822,8 +822,19 @@ async def tomar_decisao_economica(dados: DecisaoEconomicaRequest, conn: asyncpg.
     for origem,destino in mapeamento.items():
         if origem in custos and destino not in dados.parametros.model_fields_set:
             parametros[destino]=custos[origem]
+    if (parametros['custo_por_km'] is None and
+            'custo_por_km_sem_combustivel' not in dados.parametros.model_fields_set and
+            custos.get('custo_por_km_sem_combustivel') is not None):
+        parametros['custo_por_km_sem_combustivel']=custos['custo_por_km_sem_combustivel']
     if all(custos.get(k) is not None for k in ('consumo_km_l', 'preco_combustivel_litro', 'custo_por_km_sem_combustivel')) and not {'custo_por_km','consumo_km_l','preco_diesel_litro'} & dados.parametros.model_fields_set:
-        parametros['custo_por_km'] = custo_quilometrico(custos)['custo_por_km_aplicado']
+        calculo_km = custo_quilometrico(custos)
+        parametros['custo_por_km'] = calculo_km['custo_por_km_aplicado']
+        parametros['custo_por_km_sem_combustivel'] = None
+        parametros['origem_custo_por_km'] = (
+            'CUSTO_POR_KM_INFORMADO' if custos.get('custo_total_por_km_informado') else
+            'PREMISSA_PADRAO_POR_KM' if calculo_km['modo'] == 'CUSTO_TOTAL_POR_KM' else
+            'CUSTO_POR_KM_CALCULADO'
+        )
     rota_direta = await RoutingEngine.compute_route(
         conn, dados.origem_lon, dados.origem_lat, dados.destino_lon, dados.destino_lat, profile="FASTEST", rain_mm=0.0, tenant_id=dados.tenant_id, vehicle_dimensions=dims
     )
@@ -840,7 +851,8 @@ async def tomar_decisao_economica(dados: DecisaoEconomicaRequest, conn: asyncpg.
         "probabilidade_atraso": None,
         "probabilidade_bloqueio": None,
         "motivo_indisponivel": "Probabilidades de atraso e bloqueio dependem de modelo calibrado contra ocorrencias reais.",
-        "custo_pedagio_conhecido":rota_direta["infraestrutura"]["pedagios"]["subtotal_conhecido_reais"]
+        "custo_pedagio_conhecido":rota_direta["infraestrutura"]["pedagios"]["subtotal_conhecido_reais"],
+        "tarifas_pendentes":rota_direta["infraestrutura"]["pedagios"]["tarifas_pendentes"]
     }
 
     rota_segura_info = {
@@ -849,7 +861,8 @@ async def tomar_decisao_economica(dados: DecisaoEconomicaRequest, conn: asyncpg.
         "probabilidade_atraso": None,
         "probabilidade_bloqueio": None,
         "motivo_indisponivel": "Probabilidades de atraso e bloqueio dependem de modelo calibrado contra ocorrencias reais.",
-        "custo_pedagio_conhecido":rota_segura["infraestrutura"]["pedagios"]["subtotal_conhecido_reais"]
+        "custo_pedagio_conhecido":rota_segura["infraestrutura"]["pedagios"]["subtotal_conhecido_reais"],
+        "tarifas_pendentes":rota_segura["infraestrutura"]["pedagios"]["tarifas_pendentes"]
     }
 
     resultado = EconomicDecisionEngine.compare_and_recommend(
