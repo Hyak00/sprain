@@ -56,6 +56,33 @@ async def nova_operacao(a):
 
 
 @pytest.mark.asyncio
+async def test_novos_despachos_usam_empresa_e_preservam_valores_da_viagem(ambiente):
+    conn,cli,origem,ids=ambiente
+    anterior=await conn.fetchrow("SELECT * FROM painel_financeiro WHERE tenant_id='demo_corp'")
+    try:
+        await conn.execute('''INSERT INTO painel_financeiro(tenant_id,dados,atualizado_por)
+            VALUES('demo_corp','{"custo_por_km":8,"custo_hora_motorista":90}', $1)
+            ON CONFLICT(tenant_id) DO UPDATE SET dados=EXCLUDED.dados''',uuid4())
+        op=await nova_operacao(ambiente)
+        custos=json.loads(await conn.fetchval('SELECT custos_operacionais::text FROM operacoes WHERE id_operacao=$1',op))
+        assert custos['custo_por_km']==8 and custos['custo_hora_motorista']==90
+        await conn.execute("UPDATE painel_financeiro SET dados='{\"custo_por_km\":99}' WHERE tenant_id='demo_corp'")
+        assert json.loads(await conn.fetchval('SELECT custos_operacionais::text FROM operacoes WHERE id_operacao=$1',op))==custos
+        outro='TEST_MVP_'+uuid4().hex[:12];ids['operacoes'].append(outro)
+        agora=datetime.now(timezone.utc)
+        r=await cli.post('/logistica/operacoes',json={**origem,'id_operacao':outro,'custos_operacionais':{'custo_por_km':3},
+            'janela_inicio':agora.isoformat(),'janela_fim':(agora+timedelta(hours=4)).isoformat()})
+        assert r.status_code==200,r.text
+        assert json.loads(await conn.fetchval('SELECT custos_operacionais::text FROM operacoes WHERE id_operacao=$1',outro))['custo_por_km']==3
+    finally:
+        if anterior:
+            await conn.execute('''UPDATE painel_financeiro SET dados=$1,versao=$2,atualizado_por=$3,atualizado_em=$4
+                WHERE tenant_id='demo_corp' ''',anterior['dados'],anterior['versao'],anterior['atualizado_por'],anterior['atualizado_em'])
+        else:
+            await conn.execute("DELETE FROM painel_financeiro WHERE tenant_id='demo_corp'")
+
+
+@pytest.mark.asyncio
 async def test_migracao_aditiva_repetivel(ambiente):
     conn,*_=ambiente
     await conn.execute(SCHEMA);await conn.execute(SCHEMA)

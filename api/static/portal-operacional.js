@@ -166,11 +166,12 @@
         const novo=botao(p,'Abrir formulário de novo despacho',()=>{encerrar();root.abrirModalDespacho();});novo.disabled=!root.PainelSessao.podeEscrever();
         botao(p,'Abrir minha frota',()=>{encerrar();root.alternarAba('FROTA');});
         el(p,'h4','Gestão de usuários e recuperação de acesso');
-        el(p,'p','O login individual usa contas provisionadas no servidor e sessões com validade e revogação. Contas demo permanecem disponíveis somente fora de produção. Criação e gestão de usuários e recuperação de senha não são feitas por esta tela; o administrador usa o procedimento documentado.');
+        el(p,'p','Administradores com acesso individual podem gerir usuários e liberar recuperação após conferir a identidade. Use a seção Administração da empresa. Na entrada, Recuperar acesso permite solicitar e concluir a recuperação.');
+        botao(p,'Abrir administração da empresa',()=>navegar('administracao'));
         el(p,'h4','Corredores e rotas recorrentes');el(p,'p','A aba SP-310/SP-348 consulta o corredor de referência. Use Corredores e recorrências para cadastrar e editar corredores e agendas da sua empresa.');
         botao(p,'Cadastrar corredores e recorrências',()=>navegar('corredores'));
         botao(p,'Consultar corredor existente',()=>{encerrar();root.alternarAba('CORREDOR');});
-        el(p,'h4','Exportação');el(p,'p','Relatórios permitem exportar o resumo, a consulta e as decisões retornadas. Exportação integral de dados pessoais, usuários e registros de auditoria depende do backend e não é substituída por esses arquivos.');
+        el(p,'h4','Exportação');el(p,'p','Relatórios exportam resumo, consulta e decisões. A seção Administração da empresa permite ao administrador individual baixar um arquivo dos dados privados do cliente, sem senhas ou sessões.');
         botao(p,'Abrir relatórios e exportações',()=>render('relatorios'));
     }
     function demonstracao(p){

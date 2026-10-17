@@ -6,6 +6,14 @@ header {height:auto; min-height:58px; flex-wrap:wrap; gap:8px;}
 .mvp-complemento p {margin:8px 0;}
 .mvp-proveniencia {font-size:11px;line-height:1.5;color:#cbd5e1;margin:10px;}
 textarea:focus-visible {outline:2px solid #38bdf8;outline-offset:3px;}
+#painel-recuperacao {width:min(560px,calc(100vw - 24px));max-height:calc(100dvh - 24px);overflow:auto;box-sizing:border-box;background:#0f172a;color:#f1f5f9;border:1px solid #64748b;border-radius:8px;padding:16px;overflow-wrap:anywhere;}
+#painel-recuperacao::backdrop {background:#000b;}
+#painel-recuperacao label {display:block;margin:12px 0;}
+#painel-recuperacao input {display:block;box-sizing:border-box;width:100%;padding:8px;background:#020617;color:#f1f5f9;border:1px solid #64748b;}
+#painel-recuperacao button {padding:10px;margin:4px;white-space:normal;background:#1e293b;color:#f1f5f9;border:1px solid #94a3b8;border-radius:4px;}
+#portal-operacional article {border-bottom:1px solid #475569;padding:12px 0;}
+#portal-operacional label:has(input[type=checkbox]) {display:flex;align-items:start;gap:8px;}
+#portal-operacional input[type=checkbox] {width:auto;flex:0 0 auto;}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto !important;transition:none !important;animation:none !important;}}
 .mvp-complemento label {display:block; margin:8px 0;}
 .mvp-complemento input {width:100%; padding:7px; background:#020617; color:#f1f5f9; border:1px solid #64748b;}

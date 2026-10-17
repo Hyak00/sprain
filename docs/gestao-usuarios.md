@@ -1,5 +1,7 @@
 # Gestão de usuários da empresa
 
+As telas e o fluxo de recuperação estão descritos em [Administração na interface](administracao-interface.md).
+
 O primeiro acesso individual é provisionado pelo operador do ambiente com
 `scripts/cadastrar_acesso_painel.py`. Depois, um ADMIN autenticado por **sessão
 individual** pode administrar usuários da sua própria empresa. Chaves de API

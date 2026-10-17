@@ -29,6 +29,10 @@ prévia/importação de operações e orientações. Dados do CI são exemplos, 
 evidências históricas ou viagens reais. Esse Compose usa banco, volume e rede
 próprios; não reaproveita o banco operacional e não configura produção.
 
+Para gestão de usuários, premissas financeiras, recuperação assistida de acesso e
+exportação privada, veja [Administração na interface](docs/administracao-interface.md).
+As funções administrativas exigem ADMIN com acesso individual.
+
 Pré-requisitos: Git, Docker com Compose e Python 3.9+ para a sonda opcional.
 Instruções completas, limitações e dependências estão no
 [guia da central](docs/central-operacional.md) e no

@@ -64,9 +64,10 @@
                     throw new ErroPainel('Entre novamente para continuar.', 401, true);
                 }
                 if (!res.ok) {
-                    const mensagens = { 401: 'E-mail ou senha inválidos.', 403: 'Seu perfil não permite esta ação.',
+                    const mensagens = { 400: 'Confira os dados. O código de recuperação pode estar inválido, expirado ou já utilizado.', 401: 'E-mail ou senha inválidos.', 403: 'Seu perfil não permite esta ação.',
                         404: 'Informação não encontrada ou fora da sua empresa.',
-                        409: 'Os dados mudaram. Atualize a operação antes de confirmar.',
+                        409: 'A ação está em conflito com os dados atuais. Recarregue a lista ou operação antes de confirmar.',
+                        413: 'A exportação excede o limite. Solicite uma extração administrativa assistida.',
                         422: 'Confira os campos e as unidades informadas.',
                         429: 'Limite de consultas atingido. Aguarde antes de tentar novamente.',
                         503: publico ? 'Acesso corporativo ainda não configurado neste ambiente.' : 'Serviço temporariamente indisponível. Tente novamente.' };
@@ -85,6 +86,7 @@
             }
         }
         return { entrar, encerrar, sair, request, podeEscrever,
+            identidade: () => usuario ? {usuario_id:usuario.usuario_id,role:usuario.role,tipo_acesso:usuario.tipo_acesso,tenant_id:usuario.tenant_id} : null,
             perfil: () => usuario?.role || null, empresa: () => usuario?.tenant_id || null };
     }
     if (typeof module !== 'undefined' && module.exports) { module.exports = { criarCliente, ErroPainel }; return; }
