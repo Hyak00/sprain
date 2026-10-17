@@ -7,7 +7,7 @@ docker compose -f compose.demo.yml up -d --build
 python scripts/verificar_portal.py
 ```
 
-Abra `http://127.0.0.1:18000/static/b2b.html`; Swagger: `/docs`. Use os botões de acesso rápido de demonstração. O Compose carrega os scripts de `db/ci` somente na primeira inicialização do volume próprio. A API aplica a migração aditiva da auditoria ao iniciar, inclusive em volumes existentes. Não usa volumes, banco, rede, chaves ou portas do ambiente operacional.
+Abra `http://127.0.0.1:18000/static/b2b.html`; Swagger: `/docs`. Use os botões de acesso rápido de demonstração. O Compose carrega os scripts de `db/ci` somente na primeira inicialização do volume próprio. A API aplica as migrações aditivas de meteorologia, alertas, validação espacial, feedback, bacias e auditoria ao iniciar, inclusive em volumes existentes. Não usa volumes, banco, rede, chaves ou portas do ambiente operacional.
 
 Dados do CI são exemplos/sintéticos e não evidência de eventos históricos, viagens de clientes ou retorno financeiro realizado. As chaves e senha do Compose são públicas de demonstração, inadequadas para produção. Somente a API é publicada em loopback; o banco permanece na rede Docker. O agendador existente da API é preservado: pode consultar clima periodicamente. A demonstração não implica fontes públicas completas ou atualizadas.
 
@@ -26,6 +26,8 @@ docker compose -f compose.demo.yml up -d
 ```
 
 Não use `down -v` ou apague volumes operacionais para repetir uma demonstração. Para testar uma instalação realmente nova, escolha outro projeto/volume explicitamente isolado. Uma atualização de imagem não reaplica automaticamente scripts de inicialização em volume antigo.
+
+Confira `/api/v1/health/readiness` depois da atualização: a sonda retorna 503 se faltar uma tabela operacional, a extensão PostGIS ou a malha viária. Uma resposta 200 confirma a estrutura necessária, não a atualidade ou a cobertura dos dados externos.
 
 ## Roteiro de apresentação
 
