@@ -6,6 +6,14 @@ const leitor = { ...operador, role: 'VIEWER' };
 const resposta = (body = '{}', status = 200, type = 'application/json') => new Response(body, { status, headers: { 'Content-Type': type } });
 const diferida = () => { let resolve; const promise = new Promise(r => { resolve = r; }); return { promise, resolve }; };
 
+test('contingencia acompanha novo RBAC; VIEWER conserva exportacao de historicos',async()=>{
+    const caminhos=[];const c=criarCliente({fetcher:async p=>{caminhos.push(p);return resposta();}});c.entrar(leitor);
+    await assert.rejects(c.request('/api/v1/logistica/exportar-contingencia/csv'),{status:403});
+    await c.request('/api/v1/painel/relatorios/consultas.csv');
+    assert.deepEqual(caminhos,['/api/v1/painel/relatorios/consultas.csv']);
+    c.entrar(operador);await c.request('/api/v1/logistica/exportar-contingencia/csv');assert.equal(caminhos.length,2);
+});
+
 test('logout individual revoga no servidor antes de limpar a sessao de leitura',async()=>{
     const chamadas=[];let encerramentos=0;
     const c=criarCliente({fetcher:async(p,o)=>{chamadas.push({p,o});return resposta();},aoEncerrar:()=>encerramentos++});

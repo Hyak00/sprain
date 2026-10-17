@@ -563,7 +563,7 @@ def aplicar(fonte: str, url: str, dados: bytes, registros: list[dict], resumo: d
                 (fonte, url, sha, len(registros), json.dumps(resumo)))
     return {"fonte": fonte, "sem_alteracoes": False, "registros": len(registros)}
 
-def main() -> None:
+def _executar() -> dict:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("fonte", choices=("artesp", "anp", "anp-semanal", "anp-cadastro", "ssp-roubo", "roubo-carga", "coordenadas-postos", "todas"))
     parser.add_argument("--anos", nargs="+", type=int, help="Anos ARTESP; padrao: atual e dois anteriores")
@@ -639,6 +639,19 @@ def main() -> None:
             resultado["gravado"] = True
         resultados.append(resultado)
     print(json.dumps(resultados, ensure_ascii=False, default=str, indent=2))
+    return {"registros": sum(r.get("registros",r["resumo"].get("linhas",0)) for r in resultados), "falhas": 0}
+
+def main():
+    if "--aplicar" not in sys.argv or "--help" in sys.argv or "-h" in sys.argv:
+        return _executar()
+    try:
+        from scripts.auditoria_importacoes import executar_auditado
+    except ModuleNotFoundError:
+        from auditoria_importacoes import executar_auditado
+    conhecidas={'artesp','anp','anp-semanal','anp-cadastro','ssp-roubo','roubo-carga','coordenadas-postos','todas'}
+    fonte='DADOS_PUBLICOS/'+sys.argv[1] if len(sys.argv)>1 and sys.argv[1] in conhecidas else 'DADOS_PUBLICOS'
+    return executar_auditado(_executar, conectar, fonte)
+
 
 if __name__ == "__main__":
     try:

@@ -36,6 +36,9 @@
             const { publico = false, timeout = timeoutMs, ...init } = options;
             if (!publico && !usuario) throw new ErroPainel('Entre na sua conta para continuar.', 401);
             const method = (init.method || 'GET').toUpperCase();
+            if (!publico && path.split('?')[0] === '/api/v1/logistica/exportar-contingencia/csv' && !podeEscrever()) {
+                throw new ErroPainel('A exportação de contingência exige perfil ADMIN ou OPERATOR. Os históricos continuam disponíveis na central.', 403);
+            }
             if (!publico && !['GET', 'HEAD', 'OPTIONS'].includes(method) &&
                 !(method === 'POST' && consultasPost.has(path.split('?')[0])) && !podeEscrever()) {
                 throw new ErroPainel('Seu perfil permite apenas consultas.', 403);

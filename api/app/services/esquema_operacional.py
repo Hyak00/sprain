@@ -12,6 +12,7 @@ ARQUIVOS = tuple(_DIRETORIO / f"{numero:02d}_{nome}.sql" for numero, nome in (
     (7, "validacao_espacial"),
     (8, "feedback_alertas"),
     (9, "bacias_hidrograficas"),
+    (11, "importacoes_monitor"),
 ))
 
 

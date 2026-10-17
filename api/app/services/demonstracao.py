@@ -19,7 +19,7 @@ def habilitada():
 
 
 def banco_reservado(nome):
-    return nome=='sprain_demo' or nome.startswith('sprain_demo_')
+    return nome=='sprain_demo'
 
 
 def validar_configuracao():

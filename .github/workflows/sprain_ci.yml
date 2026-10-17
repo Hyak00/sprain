@@ -55,6 +55,24 @@ jobs:
           npm ci --ignore-scripts --no-audit --no-fund
           npm test
 
+      - name: Prepare Isolated Browser Tests
+        run: |
+          npx playwright install --with-deps chromium
+          docker compose -f compose.e2e.yml up -d --build --wait
+          docker compose -f compose.e2e.yml exec -T api python /app/scripts/seed_testes_painel.py
+
+      - name: Test Main Panel Flows in Chromium
+        run: npm run test:e2e
+
+      - name: Preserve Browser Failure Evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-failure
+          path: test-results/
+          retention-days: 7
+          if-no-files-found: ignore
+
       - name: Output API Logs on Failure
         if: failure()
         run: |
@@ -63,4 +81,5 @@ jobs:
       - name: Shutdown Containers
         if: always()
         run: |
+          docker compose -f compose.e2e.yml down
           docker compose down

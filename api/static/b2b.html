@@ -240,7 +240,7 @@
 
         <div class="top-controls">
             <button class="btn-action-top" data-escrita data-acao="abrirModalDespacho" onclick="abrirModalDespacho()">+ Despachar Nova Rota</button>
-            <button class="btn-top" data-acao="exportarCsv" onclick="exportarCsv()">↓ Exportar CSV</button>
+            <button class="btn-top" data-escrita data-acao="exportarCsv" onclick="exportarCsv()">↓ Exportar CSV</button>
             <div class="corp-badge">
                 <div>
                     <div style="font-weight:700; color:#38bdf8;" id="lbl-user-tenant">demo_corp</div>
@@ -426,7 +426,7 @@
     </div>
 
         <div id="painel-status" role="status" aria-live="polite" aria-atomic="true" hidden></div>
-        <script src="/static/painel-sessao.js?v=demo34-1"></script>
+        <script src="/static/painel-sessao.js?v=compatibilidade-1"></script>
         <script>
         window.API_KEY = '';
         let operacaoSelecionadaId = null;
@@ -1074,7 +1074,7 @@
     <script src="/static/alertas-comparacao.js"></script>
     <script src="/static/portal-dados.js?v=relatorios-1"></script>
     <script src="/static/portal-pdf.js?v=relatorios-1"></script>
-    <script src="/static/portal-operacional.js?v=demo34-1"></script>
+    <script src="/static/portal-operacional.js?v=interno35-1"></script>
     <script src="/static/painel-relatorios.js?v=relatorios-1"></script>
     <script src="/static/painel-acessibilidade.js"></script>
     <script src="/static/painel-fluxo.js?v=demo34-1"></script>
@@ -1082,6 +1082,7 @@
     <script src="/static/painel-eventos.js"></script>
     <script src="/static/painel-administracao.js"></script>
     <script src="/static/painel-demonstracao.js"></script>
+    <script src="/static/painel-interno.js?v=interno35-1"></script>
     <script>window.PainelSessao.instalar();</script>
     <script src="/static/painel-homologacao.js"></script>
 </body>

@@ -15,8 +15,8 @@ RUN groupadd --gid 10001 sprain \
     && useradd --uid 10001 --gid sprain --create-home --shell /usr/sbin/nologin sprain \
     && chown sprain:sprain /app
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt uvicorn[standard] asyncpg fastapi pydantic pydantic-settings jinja2 python-multipart
+COPY requirements.lock.txt .
+RUN pip install --no-cache-dir -r requirements.lock.txt
 COPY --chown=sprain:sprain . .
 
 WORKDIR /app/api

@@ -3,10 +3,9 @@ import json
 import math
 import urllib.request
 from sqlalchemy import create_engine, text
-
 from sqlalchemy.engine import URL
 
-URL_BANCO = URL.create(
+URL_BANCO = os.getenv("URL_BANCO") or URL.create(
     "postgresql+psycopg2",
     username=os.getenv("DB_USER", "enchentes"),
     password=os.getenv("DB_PASSWORD", "enchentes"),
@@ -69,7 +68,7 @@ def calcular_impacto(precipitacao_mm_h):
         return "PISTA_MOLHADA", 1.15
     return "LIBERADA", 1.0
 
-def main():
+def _executar():
     motor = create_engine(URL_BANCO)
     sucessos = 0
     falhas = 0
@@ -122,6 +121,21 @@ def main():
         f"{falhas} indisponiveis. Falha de coleta nao significa "
         "pista liberada."
     )
+
+    return {"registros": sucessos, "falhas": falhas}
+
+
+def main():
+    try:
+        from scripts.auditoria_importacoes import executar_auditado
+    except ModuleNotFoundError:
+        from auditoria_importacoes import executar_auditado
+    motor_auditoria = create_engine(URL_BANCO)
+    try:
+        return executar_auditado(_executar, motor_auditoria.raw_connection, "OPEN_METEO_CORREDOR")
+    finally:
+        motor_auditoria.dispose()
+
 
 if __name__ == "__main__":
     main()

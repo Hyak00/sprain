@@ -1,6 +1,13 @@
 {
   "name": "sprain-interface-tests",
   "private": true,
-  "scripts": {"test": "node --test api/tests/interface/*.test.cjs"},
-  "devDependencies": {"linkedom": "0.18.13"}
+  "scripts": {
+    "test": "node --test api/tests/interface/*.test.cjs",
+    "test:e2e": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1",
+    "linkedom": "0.18.13",
+    "maplibre-gl": "3.6.2"
+  }
 }

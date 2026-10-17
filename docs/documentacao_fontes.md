@@ -1,6 +1,11 @@
 DOCUMENTACAO DAS FONTES DE DADOS - SPRAIN B2B
 ===========================================
 
+Complemento atualizado: [arquitetura-e-fontes.md](arquitetura-e-fontes.md).
+As frequencias abaixo descrevem publicacao dos fornecedores, nao garantem coleta
+ativa. O worker precisa estar implantado. Revalidar licencas/termos especificos;
+disponibilidade publica nao implica permissao irrestrita de redistribuicao.
+
 1. ARTESP (Acidentes Rodoviarios)
 ---------------------------------
 - Origem: Portal de Dados Abertos da ARTESP (concessionarias do estado de Sao Paulo).
