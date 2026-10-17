@@ -50,6 +50,14 @@ Outras concessionarias e limites oficiais de pontes permanecem pendentes quando 
 
 ## Contrato para o colega do frontend
 
+### Comparação econômica de rotas
+
+`POST /api/v1/logistica/decisao-economica` devolve o custo calculado da rota direta e da alternativa, além do `custo_desvio_brl` com sinal (alternativa menos direta). Quando `parametros.tempo_espera_min` é informado, `tradeoff.aguardar` acrescenta o custo horário do veículo e do motorista e a multa contratual adicional pelo tempo informado. O risco depois da espera não é recalculado; o resultado não recomenda aguardar automaticamente.
+
+`custo_variavel_brl` inclui combustível quando se usa um custo total por km; nesse caso `custo_combustivel_brl` é nulo porque não se conhece sua parcela separada. Com consumo, preço e `custo_por_km_sem_combustivel`, as parcelas de combustível e outros custos aparecem separadas. Custos por distância ausentes aparecem em `componentes_nao_calculados`. O valor da carga nunca é convertido automaticamente em prejuízo por bloqueio. A perda hipotética `prejuizo_por_bloqueio_brl` só participa da conta se existir probabilidade calibrada, que a API atual ainda não fornece.
+
+O retorno informa tarifas de pedágio pendentes e conserva `cobertura_pedagios_completa=false`, pois o cadastro não prova cobertura de toda a malha. `premissas_aplicadas` registra os parâmetros considerados e `valor_carga_usado_como_prejuizo=false` deixa explícito que o valor da carga não entrou como perda. A recomendação compara apenas custos calculáveis; `decisao_operacional_automatica=false` indica que ela não comprova redução de risco, economia realizada ou autorização de tráfego.
+
 - `POST /api/v1/infraestrutura/rota-caminhao`: conserva campos anteriores; `custos` acrescenta combustivel, litros e custo medio conhecido/km. Custos no pedido sao opcionais.
 - `GET /api/v1/infraestrutura/pendencias`: totais da empresa autenticada para cadastros sem medidas, tarifas e limites vigentes; nao e medida de cobertura geografica.
 - `POST /api/v1/dados-publicos/consultar-rota`: aceita LineString **ou MultiLineString**, ate 100.000 pontos. Use um segmento por geometria da FeatureCollection existente; nao una segmentos criando retas artificiais. Retorno limitado a 200 acidentes e 200 postos, com indicador `truncado`.
