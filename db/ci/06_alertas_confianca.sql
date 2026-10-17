@@ -10,6 +10,9 @@ CREATE TABLE IF NOT EXISTS alertas_operacionais (
     o_que_nao_sabemos TEXT,
     trechos_afetados INTEGER[] NOT NULL,
     falso_alerta BOOLEAN NOT NULL DEFAULT false,
-    evento_nao_detectado BOOLEAN NOT NULL DEFAULT false
+    evento_nao_detectado BOOLEAN NOT NULL DEFAULT false,
+    tenant_id TEXT NOT NULL DEFAULT 'GLOBAL',
+    escopo TEXT NOT NULL DEFAULT 'GLOBAL' CHECK (escopo IN ('GLOBAL', 'TENANT'))
 );
-CREATE INDEX idx_alertas_trechos ON alertas_operacionais USING GIN (trechos_afetados);
+CREATE INDEX IF NOT EXISTS idx_alertas_trechos ON alertas_operacionais USING GIN (trechos_afetados);
+CREATE INDEX IF NOT EXISTS idx_alertas_tenant ON alertas_operacionais (tenant_id, escopo);

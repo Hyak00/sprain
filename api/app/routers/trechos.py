@@ -5,8 +5,9 @@ from fastapi import APIRouter, Depends, Query
 from fastapi.responses import JSONResponse
 
 from app.database import get_connection
+from app.seguranca import require_role
 
-router = APIRouter(prefix="/api/v1/trechos", tags=["Trechos Viarios"])
+router = APIRouter(prefix="/api/v1/trechos", tags=["Trechos Viarios"], dependencies=[Depends(require_role(["ADMIN", "OPERATOR", "VIEWER"]))])
 
 @router.get("/geojson")
 async def get_trechos_geojson(
