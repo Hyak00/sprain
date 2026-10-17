@@ -10,9 +10,14 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from app.database import get_connection
 from app.seguranca import get_current_user_claims, require_role, is_production
+from app.services.demonstracao import habilitada as demo_habilitada
 
 router=APIRouter(prefix='/api/v1/painel/relatorios',tags=['Relatórios do painel'],
     dependencies=[Depends(require_role(['ADMIN','OPERATOR','VIEWER']))])
+
+
+def ambiente_relatorio():
+    return 'PRODUCAO' if is_production() else 'DEMONSTRACAO_ISOLADA' if demo_habilitada() else 'NAO_PRODUCAO'
 
 
 def periodo(inicio, fim):
@@ -61,7 +66,7 @@ async def piloto(response: Response,inicio: date|None=None,fim: date|None=None,
             AND ($2::timestamptz IS NULL OR criado_em>=$2) AND ($3::timestamptz IS NULL OR criado_em<$3)''',claims['tenant_id'],de,ate)
         decisoes=await conn.fetchval('''SELECT count(*) FROM decisoes_gestor_operacao WHERE tenant_id=$1
             AND ($2::timestamptz IS NULL OR registrado_em>=$2) AND ($3::timestamptz IS NULL OR registrado_em<$3)''',claims['tenant_id'],de,ate)
-    return {'empresa':claims['tenant_id'],'ambiente':'PRODUCAO' if is_production() else 'NAO_PRODUCAO','emitido_em':datetime.now(timezone.utc),
+    return {'empresa':claims['tenant_id'],'ambiente':ambiente_relatorio(),'emitido_em':datetime.now(timezone.utc),
         'periodo':{'inicio':inicio,'fim':fim,'fuso':'America/Sao_Paulo',
             'criterio':'Operações pela criação; consultas e decisões pelo registro. Última recomendação de cada operação na emissão, sem duplicar recálculos.'},
         'amostra':{**dict(r),'consultas':consultas,'decisoes':decisoes},
@@ -103,7 +108,7 @@ async def decisao(identificador:int,response:Response,claims=Depends(get_current
     if not r:raise HTTPException(404,'Decisão não encontrada.')
     d=dict(r);salvo=objeto(d.pop('snapshot'));vinculado=objeto(d.pop('consulta_snapshot'))
     snapshot=salvo or vinculado or None
-    return {'empresa':claims['tenant_id'],'ambiente':'PRODUCAO' if is_production() else 'NAO_PRODUCAO','emitido_em':datetime.now(timezone.utc),'decisao':d,'snapshot':snapshot,
+    return {'empresa':claims['tenant_id'],'ambiente':ambiente_relatorio(),'emitido_em':datetime.now(timezone.utc),'decisao':d,'snapshot':snapshot,
         'fonte_snapshot':'decisao.snapshot' if salvo else 'consulta.snapshot vinculada' if vinculado else None,
         'limitacoes':['Decisão registrada não comprova execução ou economia real.']+(
             [] if snapshot else ['Registro legado sem fotografia. Valores e condições da época são desconhecidos; a consulta atual não é usada como substituta.'])}
@@ -136,7 +141,7 @@ COLUNAS=['recomendacao_id','calculo_gerado_em','natureza_cenario','fonte','recom
 
 async def exportar_csv(conn,tenant,tipo,de,ate,op,consulta=None):
     emitido=datetime.now(timezone.utc).isoformat()
-    ambiente='PRODUCAO' if is_production() else 'NAO_PRODUCAO'
+    ambiente=ambiente_relatorio()
     cab=['empresa','ambiente','emitido_em','id_consulta','operacao','registrado_em','usuario_id','perfil'] if tipo=='consultas' else [
         'empresa','ambiente','emitido_em','id_decisao','operacao','registrado_em','usuario_id','perfil','decisao','motivo','id_consulta','fonte_snapshot']
     if tipo=='consultas':

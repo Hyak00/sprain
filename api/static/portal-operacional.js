@@ -175,7 +175,8 @@
         el(p,'h4','Exportação');el(p,'p','Relatórios exportam resumo, consulta e decisões. A seção Administração da empresa permite ao administrador individual baixar um arquivo dos dados privados do cliente, sem senhas ou sessões.');
         botao(p,'Abrir relatórios e exportações',()=>render('relatorios'));
     }
-    function demonstracao(p){
+    function demonstracao(p,v){
+        if(root.PainelDemonstracao)return root.PainelDemonstracao.render(p,{atual:()=>atual(v),obter:path=>obter(path,v),tabela});
         el(p,'p','DEMONSTRAÇÃO — os atalhos de contas demo funcionam somente fora de produção. O acesso individual é separado desses atalhos. Chuva simulada não é medição em campo.');
         const passos=['Entre com uma conta de demonstração em ambiente separado.','Cadastre um caminhão de teste com medidas explicitamente identificadas como exemplo.','Despache uma rota dentro da malha disponível e confira as coordenadas.','Compare cenários de chuva, rota original, alternativa, limitações e custos.','Registre uma decisão com motivo, confira o histórico e exporte o relatório.'];
         const ol=el(p,'ol');passos.forEach(s=>el(ol,'li',s));
@@ -191,7 +192,7 @@
         el(p,'p','Tempo desta sessão até a primeira consulta de relatório útil: '+(primeiro?((primeiro-inicio)/1000).toFixed(1)+' s':'ainda não registrado nesta sessão')+'. Medição apenas em memória: não é evento auditável persistido. Esse evento de onboarding ainda precisa de endpoint.');
         el(p,'h4','Quando pedir suporte');el(p,'p','Em falha de fonte, atualize a consulta e confira a idade dos dados. Em conflito de decisão, recalcule a rota. Em resultado incerto de importação, consulte as operações antes de reenviar. Nunca envie sua chave de API em relatórios ou mensagens de suporte.');
     }
-    function sessao(user){limpar();usuario={tenant_id:user.tenant_id,role:user.role,email:user.email};inicio=Date.now();aviso.hidden=user.tipo_acesso==='INDIVIDUAL';}
+    function sessao(user){limpar();usuario={tenant_id:user.tenant_id,role:user.role,email:user.email};inicio=Date.now();aviso.hidden=user.tipo_acesso==='INDIVIDUAL'&&!root.PainelDemonstracao?.estado()?.demo_isolada;}
     function limpar(){usuario=null;selecionada=null;primeiro=null;versao++;controle?.abort();dialog.close();conteudo.replaceChildren();urls.forEach(u=>URL.revokeObjectURL(u));urls.clear();}
     function selecionar(op){selecionada=op;}
     function registrarSecao(id,label,fn){

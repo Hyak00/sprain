@@ -4,12 +4,13 @@ Pré-requisitos: Git e Docker Desktop/Engine com Compose. Python 3.9+ executa a 
 
 ```text
 docker compose -f compose.demo.yml up -d --build
+python scripts/preparar_demonstracao.py
 python scripts/verificar_portal.py
 ```
 
 Abra `http://127.0.0.1:18000/static/b2b.html`; Swagger: `/docs`. Use os botões de acesso rápido de demonstração. O Compose carrega os scripts de `db/ci` somente na primeira inicialização do volume próprio. A API aplica as migrações aditivas de meteorologia, alertas, validação espacial, feedback, bacias e auditoria ao iniciar, inclusive em volumes existentes. Não usa volumes, banco, rede, chaves ou portas do ambiente operacional.
 
-Dados do CI são exemplos/sintéticos e não evidência de eventos históricos, viagens de clientes ou retorno financeiro realizado. As chaves e senha do Compose são públicas de demonstração, inadequadas para produção. Somente a API é publicada em loopback; o banco permanece na rede Docker. O agendador existente da API é preservado: pode consultar clima periodicamente. A demonstração não implica fontes públicas completas ou atualizadas.
+Dados do CI são exemplos/sintéticos e não evidência de eventos históricos, viagens de clientes ou retorno financeiro realizado. As chaves e senha do Compose são públicas de demonstração, inadequadas para produção. Somente a API é publicada em loopback; o banco permanece na rede Docker. O agendador climático automático fica desligado somente neste modo de demonstração explicitamente isolado. A demonstração não implica fontes públicas completas ou atualizadas.
 
 A métrica de acurácia considera apenas registros de `auditoria_previsao_realidade` com `tenant_id` igual à empresa autenticada. Registros antigos sem empresa identificada são preservados, mas não entram na métrica; a origem deles precisa ser comprovada antes de atribuir um `tenant_id`.
 
@@ -40,10 +41,10 @@ Confira `/api/v1/health/readiness` depois da atualização: a sonda retorna 503 
 7. Entre como VIEWER: consultas funcionam; cadastro, simulação de escrita, decisão e importação não ficam disponíveis.
 8. Saia/troque empresa e confirme a limpeza da tela.
 
-O evento histórico SP-310 ainda depende de fonte primária e geometria conferidas. O endpoint de demonstração atual contém valores substitutos; esta interface não o aciona como reconstrução histórica homologada. A base sintética não conclui essa dependência.
+A aba Demonstração usa uma referência oficial pesquisada da ARTESP, separada de um exercício sintético. O evento pretendido pelo colega não foi identificado; não há reconstrução geográfica histórica homologada. Veja [fonte, isolamento e roteiro](demonstracao-isolada.md).
 
 ## Evidência da instalação
 
-O Compose foi verificado em banco/volume novos no host de desenvolvimento, e a sonda deve retornar oito sucessos. Isso comprova bootstrap isolado em contêiner; **não** equivale à validação por outra pessoa em máquina limpa. A revisão independente continua no checklist.
+O Compose foi verificado em banco/volume novos no host de desenvolvimento, e a sonda deve retornar 23 sucessos. Isso comprova bootstrap isolado em contêiner; **não** equivale à validação por outra pessoa em máquina limpa. A revisão independente continua no checklist.
 
 Falha no bootstrap: veja `docker compose -f compose.demo.yml logs --tail 100 db api`, sem publicar credenciais/logs privados. Confirme disponibilidade da porta 18000, Docker em execução e conexão ao registro de imagens. Nunca resolva falha apagando dados de outro projeto.

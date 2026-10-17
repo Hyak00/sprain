@@ -20,6 +20,7 @@ Para começar em **demonstração local isolada**, com o esquema e a base de tes
 
 ```bash
 docker compose -f compose.demo.yml up -d --build
+python scripts/preparar_demonstracao.py
 python scripts/verificar_portal.py
 ```
 
@@ -28,6 +29,10 @@ demonstração. A **Central de trabalho** reúne relatórios PDF/CSV, qualidade,
 prévia/importação de operações e orientações. Dados do CI são exemplos, não
 evidências históricas ou viagens reais. Esse Compose usa banco, volume e rede
 próprios; não reaproveita o banco operacional e não configura produção.
+
+A aba Demonstração separa uma referência oficial pesquisada da ARTESP de um
+exercício sintético de bloqueio e desvio. Fonte, limites e roteiro estão em
+[Demonstração isolada](docs/demonstracao-isolada.md).
 
 Para gestão de usuários, premissas financeiras, recuperação assistida de acesso e
 exportação privada, veja [Administração na interface](docs/administracao-interface.md).
