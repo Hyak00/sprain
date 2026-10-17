@@ -6,6 +6,7 @@ import csv
 import json
 import uuid
 import asyncpg
+from datetime import datetime, timezone
 from typing import List, Dict, Any, Optional, Literal
 
 from app.services.rate_limiter import TenantRateLimiter
@@ -701,7 +702,7 @@ async def exportar_auditoria_csv(tenant_id: str = Depends(resolve_tenant), conn:
             COALESCE(o.destino_nome, 'Destino') AS destino,
             c.precipitacao_mm AS precipitacao_mm,
             COALESCE(r.nivel_risco, 'NORMAL') AS impacto_detectado,
-            COALESCE(r.prejuizo_potencial_evitado, 0.0) AS custo_evitado_reais,
+            r.prejuizo_potencial_evitado AS impacto_potencial_cenario_reais,
             TO_CHAR(COALESCE(r.gerado_em, o.criado_em), 'YYYY-MM-DD HH24:MI') AS data_registro
         FROM operacoes o
         LEFT JOIN recomendacoes_operacao r ON r.id_operacao = o.id_operacao AND r.tenant_id = o.tenant_id
@@ -713,10 +714,10 @@ async def exportar_auditoria_csv(tenant_id: str = Depends(resolve_tenant), conn:
     rows = await conn.fetch(query, tenant_id)
     output = io.StringIO()
     writer = csv.writer(output, delimiter=";")
-    writer.writerow(["id_veiculo", "origem", "destino", "precipitacao_mm", "impacto_detectado", "custo_evitado_reais", "data_registro"])
+    writer.writerow(["id_veiculo", "origem", "destino", "precipitacao_mm", "impacto_detectado", "impacto_potencial_cenario_reais", "data_registro"])
 
     if not rows:
-        writer.writerow(["SEM_DADOS", "Nenhum registro para o tenant informado", "", "", "N/A", 0.0, ""])
+        writer.writerow(["SEM_DADOS", "Nenhum registro para o tenant informado", "", "", "N/A", "", ""])
     else:
         for r in rows:
             writer.writerow([
@@ -725,7 +726,7 @@ async def exportar_auditoria_csv(tenant_id: str = Depends(resolve_tenant), conn:
                 r["destino"],
                 precipitacao_para_csv(r["precipitacao_mm"]),
                 r["impacto_detectado"],
-                r["custo_evitado_reais"],
+                r["impacto_potencial_cenario_reais"],
                 r["data_registro"]
             ])
 
@@ -742,12 +743,19 @@ async def obter_sumario_executivo(tenant_id: str = Depends(resolve_tenant), conn
         SELECT
             COUNT(o.id_operacao)::int AS total_operacoes,
             COUNT(r.id_operacao) FILTER (WHERE r.nivel_risco IN ('CRITICO', 'RISCO'))::int AS rotas_em_risco,
-            COUNT(r.id_operacao) FILTER (WHERE r.tipo_acao = 'ALTERAR_ROTA')::int AS rotas_recalculadas,
-            COALESCE(SUM(r.prejuizo_potencial_evitado), 0.0)::float AS prejuizo_evitado,
-            COALESCE(SUM(r.minutos_adicionais), 0.0)::float AS tempo_desvios
+            COUNT(r.id_operacao) FILTER (WHERE r.tipo_acao = 'ALTERAR_ROTA')::int AS alternativas_sugeridas,
+            COUNT(r.id_operacao) FILTER (WHERE r.nivel_risco IN ('CRITICO', 'RISCO')
+                AND r.tipo_acao = 'ALTERAR_ROTA')::int AS alternativas_em_risco,
+            COALESCE(SUM(r.prejuizo_potencial_evitado), 0.0)::float AS impacto_potencial_cenario,
+            COUNT(r.id_operacao)::int AS recomendacoes_avaliadas,
+            COALESCE(SUM(r.minutos_adicionais) FILTER (WHERE r.tipo_acao = 'ALTERAR_ROTA'), 0.0)::float
+                AS tempo_adicional_planejado,
+            COALESCE(SUM(r.custo_desvio) FILTER (WHERE r.tipo_acao = 'ALTERAR_ROTA'), 0.0)::float
+                AS custo_desvio_planejado
         FROM operacoes o
         LEFT JOIN LATERAL (
-            SELECT id_operacao, nivel_risco, tipo_acao, prejuizo_potencial_evitado, minutos_adicionais
+            SELECT id_operacao, nivel_risco, tipo_acao, prejuizo_potencial_evitado,
+                   minutos_adicionais, custo_desvio
             FROM recomendacoes_operacao
             WHERE id_operacao = o.id_operacao AND tenant_id = o.tenant_id
             ORDER BY id_recomendacao DESC
@@ -758,22 +766,58 @@ async def obter_sumario_executivo(tenant_id: str = Depends(resolve_tenant), conn
     row = await conn.fetchrow(query, tenant_id)
     if row is None:
         raise HTTPException(status_code=500, detail="Falha ao consultar os dados.")
+    decisoes = await conn.fetchrow("""
+        SELECT COUNT(*)::int AS total,
+               COUNT(*) FILTER (WHERE d.decisao='APROVAR_DESVIO')::int AS aprovar_desvio,
+               COUNT(*) FILTER (WHERE d.decisao='MANTER_ROTA_ORIGINAL')::int AS manter_rota,
+               COUNT(*) FILTER (WHERE d.decisao='AGUARDAR_MELHORA')::int AS aguardar,
+               COUNT(*) FILTER (WHERE d.consulta_id IS NOT NULL)::int AS vinculadas_consulta
+        FROM decisoes_gestor_operacao d
+        JOIN operacoes o ON o.id_operacao=d.id_operacao AND o.tenant_id=d.tenant_id
+        WHERE d.tenant_id=$1
+    """, tenant_id)
     total_ops = int(row["total_operacoes"] or 0)
     rotas_risco = int(row["rotas_em_risco"] or 0)
-    recalculadas = int(row["rotas_recalculadas"] or 0)
-    indice_resiliencia = 100.0 if rotas_risco == 0 else round((recalculadas / max(1, rotas_risco)) * 100.0, 1)
+    alternativas = int(row["alternativas_sugeridas"] or 0)
+    alternativas_em_risco = int(row["alternativas_em_risco"] or 0)
 
     return {
         "tenant_id": tenant_id,
-        "periodo": "D-0 / D+1",
+        "periodo": "Todo o historico disponivel; sem filtro de datas",
+        "gerado_em": datetime.now(timezone.utc).isoformat(),
+        "natureza": "PLANEJAMENTO_NAO_COMPROVADO",
         "kpis": {
             "total_operacoes": total_ops,
             "rotas_em_risco_alagamento": rotas_risco,
-            "rotas_recalculadas_com_sucesso": recalculadas,
-            "indice_resiliencia_pct": indice_resiliencia,
-            "prejuizo_estimado_evitado_brl": round(float(row["prejuizo_evitado"] or 0.0), 2),
-            "tempo_total_desvios_min": round(float(row["tempo_desvios"] or 0.0), 1),
-            "status_sla": "OPERACAO_PROTEGIDA" if (rotas_risco == 0 or recalculadas == rotas_risco) else "ATENCAO_OPERACIONAL"
+            "rotas_com_alternativa_sugerida": alternativas,
+            "taxa_alternativa_sugerida_em_risco_pct": (
+                round(alternativas_em_risco / rotas_risco * 100, 1) if rotas_risco else None
+            ),
+            "impacto_potencial_cenario_brl": (
+                round(float(row["impacto_potencial_cenario"] or 0.0), 2)
+                if row["recomendacoes_avaliadas"] else None
+            ),
+            "tempo_adicional_planejado_min": (
+                round(float(row["tempo_adicional_planejado"] or 0.0), 1) if alternativas else None
+            ),
+            "custo_desvio_planejado_brl": (
+                round(float(row["custo_desvio_planejado"] or 0.0), 2) if alternativas else None
+            ),
+            "decisoes_registradas": int(decisoes["total"] or 0),
+            "decisoes_por_tipo": {
+                "aprovar_desvio": int(decisoes["aprovar_desvio"] or 0),
+                "manter_rota_original": int(decisoes["manter_rota"] or 0),
+                "aguardar_melhora": int(decisoes["aguardar"] or 0),
+            },
+            "decisoes_vinculadas_consulta": int(decisoes["vinculadas_consulta"] or 0),
+            "desvios_realizados": None,
+            "custo_observado_brl": None,
+            "economia_comprovada_brl": None,
+            "rotas_recalculadas_com_sucesso": None,
+            "indice_resiliencia_pct": None,
+            "prejuizo_estimado_evitado_brl": None,
+            "tempo_total_desvios_min": None,
+            "status_sla": "NAO_MEDIDO",
         }
     }
 

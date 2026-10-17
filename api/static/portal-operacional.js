@@ -50,12 +50,12 @@
         if(sumario?.kpis){
             const k=sumario.kpis, linhas=['SPRain | Relatório do piloto','Empresa: '+usuario.tenant_id,'Consulta recebida em: '+D.data(new Date().toISOString()),
                 'Escopo: retrato das últimas recomendações disponíveis; não é filtro de período nem comprovação de execução.',
-                'Operações: '+k.total_operacoes,'Rotas em risco de alagamento: '+k.rotas_em_risco_alagamento,'Rotas recalculadas: '+k.rotas_recalculadas_com_sucesso,
-                'Prejuízo estimado potencial evitado: '+D.moeda(k.prejuizo_estimado_evitado_brl),
+                'Operações: '+k.total_operacoes,'Rotas em risco de alagamento: '+k.rotas_em_risco_alagamento,'Alternativas sugeridas: '+k.rotas_com_alternativa_sugerida,
+                'Impacto potencial do cenário: '+D.moeda(k.impacto_potencial_cenario_brl),
                 'Economia comprovada: não disponível.','Custo observado: não disponível.','Custo estimado agregado comparável: não fornecido neste endpoint.',
                 'Limitações: cobertura parcial de tarifas e restrições; dados de planejamento não comprovam economia realizada.',
                 'Fonte: /api/v1/logistica/relatorios/sumario-executivo.','Período declarado pela API: '+sumario.periodo];
-            tabela(piloto,['Indicador','Resultado'],[['Operações',k.total_operacoes],['Em risco',k.rotas_em_risco_alagamento],['Recalculadas',k.rotas_recalculadas_com_sucesso],['Impacto potencial estimado',D.moeda(k.prejuizo_estimado_evitado_brl)],['Economia comprovada','Não disponível'],['Custo observado','Não disponível']]);
+            tabela(piloto,['Indicador','Resultado'],[['Operações',k.total_operacoes],['Em risco',k.rotas_em_risco_alagamento],['Alternativas sugeridas',k.rotas_com_alternativa_sugerida],['Impacto potencial do cenário',D.moeda(k.impacto_potencial_cenario_brl)],['Economia comprovada','Não disponível'],['Custo observado','Não disponível']]);
             botao(piloto,'Baixar PDF do piloto',()=>download('piloto.pdf',PDF.gerar(linhas),'application/pdf'));
             botao(piloto,'Baixar dados do resumo (JSON)',()=>download('piloto.json',JSON.stringify({natureza:'PLANEJAMENTO_NAO_COMPROVADO',recebido_em:new Date().toISOString(),...sumario},null,2),'application/json'));
         }else mensagem(piloto,'Resumo indisponível. Não há base para declarar economia ou operações protegidas.');
