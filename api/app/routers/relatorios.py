@@ -8,16 +8,14 @@ from fastapi import APIRouter, Depends, Response
 
 from app.database import get_connection
 
-router = APIRouter(prefix="/api/v1/relatorios", tags=["Relatorios"])
+router = APIRouter(prefix="/api/v1/relatorios", tags=["Relatorios"], dependencies=[Depends(require_role(["ADMIN", "OPERATOR", "VIEWER"]))])
 
 SQL_OCORRENCIAS = r"""
     SELECT e.id_estado,
            t.name AS logradouro,
            e.status,
            e.severidade,
-           COALESCE(substring(e.relato_origem from '^\[([^\]]+)\]'), 'NAO_INFORMADA') AS corporacao,
-           e.registrado_em,
-           e.relato_origem AS observacao
+           e.registrado_em
     FROM estado_operacional_trechos e
     JOIN trechos_osm t ON t.id_trecho = e.id_trecho
     WHERE e.status != 'TRANSITAVEL'
@@ -53,9 +51,9 @@ async def gerar_boletim_json(conn: asyncpg.Connection = Depends(get_connection))
                 "logradouro": r["logradouro"] or "Sem denominacao",
                 "status": r["status"],
                 "severidade": r["severidade"],
-                "origem": r["corporacao"],
+                "origem": "NAO_INFORMADA",
                 "horario": r["registrado_em"].strftime("%H:%M:%S") if r["registrado_em"] else "",
-                "observacao": r["observacao"]
+                "observacao": None
             }
             for r in linhas
         ]
@@ -75,9 +73,9 @@ async def gerar_boletim_csv(conn: asyncpg.Connection = Depends(get_connection)):
             r["logradouro"] or "Sem denominacao",
             r["status"],
             r["severidade"],
-            r["corporacao"],
+            "NAO_INFORMADA",
             r["registrado_em"].strftime("%Y-%m-%d %H:%M:%S") if r["registrado_em"] else "",
-            r["observacao"] or ""
+            ""
         ])
 
     nome_arquivo = f"boletim_defesa_civil_itaquera_{datetime.now().strftime('%Y%m%d_%H%M')}.csv"

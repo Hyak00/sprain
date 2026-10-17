@@ -185,7 +185,7 @@ async def criar_operacao(dados: OperacaoCreate, conn: asyncpg.Connection = Depen
         "infraestrutura":rota_inicial["infraestrutura"]
     }
 
-@router.get("/operacoes")
+@router.get("/operacoes", dependencies=[Depends(aplicar_rate_limit)])
 async def listar_operacoes(tenant_id: str = Depends(resolve_tenant), conn: asyncpg.Connection = Depends(get_connection)):
     rows = await conn.fetch("SELECT * FROM operacoes WHERE tenant_id = $1 ORDER BY criado_em DESC;", tenant_id)
     return [{**dict(r), "dimensoes":objeto(r["dimensoes"]) or None,
@@ -358,7 +358,7 @@ async def obter_explicacao_decisao(id_operacao: str, tenant_id: str = Depends(re
         }
     }
 
-@router.get("/exportar-contingencia/csv")
+@router.get("/exportar-contingencia/csv", dependencies=[Depends(require_role(["ADMIN", "OPERATOR"])), Depends(aplicar_rate_limit)])
 async def exportar_plano_contingencia_csv(tenant_id: str = Depends(resolve_tenant), conn: asyncpg.Connection = Depends(get_connection)):
     query = """
         SELECT
@@ -798,7 +798,7 @@ async def testar_webhook_tenant(payload: WebhookTestRequest, tenant_id: str = De
 from app.schemas_economic import DecisaoEconomicaRequest
 from app.services.economic_engine import EconomicDecisionEngine
 
-@router.post("/decisao-economica", dependencies=[Depends(aplicar_rate_limit)])
+@router.post("/decisao-economica", dependencies=[Depends(require_role(["ADMIN", "OPERATOR"])), Depends(aplicar_rate_limit)])
 async def tomar_decisao_economica(dados: DecisaoEconomicaRequest, conn: asyncpg.Connection = Depends(get_connection), tenant_id: str = Depends(resolve_tenant)):
     dados.tenant_id = tenant_id
     cadastradas=await dimensoes_veiculo(conn,tenant_id,dados.id_veiculo)
@@ -1007,7 +1007,7 @@ async def obter_painel_central_frota(tenant_id: str = Depends(resolve_tenant), p
 
 from app.services.weather_alert_engine import SevereWeatherEngine
 
-@router.get("/alertas-meteorologicos", dependencies=[Depends(aplicar_rate_limit)])
+@router.get("/alertas-meteorologicos", dependencies=[Depends(require_role(["ADMIN", "OPERATOR", "VIEWER"])), Depends(aplicar_rate_limit)])
 async def obter_alertas_meteorologicos_regiao(precipitacao_mm: float = 65.0, rajada_vento_kmh: float = 40.0):
     alerta = SevereWeatherEngine.parse_alert_severity(precipitacao_mm, rajada_vento_kmh)
     return {

@@ -269,16 +269,24 @@ def ler_coordenadas_postos(dados: bytes) -> tuple[list[dict], dict]:
     if not exigidos.issubset(leitor.fieldnames or []):
         raise ValueError("Colunas de coordenadas ausentes")
     registros = []
+    cnpjs_vistos = set()
     for linha in leitor:
         cnpj = re.sub(r"\D", "", linha["cnpj"])
         latitude = _numero(linha["latitude"])
         longitude = _numero(linha["longitude"])
         fonte = linha["fonte"].strip()
         verificado_em = datetime.fromisoformat(linha["verificado_em"].strip())
-        if (len(cnpj) != 14 or not (-90 <= latitude <= 90 and -180 <= longitude <= 180)
-                or not fonte.startswith("https://") or verificado_em.utcoffset() is None
+
+        if cnpj in cnpjs_vistos:
+            raise ValueError("CSV de coordenadas contem CNPJ duplicado.")
+        if (len(cnpj) != 14
+                or not (-26 <= latitude <= -19 and -54 <= longitude <= -44)
+                or not fonte.startswith("https://")
+                or verificado_em.utcoffset() is None
                 or verificado_em > datetime.now(timezone.utc)):
             raise ValueError("Coordenada de posto invalida ou sem fonte data verificavel.")
+
+        cnpjs_vistos.add(cnpj)
         registros.append({"cnpj": cnpj, "latitude": latitude, "longitude": longitude,
                           "fonte": fonte, "verificado_em": verificado_em})
     return registros, {"coordenadas_verificadas": len(registros)}
@@ -442,6 +450,23 @@ def aplicar(fonte: str, url: str, dados: bytes, registros: list[dict], resumo: d
         with conn.cursor() as cursor:
             cursor.execute("SET LOCAL statement_timeout = '120s'")
             cursor.execute(MIGRACAO.read_text(encoding="utf-8"))
+
+            if fonte == "COORDENADAS_POSTOS":
+                cnpjs = [r["cnpj"] for r in registros]
+                if len(cnpjs) != len(set(cnpjs)):
+                    raise ValueError("CSV de coordenadas contem CNPJ duplicado.")
+                if cnpjs:
+                    cursor.execute(
+                        "SELECT cnpj FROM postos_combustivel WHERE cnpj = ANY(%s)",
+                        (cnpjs,))
+                    existentes = {linha[0] for linha in cursor.fetchall()}
+                    ausentes = sorted(set(cnpjs) - existentes)
+                    if ausentes:
+                        amostra = ", ".join(ausentes[:10])
+                        raise ValueError(
+                            f"CSV contem {len(ausentes)} CNPJ(s) ausente(s) do cadastro. "
+                            f"Exemplos: {amostra}")
+
             cursor.execute("SELECT hash_sha256,registros_importados FROM fontes_dados_externos WHERE nome=%s", (fonte,))
             anterior = cursor.fetchone()
             if anterior and anterior[0] == sha and anterior[1] == len(registros):

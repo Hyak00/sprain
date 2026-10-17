@@ -2,8 +2,9 @@ import asyncpg
 from fastapi import APIRouter, Depends
 from app.database import get_connection
 from app.schemas import ResumoEstatisticas
+from app.seguranca import require_role
 
-router = APIRouter(prefix="/api/v1/estatisticas", tags=["Estatisticas e Monitoramento"])
+router = APIRouter(prefix="/api/v1/estatisticas", tags=["Estatisticas e Monitoramento"], dependencies=[Depends(require_role(["ADMIN", "OPERATOR", "VIEWER"]))])
 
 
 @router.get("/distrito", response_model=ResumoEstatisticas)

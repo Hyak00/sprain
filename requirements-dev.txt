@@ -1,0 +1,6 @@
+﻿-r api/requirements.txt
+pytest
+pytest-asyncio
+httpx
+cryptography
+psycopg2-binary

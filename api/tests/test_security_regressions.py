@@ -29,14 +29,19 @@ def chaves_teste(monkeypatch):
 class ConexaoFalsa:
     def __init__(self):
         self.gravacoes = 0
+        self.consultas = 0
 
     async def execute(self, *_args):
         self.gravacoes += 1
         return "UPDATE 1"
 
     async def fetch(self, *_args):
-        self.gravacoes += 1
+        self.consultas += 1
         return []
+
+    async def fetchval(self, *_args):
+        self.consultas += 1
+        return 0
 
 
 @pytest.mark.asyncio
@@ -62,7 +67,11 @@ async def test_monitoramento_so_operador_ou_admin(rota, chaves_teste, monkeypatc
         assert sem_chave.status_code == 401
         assert visualizador.status_code == 403
         assert operador.status_code == 200
-        assert conn.gravacoes == 1
+        if "/simular-chuva" in rota:
+            assert conn.gravacoes == 0
+            assert conn.consultas == 1
+        else:
+            assert conn.gravacoes == 1
     finally:
         app.dependency_overrides.pop(get_connection, None)
 
@@ -274,4 +283,41 @@ async def test_alerta_tenant_a_nao_afeta_rotas_tenant_b():
     rota_a = await RoutingEngine.compute_route(c, orig_lon, orig_lat, dest_lon, dest_lat, "FASTEST", 0.0, "VUC", "empresa_a")
     assert rota_a is not None
     assert 555 in rota_a["trechos_excluidos_por_limites"]
+
+
+@pytest.mark.asyncio
+async def test_decisao_economica_bloqueia_anonimo_e_viewer(chaves_teste):
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app),
+        base_url="http://teste",
+    ) as client:
+        anonimo = await client.post(
+            "/api/v1/logistica/decisao-economica",
+            json={},
+        )
+        viewer = await client.post(
+            "/api/v1/logistica/decisao-economica",
+            json={},
+            headers={"X-API-Key": "monitor_viewer"},
+        )
+
+    assert anonimo.status_code == 401
+    assert viewer.status_code == 403
+
+@pytest.mark.asyncio
+async def test_exportar_contingencia_csv_restringe_perfil(chaves_teste):
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app),
+        base_url="http://teste",
+    ) as client:
+        anonimo = await client.get(
+            "/api/v1/logistica/exportar-contingencia/csv"
+        )
+        viewer = await client.get(
+            "/api/v1/logistica/exportar-contingencia/csv",
+            headers={"X-API-Key": "monitor_viewer"},
+        )
+
+    assert anonimo.status_code == 401
+    assert viewer.status_code == 403
 

@@ -273,7 +273,7 @@ async def relatar(dados: Relato, claims=Depends(get_current_user_claims), conn=D
 @router.get('/eventos')
 async def eventos(claims=Depends(get_current_user_claims), conn=Depends(get_connection)):
     from app.routers.ocorrencias import listar_ocorrencias_ativas
-    publicos = await listar_ocorrencias_ativas(conn)
+    publicos = await listar_ocorrencias_ativas(conn, claims['tenant_id'])
     items, features = [], []
     for e in publicos:
         categoria = str(e['categoria']).upper()

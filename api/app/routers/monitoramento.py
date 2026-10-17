@@ -98,10 +98,27 @@ async def sincronizar_cge(conn=Depends(get_connection)):
 async def simular_chuva_manual(acumulado_mm: float, conn=Depends(get_connection)):
     if acumulado_mm < 0:
         raise HTTPException(status_code=400, detail="Volume de chuva nao pode ser negativo.")
-    linhas = await aplicar_impacto_chuva(conn, acumulado_mm)
+
+    query = """
+        WITH calc AS (
+            SELECT
+                CASE
+                    WHEN $1 >= 90.0 AND t.distancia_agua_m <= 45.0 AND t.ivi_score >= 78.0 THEN 'INTRANSITAVEL'
+                    WHEN $1 >= 60.0 AND t.distancia_agua_m <= 30.0 AND t.ivi_score >= 80.0 THEN 'INTRANSITAVEL'
+                    WHEN $1 >= 60.0 AND t.distancia_agua_m <= 110.0 AND t.ivi_score >= 68.0 THEN 'INTRANSITAVEL_LEVES'
+                    WHEN $1 >= 35.0 AND t.distancia_agua_m <= 60.0 AND t.ivi_score >= 70.0 THEN 'INTRANSITAVEL_LEVES'
+                    ELSE 'TRANSITAVEL'
+                END AS novo_status
+            FROM trechos_osm t
+        )
+        SELECT COUNT(*)::int
+        FROM calc
+        WHERE novo_status <> 'TRANSITAVEL';
+    """
+    linhas = await conn.fetchval(query, acumulado_mm)
     return {
         "status": "sucesso",
         "acumulado_mm": acumulado_mm,
-        "trechos_atualizados": linhas,
+        "trechos_atualizados": int(linhas or 0),
         "modo": "SIMULACAO_MANUAL"
     }

@@ -232,13 +232,13 @@ async def test_cache_compute_route_invalida_quando_alerta_incerto_muda():
         assert segunda is not None
         assert conexao.chamadas_pgr == 1
 
-        # Mudança na confiança: deve recalcular.
+        # MudanÃ§a na confianÃ§a: deve recalcular.
         conexao.alertas[0]["confianca"] = 0.80
         terceira = await RoutingEngine.compute_route(*argumentos)
         assert terceira is not None
         assert conexao.chamadas_pgr == 2
 
-        # Mudança nos trechos afetados: deve recalcular novamente.
+        # MudanÃ§a nos trechos afetados: deve recalcular novamente.
         conexao.alertas[0]["trechos_afetados"] = [200]
         quarta = await RoutingEngine.compute_route(*argumentos)
         assert quarta is not None
@@ -246,3 +246,4 @@ async def test_cache_compute_route_invalida_quando_alerta_incerto_muda():
 
     finally:
         RoutingEngine.clear_cache()
+

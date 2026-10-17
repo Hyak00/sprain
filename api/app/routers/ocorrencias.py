@@ -7,7 +7,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from app.schemas import AlertaRapidoCreate, OcorrenciaTextoCreate
 from app.nlp import extrair_dados_ocorrencia
 from app.database import get_connection
-from app.seguranca import exigir_api_key, get_current_user_claims
+from app.seguranca import exigir_api_key, get_current_user_claims, require_role, resolver_tenant_autenticado
 
 router = APIRouter(prefix="/api/v1/ocorrencias", tags=["Ocorrencias"])
 
@@ -16,8 +16,8 @@ def normalizar_texto(texto: str) -> str:
     sem_acento = "".join([c for c in nfkd if not unicodedata.combining(c)])
     return re.sub(r"[^a-zA-Z0-9\s]", " ", sem_acento).lower().strip()
 
-@router.post("/alerta-rapido", dependencies=[Depends(exigir_api_key)])
-async def registrar_alerta_rapido(dados: AlertaRapidoCreate, conn: asyncpg.Connection = Depends(get_connection)):
+@router.post("/alerta-rapido", dependencies=[Depends(require_role(["ADMIN", "OPERATOR"]))])
+async def registrar_alerta_rapido(dados: AlertaRapidoCreate, conn: asyncpg.Connection = Depends(get_connection), tenant_id: str = Depends(resolver_tenant_autenticado)):
     status_map = {
         "VERDE": "TRANSITAVEL",
         "AMARELO": "TRANSITAVEL_ALERTA",
@@ -25,7 +25,6 @@ async def registrar_alerta_rapido(dados: AlertaRapidoCreate, conn: asyncpg.Conne
         "VERMELHO": "INTRANSITAVEL"
     }
     novo_status = status_map[dados.nivel]
-    relato = f"[{dados.corporacao}] Alerta tatico: {dados.nivel}. {dados.observacao or ''}".strip()
     id_evento = str(uuid.uuid4())
     agora = datetime.now(timezone.utc)
     expiracao = agora + timedelta(hours=4)
@@ -41,18 +40,12 @@ async def registrar_alerta_rapido(dados: AlertaRapidoCreate, conn: asyncpg.Conne
     if not row:
         raise HTTPException(404, "Nenhuma via identificada num raio de 150 metros.")
 
-    await conn.execute("""
-        INSERT INTO estado_operacional_trechos (id_trecho, status, severidade, relato_origem, registrado_em)
-        VALUES ($1, $2, $3, $4, $5)
-        ON CONFLICT (id_trecho) DO UPDATE
-        SET status = EXCLUDED.status, severidade = EXCLUDED.severidade, relato_origem = EXCLUDED.relato_origem, registrado_em = $5
-    """, row["id_trecho"], novo_status, dados.nivel, relato, agora)
 
     await conn.execute("""
-        INSERT INTO alertas_operacionais 
-        (id_evento, categoria, fonte, primeira_deteccao, ultima_atualizacao, expiracao_em, confianca, status_evento, o_que_nao_sabemos, trechos_afetados)
-        VALUES ($1, 'OCORRENCIA_CONFIRMADA', $2, $3, $3, $4, 0.90, 'CONFIRMADO', $5, ARRAY[$6::integer])
-    """, id_evento, dados.corporacao, agora, expiracao, "Extensao exata do impacto na via", row["id_trecho"])
+        INSERT INTO alertas_operacionais
+        (id_evento, categoria, fonte, primeira_deteccao, ultima_atualizacao, expiracao_em, confianca, status_evento, o_que_nao_sabemos, trechos_afetados, tenant_id, escopo)
+        VALUES ($1, 'OCORRENCIA_CONFIRMADA', $2, $3, $3, $4, 0.90, 'CONFIRMADO', $5, ARRAY[$6::integer], $7, 'TENANT')
+    """, id_evento, dados.corporacao, agora, expiracao, "Extensao exata do impacto na via", row["id_trecho"], tenant_id)
 
     return {
         "sucesso": True,
@@ -65,18 +58,20 @@ async def registrar_alerta_rapido(dados: AlertaRapidoCreate, conn: asyncpg.Conne
         "expiracao_em": expiracao.isoformat()
     }
 
-@router.get("/ativas")
-async def listar_ocorrencias_ativas(conn: asyncpg.Connection = Depends(get_connection)):
+@router.get("/ativas", dependencies=[Depends(require_role(["ADMIN", "OPERATOR", "VIEWER"]))])
+async def listar_ocorrencias_ativas(conn: asyncpg.Connection = Depends(get_connection), tenant_id: str = Depends(resolver_tenant_autenticado)):
     rows = await conn.fetch("""
-        SELECT 
+        SELECT
             a.id_evento, a.categoria, a.fonte, a.confianca, a.status_evento, a.o_que_nao_sabemos,
             a.primeira_deteccao, a.ultima_atualizacao, a.expiracao_em, a.trechos_afetados,
             EXTRACT(EPOCH FROM (now() - a.ultima_atualizacao))/60 AS idade_minutos
         FROM alertas_operacionais a
-        WHERE a.expiracao_em > now() AND a.status_evento != 'DESCARTADO'
+        WHERE a.expiracao_em > now()
+          AND a.status_evento != 'DESCARTADO'
+          AND (a.tenant_id = $1 OR a.escopo = 'GLOBAL' OR a.tenant_id = 'GLOBAL')
         ORDER BY a.ultima_atualizacao DESC
         LIMIT 50
-    """)
+    """, tenant_id)
     return [{
         "id_evento": r["id_evento"], "categoria": r["categoria"], "fonte": r["fonte"],
         "idade_minutos": int(r["idade_minutos"]), "confianca": float(r["confianca"]),
@@ -92,8 +87,8 @@ async def resetar_todas_ocorrencias():
     # descarta-los para todos os clientes; manter a rota antiga sem efeito.
     raise HTTPException(403, "Ação global indisponível para contas de empresa.")
 
-@router.post("/processar-texto", dependencies=[Depends(exigir_api_key)])
-async def processar_texto(dados: OcorrenciaTextoCreate, conn: asyncpg.Connection = Depends(get_connection)):
+@router.post("/processar-texto", dependencies=[Depends(require_role(["ADMIN", "OPERATOR"]))])
+async def processar_texto(dados: OcorrenciaTextoCreate, conn: asyncpg.Connection = Depends(get_connection), tenant_id: str = Depends(resolver_tenant_autenticado)):
     extraido = extrair_dados_ocorrencia(dados.texto)
     if not extraido["via"]:
         raise HTTPException(422, "Nao identificou via.")
@@ -131,18 +126,12 @@ async def processar_texto(dados: OcorrenciaTextoCreate, conn: asyncpg.Connection
     trechos = [r["id_trecho"] for r in rows]
     nomes_afetados = list({r["name"] for r in rows if r["name"]})
 
-    for r in rows:
-        await conn.execute("""
-            INSERT INTO estado_operacional_trechos (id_trecho, status, severidade, relato_origem, registrado_em)
-            VALUES ($1, $2, $3, $4, $5)
-            ON CONFLICT (id_trecho) DO UPDATE SET status = EXCLUDED.status, severidade = EXCLUDED.severidade, relato_origem = EXCLUDED.relato_origem, registrado_em = $5
-        """, r["id_trecho"], extraido["status"], extraido["severidade"], dados.texto, agora)
 
     await conn.execute("""
-        INSERT INTO alertas_operacionais 
-        (id_evento, categoria, fonte, primeira_deteccao, ultima_atualizacao, expiracao_em, confianca, status_evento, o_que_nao_sabemos, trechos_afetados)
-        VALUES ($1, 'TRANSITO_OBSERVADO', $2, $3, $3, $4, 0.65, 'INCERTO', $5, $6::integer[])
-    """, id_evento, dados.fonte, agora, expiracao, "Nivel exato de severidade fisica e validacao local", trechos)
+        INSERT INTO alertas_operacionais
+        (id_evento, categoria, fonte, primeira_deteccao, ultima_atualizacao, expiracao_em, confianca, status_evento, o_que_nao_sabemos, trechos_afetados, tenant_id, escopo)
+        VALUES ($1, 'TRANSITO_OBSERVADO', $2, $3, $3, $4, 0.65, 'INCERTO', $5, $6::integer[], $7, 'TENANT')
+    """, id_evento, dados.fonte, agora, expiracao, "Nivel exato de severidade fisica e validacao local", trechos, tenant_id)
 
     return {
         "sucesso": True,
