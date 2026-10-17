@@ -51,6 +51,7 @@ class RotaRequest(BaseModel):
     origem_lon: float = Field(..., ge=-180.0, le=180.0)
     destino_lat: float = Field(..., ge=-90.0, le=90.0)
     destino_lon: float = Field(..., ge=-180.0, le=180.0)
+    id_veiculo: str | None = Field(None, max_length=64)
 
 async def executar_rota(conn: asyncpg.Connection, sql_query: str, v_inicio: int, v_fim: int):
     row = await conn.fetchrow(sql_query, v_inicio, v_fim)
@@ -61,28 +62,44 @@ async def executar_rota(conn: asyncpg.Connection, sql_query: str, v_inicio: int,
         "geojson": row["rota_geojson"]
     }
 
-@router.post("/calcular")
-async def calcular_rota(dados: RotaRequest, conn: asyncpg.Connection = Depends(get_connection)):
-    v_inicio = await conn.fetchval(SQL_VERTICE_PROXIMO, dados.origem_lon, dados.origem_lat)
-    v_fim = await conn.fetchval(SQL_VERTICE_PROXIMO, dados.destino_lon, dados.destino_lat)
-    
-    if not v_inicio or not v_fim:
-        raise HTTPException(status_code=404, detail="Origem ou destino fora da malha viaria.")
+from app.services.routing_engine import RoutingEngine
 
-    rota_padrao = await executar_rota(conn, montar_query_rota(SQL_ARESTAS_PADRAO), v_inicio, v_fim)
-    rota_resiliente = await executar_rota(conn, montar_query_rota(SQL_ARESTAS_RESILIENTE), v_inicio, v_fim)
+@router.post("/calcular", dependencies=[Depends(require_role(["ADMIN", "OPERATOR", "VIEWER"]))])
+async def calcular_rota(dados: RotaRequest, conn: asyncpg.Connection = Depends(get_connection), tenant_id: str = Depends(resolver_tenant_autenticado)):
+    from app.services.infraestrutura_viaria import dimensoes_veiculo
+    dims = await dimensoes_veiculo(conn, tenant_id, dados.id_veiculo)
+    exigidas = ("eixos", "altura_m", "largura_m", "comprimento_m", "peso_total_t")
+    faltando = [k for k in exigidas if not dims or dims.get(k) is None]
+    if faltando:
+        raise HTTPException(status_code=422, detail="Informe o id_veiculo de um veiculo com dimensoes cadastradas (faltando: " + ", ".join(faltando) + ") para avaliar as restricoes de altura e peso do trajeto.")
+    rota_padrao = await RoutingEngine.compute_route(
+        conn, dados.origem_lon, dados.origem_lat, dados.destino_lon, dados.destino_lat,
+        profile="FASTEST", rain_mm=0.0, tenant_id=tenant_id, vehicle_dimensions=dims
+    )
+    rota_resiliente = await RoutingEngine.compute_route(
+        conn, dados.origem_lon, dados.origem_lat, dados.destino_lon, dados.destino_lat,
+        profile="SAFEST", rain_mm=60.0, tenant_id=tenant_id, vehicle_dimensions=dims
+    )
 
     if not rota_padrao or not rota_resiliente:
-        raise HTTPException(status_code=404, detail="Nao foi possivel tracar uma rota entre os pontos.")
+        raise HTTPException(status_code=404, detail="Nao foi possivel tracar uma rota entre os pontos informados.")
 
     return {
-        "rota_padrao": rota_padrao,
-        "rota_resiliente": rota_resiliente,
-        "desvio_necessario": rota_padrao["distancia_km"] != rota_resiliente["distancia_km"],
+        "rota_padrao": {
+            "distancia_km": rota_padrao["distancia_km"],
+            "tempo_min": rota_padrao["tempo_min"],
+            "geojson": rota_padrao["geojson"]
+        },
+        "rota_resiliente": {
+            "distancia_km": rota_resiliente["distancia_km"],
+            "tempo_min": rota_resiliente["tempo_min"],
+            "geojson": rota_resiliente["geojson"]
+        },
+        "desvio_necessario": rota_padrao["ids_trechos"] != rota_resiliente["ids_trechos"],
         "rastreabilidade": {
-            "versao_malha": "osm_sp_araraquara_v1.2",
-            "regra_utilizada": "pgr_dijkstra_resiliente_v1",
-            "coletado_em": datetime.now(timezone.utc).isoformat()
+            "motor": "SPRain RoutingEngine PostGIS/pgRouting",
+            "tenant_id": tenant_id,
+            "calculado_em": datetime.now(timezone.utc).isoformat()
         }
     }
 

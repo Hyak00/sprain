@@ -1,6 +1,7 @@
 import sys
 import json
 import unittest
+from unittest.mock import MagicMock, patch
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
@@ -114,6 +115,95 @@ class FontesPublicasTest(unittest.TestCase):
         self.assertEqual(registros[0]["cnpj"], "01234567000189")
         with self.assertRaises(ValueError):
             ler_coordenadas_postos(csv.replace("https://", "http://").encode())
+
+    def test_coordenadas_rejeitam_cnpj_duplicado(self):
+        cabecalho = "cnpj,latitude,longitude,fonte,verificado_em\n"
+        linha = "01234567000189,-22.9,-47.1,https://www.openstreetmap.org/node/1,2025-01-01T10:00:00+00:00\n"
+        with self.assertRaisesRegex(ValueError, "CNPJ duplicado"):
+            ler_coordenadas_postos((cabecalho + linha + linha).encode())
+
+    def test_coordenadas_rejeitam_pontos_fora_da_area_de_sp(self):
+        csv = ("cnpj,latitude,longitude,fonte,verificado_em\n"
+               "01234567000189,-10.0,-47.1,https://www.openstreetmap.org/node/1,2025-01-01T10:00:00+00:00\n")
+        with self.assertRaisesRegex(ValueError, "Coordenada de posto invalida"):
+            ler_coordenadas_postos(csv.encode())
+
+
+    def test_aplicar_rejeita_cnpj_ausente_sem_gravar(self):
+        registro = {
+            "cnpj": "01234567000189",
+            "latitude": -22.9,
+            "longitude": -47.1,
+            "fonte": "https://www.openstreetmap.org/node/1",
+            "verificado_em": __import__("datetime").datetime.fromisoformat(
+                "2025-01-01T10:00:00+00:00"
+            ),
+        }
+
+        conn = MagicMock()
+        cursor = MagicMock()
+        conn.__enter__.return_value = conn
+        conn.cursor.return_value.__enter__.return_value = cursor
+        cursor.fetchall.return_value = []
+
+        with patch(
+            "scripts.sincronizar_dados_publicos.conectar",
+            return_value=conn,
+        ):
+            with self.assertRaisesRegex(ValueError, "CNPJ.*ausente"):
+                from scripts.sincronizar_dados_publicos import aplicar
+                aplicar(
+                    "COORDENADAS_POSTOS",
+                    "https://exemplo.invalid/coordenadas.csv",
+                    b"conteudo-de-teste",
+                    [registro],
+                    {},
+                )
+
+        consultas = [
+            chamada.args[0]
+            for chamada in cursor.execute.call_args_list
+        ]
+        self.assertTrue(any("SELECT cnpj FROM postos_combustivel" in q
+                            for q in consultas))
+        self.assertFalse(any("UPDATE postos_combustivel SET" in q
+                             for q in consultas))
+
+
+    def test_aplicar_aceita_coordenada_ignorada_por_verificacao_recente(self):
+        from datetime import datetime
+        registro = {
+            "cnpj": "01234567000189",
+            "latitude": -22.9,
+            "longitude": -47.1,
+            "fonte": "https://www.openstreetmap.org/node/1",
+            "verificado_em": datetime.fromisoformat("2025-01-01T10:00:00+00:00"),
+        }
+
+        conn = MagicMock()
+        cursor = MagicMock()
+        conn.__enter__.return_value = conn
+        conn.cursor.return_value.__enter__.return_value = cursor
+        cursor.fetchall.return_value = [("01234567000189",)]
+        cursor.fetchone.return_value = None
+        cursor.rowcount = 0
+
+        with patch("scripts.sincronizar_dados_publicos.conectar", return_value=conn):
+            from scripts.sincronizar_dados_publicos import aplicar
+            resultado = aplicar(
+                "COORDENADAS_POSTOS",
+                "https://exemplo.invalid/coordenadas.csv",
+                b"conteudo-de-teste-2",
+                [registro],
+                {},
+            )
+
+        self.assertFalse(resultado["sem_alteracoes"])
+        comandos = [c.args[0] for c in cursor.execute.call_args_list]
+        atualizacoes = [q for q in comandos if "UPDATE postos_combustivel SET" in q]
+        self.assertEqual(len(atualizacoes), 1)
+        self.assertIn("localizacao_verificada_em IS NULL OR localizacao_verificada_em <= %s",
+                      atualizacoes[0])
 
 if __name__ == "__main__":
     unittest.main()

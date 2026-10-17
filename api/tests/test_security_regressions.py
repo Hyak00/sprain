@@ -29,14 +29,19 @@ def chaves_teste(monkeypatch):
 class ConexaoFalsa:
     def __init__(self):
         self.gravacoes = 0
+        self.consultas = 0
 
     async def execute(self, *_args):
         self.gravacoes += 1
         return "UPDATE 1"
 
     async def fetch(self, *_args):
-        self.gravacoes += 1
+        self.consultas += 1
         return []
+
+    async def fetchval(self, *_args):
+        self.consultas += 1
+        return 0
 
 
 @pytest.mark.asyncio
@@ -62,7 +67,11 @@ async def test_monitoramento_so_operador_ou_admin(rota, chaves_teste, monkeypatc
         assert sem_chave.status_code == 401
         assert visualizador.status_code == 403
         assert operador.status_code == 200
-        assert conn.gravacoes == 1
+        if "/simular-chuva" in rota:
+            assert conn.gravacoes == 0
+            assert conn.consultas == 1
+        else:
+            assert conn.gravacoes == 1
     finally:
         app.dependency_overrides.pop(get_connection, None)
 
@@ -162,3 +171,153 @@ async def test_geojson_publico_nao_expoe_malha_privada():
     finally:
         await transacao.rollback()
         await conn.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("metodo,rota", [
+    ("GET", "/api/v1/trechos/geojson"),
+    ("POST", "/api/v1/rotas/calcular"),
+    ("GET", "/api/v1/ocorrencias/ativas"),
+    ("POST", "/api/v1/ocorrencias/alerta-rapido"),
+    ("POST", "/api/v1/ocorrencias/processar-texto"),
+    ("POST", "/api/v1/simulacao/disparar"),
+    ("GET", "/api/v1/relatorios/boletim-defesa-civil/json"),
+    ("GET", "/api/v1/relatorios/boletim-defesa-civil/csv"),
+    ("GET", "/api/v1/estatisticas/distrito"),
+    ("GET", "/api/v1/estatisticas/historico-temporal"),
+    ("GET", "/api/v1/logistica/alertas-meteorologicos"),
+])
+async def test_endpoints_privados_recusam_requisicoes_anonimas(metodo, rota, chaves_teste):
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://teste") as client:
+        resposta = await client.request(metodo, rota, json={"milimetros_chuva": 50.0} if metodo == "POST" else None)
+        assert resposta.status_code == 401, f"Rota {rota} deveria exigir autenticacao mas retornou {resposta.status_code}"
+
+
+@pytest.mark.asyncio
+async def test_viewer_bloqueado_em_operacoes_de_escrita_e_simulacao(chaves_teste):
+    headers_viewer = {"X-API-Key": "monitor_viewer"}
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://teste") as client:
+        r1 = await client.post("/api/v1/simulacao/disparar", json={"milimetros_chuva": 60.0}, headers=headers_viewer)
+        assert r1.status_code == 403
+
+        r2 = await client.post("/api/v1/ocorrencias/alerta-rapido", json={
+            "latitude": -23.54, "longitude": -46.46, "nivel": "VERMELHO", "corporacao": "TESTE"
+        }, headers=headers_viewer)
+        assert r2.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_auditoria_acuracia_segregada_por_tenant(chaves_teste):
+    conn = ConexaoFalsa()
+    chamadas_sql = []
+
+    class ConexaoAuditoria:
+        async def fetchrow(self, query, *args):
+            chamadas_sql.append((query, args))
+            return {
+                "total_avaliado": 10 if args and args[0] == "empresa_a" else 0,
+                "vp": 8 if args and args[0] == "empresa_a" else 0,
+                "fp": 1 if args and args[0] == "empresa_a" else 0,
+                "vn": 1 if args and args[0] == "empresa_a" else 0,
+                "fn": 0
+            }
+
+    app.dependency_overrides[get_connection] = lambda: ConexaoAuditoria()
+    try:
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://teste") as client:
+            resp_a = await client.get("/api/v1/logistica/auditoria/acuracia", headers={"X-API-Key": "monitor_admin"})
+            assert resp_a.status_code == 200
+            dados_a = resp_a.json()
+            assert dados_a["amostra_historica_total"] == 10
+            assert dados_a["matriz_confusao"]["verdadeiros_positivos"] == 8
+
+        assert len(chamadas_sql) > 0
+        assert "WHERE tenant_id = $1" in chamadas_sql[0][0]
+        assert chamadas_sql[0][1] == ("empresa_a",)
+    finally:
+        app.dependency_overrides.pop(get_connection, None)
+
+
+@pytest.mark.asyncio
+async def test_alerta_tenant_a_nao_afeta_rotas_tenant_b():
+    conn = ConexaoFalsa()
+    orig_lon, orig_lat = -46.468, -23.542
+    dest_lon, dest_lat = -46.452, -23.535
+
+    queries_executadas = []
+
+    class ConexaoRouting:
+        def __init__(self):
+            self.chamadas_vert = 0
+
+        async def fetch(self, query, *args):
+            queries_executadas.append((query, args))
+            if "alertas_operacionais" in query:
+                return [{"trechos_afetados": [555], "confianca": 0.99, "status_evento": "CONFIRMADO"}] if args and args[0] == "empresa_a" else []
+            if "SELECT t.id_trecho,t.limites_malha" in query:
+                return []
+            if "pgr_dijkstra" in query:
+                return [{
+                    "seq": 1, "node": 1, "edge": 100, "cost": 1.0, "id_trecho": 100,
+                    "name": "Via Teste", "length": 500.0, "highway": "primary",
+                    "classe_declividade": 1.0, "ivi_score": 10.0, "sentido": "AMBOS",
+                    "limites_malha": None, "fonte_malha": None, "limites_verificado_em": None,
+                    "limites_valido_ate": None, "geojson": '{"type":"LineString","coordinates":[[-46.468,-23.542],[-46.452,-23.535]]}'
+                }]
+            return []
+
+        async def fetchrow(self, query, *args):
+            if "trechos_osm_vertices_pgr" in query:
+                self.chamadas_vert += 1
+                return {"id": self.chamadas_vert, "coberto": True}
+            return None
+
+    c = ConexaoRouting()
+    from app.services.routing_engine import RoutingEngine
+    RoutingEngine.clear_cache()
+    rota_b = await RoutingEngine.compute_route(c, orig_lon, orig_lat, dest_lon, dest_lat, "FASTEST", 0.0, "VUC", "empresa_b")
+    assert rota_b is not None
+    assert 555 not in rota_b["trechos_excluidos_por_limites"]
+
+    RoutingEngine.clear_cache()
+    rota_a = await RoutingEngine.compute_route(c, orig_lon, orig_lat, dest_lon, dest_lat, "FASTEST", 0.0, "VUC", "empresa_a")
+    assert rota_a is not None
+    assert 555 in rota_a["trechos_excluidos_por_limites"]
+
+
+@pytest.mark.asyncio
+async def test_decisao_economica_bloqueia_anonimo_e_viewer(chaves_teste):
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app),
+        base_url="http://teste",
+    ) as client:
+        anonimo = await client.post(
+            "/api/v1/logistica/decisao-economica",
+            json={},
+        )
+        viewer = await client.post(
+            "/api/v1/logistica/decisao-economica",
+            json={},
+            headers={"X-API-Key": "monitor_viewer"},
+        )
+
+    assert anonimo.status_code == 401
+    assert viewer.status_code == 403
+
+@pytest.mark.asyncio
+async def test_exportar_contingencia_csv_restringe_perfil(chaves_teste):
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app),
+        base_url="http://teste",
+    ) as client:
+        anonimo = await client.get(
+            "/api/v1/logistica/exportar-contingencia/csv"
+        )
+        viewer = await client.get(
+            "/api/v1/logistica/exportar-contingencia/csv",
+            headers={"X-API-Key": "monitor_viewer"},
+        )
+
+    assert anonimo.status_code == 401
+    assert viewer.status_code == 403
+

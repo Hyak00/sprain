@@ -1,4 +1,4 @@
-"""Consultas de dados historicos; nenhuma estimativa e apresentada como dado ao vivo."""
+﻿"""Consultas de dados historicos; nenhuma estimativa e apresentada como dado ao vivo."""
 
 import math
 from datetime import date, timedelta
@@ -62,7 +62,7 @@ async def listar_tombamentos(
                                                    "municipio", "classe", "subclasse", "caminhoes_envolvidos",
                                                    "veiculos_envolvidos", "url_fonte")}} for r in linhas[:limite]]
     return {"type": "FeatureCollection", "features": features, "truncado": len(linhas) > limite,
-            "desde": desde, "interpretacao": "Tombamentos com caminhão, carreta ou bitrem envolvido; o registro não identifica necessariamente qual veículo tombou."}
+            "desde": desde, "interpretacao": "Tombamentos com caminh\u00e3o, carreta ou bitrem envolvido; o registro n\u00e3o identifica necessariamente qual ve\u00edculo tombou."}
 
 
 @router.get("/tombamentos/por-rodovia")
@@ -113,6 +113,69 @@ async def listar_postos(
     return {"postos": postos, "truncado": len(linhas) > limite,
             "interpretacao": "Preco pesquisado na data_coleta, quando disponivel. Coordenadas ANP nao validadas sao candidatas aproximadas; confirme antes de usar para navegacao."}
 
+
+@router.get("/qualidade-precos")
+async def consultar_qualidade_precos(conn=Depends(get_connection)):
+    from app.services.qualidade_precos import analisar_qualidade_precos
+
+    linhas = await conn.fetch("""
+        SELECT p.uf, p.municipio, c.produto,
+               c.data_coleta AS data, c.preco_litro AS preco, c.url_fonte
+        FROM precos_combustivel c
+        JOIN postos_combustivel p USING (cnpj)
+        WHERE c.data_coleta <= CURRENT_DATE
+        ORDER BY c.data_coleta DESC
+    """)
+
+    registros = [dict(linha) for linha in linhas]
+    alertas = analisar_qualidade_precos(registros)
+
+    contagens = {
+        "PRECO_ATIPICO": 0,
+        "DADO_DESATUALIZADO": 0,
+    }
+    amostras = {
+        "PRECO_ATIPICO": [],
+        "DADO_DESATUALIZADO": [],
+    }
+
+    for alerta in alertas:
+        tipo = alerta["tipo"]
+        if tipo not in contagens:
+            continue
+
+        contagens[tipo] += 1
+
+        if len(amostras[tipo]) >= 10:
+            continue
+
+        registro = registros[alerta["indice"]]
+        amostras[tipo].append({
+            "tipo": tipo,
+            "motivo": alerta["motivo"],
+            "preco_original": str(alerta["preco_original"]),
+            "data_coleta": registro["data"],
+            "produto": registro["produto"],
+            "municipio": registro["municipio"],
+            "uf": registro["uf"],
+            "url_fonte": alerta["url_fonte"],
+        })
+
+    return {
+        "total_registros_analisados": len(registros),
+        "alertas": {
+            "preco_atipico": contagens["PRECO_ATIPICO"],
+            "dado_desatualizado": contagens["DADO_DESATUALIZADO"],
+        },
+        "amostras": {
+            "precos_atipicos": amostras["PRECO_ATIPICO"],
+            "dados_desatualizados": amostras["DADO_DESATUALIZADO"],
+        },
+        "interpretacao": (
+            "Alertas indicam itens para revisao. Os valores originais "
+            "nao sao alterados nem automaticamente invalidados."
+        ),
+    }
 
 @router.get("/roubo-carga")
 async def listar_roubo_carga(
