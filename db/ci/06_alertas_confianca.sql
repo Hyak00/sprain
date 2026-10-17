@@ -15,4 +15,8 @@ CREATE TABLE IF NOT EXISTS alertas_operacionais (
     escopo TEXT NOT NULL DEFAULT 'GLOBAL' CHECK (escopo IN ('GLOBAL', 'TENANT'))
 );
 CREATE INDEX IF NOT EXISTS idx_alertas_trechos ON alertas_operacionais USING GIN (trechos_afetados);
+-- Volumes existentes já possuem a tabela: CREATE TABLE IF NOT EXISTS não
+-- acrescenta as colunas novas antes de criar o índice por empresa.
+ALTER TABLE alertas_operacionais ADD COLUMN IF NOT EXISTS tenant_id TEXT DEFAULT 'GLOBAL';
+ALTER TABLE alertas_operacionais ADD COLUMN IF NOT EXISTS escopo TEXT DEFAULT 'GLOBAL' CHECK (escopo IN ('GLOBAL', 'TENANT'));
 CREATE INDEX IF NOT EXISTS idx_alertas_tenant ON alertas_operacionais (tenant_id, escopo);
