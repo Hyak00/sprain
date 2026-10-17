@@ -20,8 +20,16 @@ def coletar_chuva_cge() -> dict:
     m_atual = re.search(r'Per[íi\.]*\s*Atual[:\s]+([\d\.,]+)\s*mm', texto_limpo, re.I)
     m_anterior = re.search(r'Per[íi\.]*\s*Anterior[:\s]+([\d\.,]+)\s*mm', texto_limpo, re.I)
 
-    chuva_atual = float(m_atual.group(1).replace(",", ".")) if m_atual else 0.0
-    chuva_anterior = float(m_anterior.group(1).replace(",", ".")) if m_anterior else 0.0
+    if not m_atual or not m_anterior:
+        raise ValueError(
+            "Resposta do CGE incompleta: coleta invalidada para evitar "
+            "confundir falha de leitura com ausencia de chuva."
+        )
+
+    chuva_atual = float(m_atual.group(1).replace(",", "."))
+    chuva_anterior = float(m_anterior.group(1).replace(",", "."))
+    if chuva_atual < 0 or chuva_anterior < 0:
+        raise ValueError("O CGE retornou precipitacao negativa.")
 
     return {
         "posto": "1000864",
@@ -32,58 +40,10 @@ def coletar_chuva_cge() -> dict:
     }
 
 def atualizar_risco_por_chuva(dados_chuva: dict):
-    mm_total = dados_chuva["chuva_acumulada_recente_mm"]
-    motor = create_engine(URL_BANCO)
-
-    if mm_total < 0.5:
-        return {
-            "chuva_mm": mm_total,
-            "limiar_ivi_ativado": None,
-            "trechos_em_alerta_ou_bloqueio": 0,
-            "status": "Sem chuva relevante no momento."
-        }
-
-    limiar_ivi = max(40.0, 85.0 - (mm_total * 1.5))
-    relato = f"[Telemetria CGE Itaquera] Chuva recente: {mm_total} mm (Per. Atual: {dados_chuva['chuva_periodo_atual_mm']} mm, Ant: {dados_chuva['chuva_periodo_anterior_mm']} mm)"
-
-    query = text("""
-        WITH vias_afetadas AS (
-            SELECT id_trecho, CAST(COALESCE(ivi_score, 0) AS float8) AS valor_ivi
-            FROM trechos_osm
-            WHERE CAST(COALESCE(ivi_score, 0) AS float8) >= :limiar
-        )
-        INSERT INTO estado_operacional_trechos (id_trecho, status, severidade, relato_origem, registrado_em)
-        SELECT 
-            id_trecho,
-            CASE 
-                WHEN valor_ivi >= 75.0 THEN 'INTRANSITAVEL'
-                ELSE 'TRANSITAVEL_ALERTA'
-            END,
-            CASE 
-                WHEN valor_ivi >= 75.0 THEN 'VERMELHO'
-                ELSE 'AMARELO'
-            END,
-            :relato,
-            NOW()
-        FROM vias_afetadas
-        ON CONFLICT (id_trecho) DO UPDATE
-        SET status = EXCLUDED.status,
-            severidade = EXCLUDED.severidade,
-            relato_origem = EXCLUDED.relato_origem,
-            registrado_em = NOW()
-        RETURNING id_trecho;
-    """)
-
-    with motor.begin() as conn:
-        res = conn.execute(query, {"limiar": limiar_ivi, "relato": relato})
-        total_atualizados = len(res.fetchall())
-
-    return {
-        "chuva_mm": mm_total,
-        "limiar_ivi_ativado": round(limiar_ivi, 1),
-        "trechos_em_alerta_ou_bloqueio": total_atualizados,
-        "status": "Atualizado com sucesso."
-    }
+    raise RuntimeError(
+        "Escrita CGE desativada: falta delimitar geograficamente "
+        "os trechos compativeis com a estacao de Itaquera."
+    )
 
 def main():
     print("1. Conectando à estação meteorológica do CGE em Itaquera...")

@@ -66,12 +66,14 @@ async def test_monitoramento_so_operador_ou_admin(rota, chaves_teste, monkeypatc
             operador = await client.post(rota, headers={"X-API-Key": "monitor_operator"})
         assert sem_chave.status_code == 401
         assert visualizador.status_code == 403
-        assert operador.status_code == 200
-        if "/simular-chuva" in rota:
+        if "/sincronizar-cge" in rota:
+            assert operador.status_code == 503
+            assert conn.gravacoes == 0
+            assert conn.consultas == 0
+        else:
+            assert operador.status_code == 200
             assert conn.gravacoes == 0
             assert conn.consultas == 1
-        else:
-            assert conn.gravacoes == 1
     finally:
         app.dependency_overrides.pop(get_connection, None)
 

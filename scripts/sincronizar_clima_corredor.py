@@ -1,5 +1,6 @@
 import os
 import json
+import math
 import urllib.request
 from sqlalchemy import create_engine, text
 
@@ -15,16 +16,40 @@ COORDENADAS_SEGMENTOS = {
 }
 
 def consultar_precipitacao(lat, lon):
-    url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current=precipitation,rain&timezone=America%2FSao_Paulo"
+    url = (
+        f"https://api.open-meteo.com/v1/forecast?"
+        f"latitude={lat}&longitude={lon}"
+        "&current=precipitation,rain&timezone=America%2FSao_Paulo"
+    )
     try:
-        req = urllib.request.Request(url, headers={"User-Agent": "SPRain/1.2.3"})
+        req = urllib.request.Request(
+            url, headers={"User-Agent": "SPRain/1.2.3"}
+        )
         with urllib.request.urlopen(req, timeout=10) as resp:
-            if resp.status == 200:
-                dados = json.loads(resp.read().decode("utf-8")).get("current", {})
-                return float(dados.get("precipitation", 0.0))
+            if resp.status != 200:
+                raise RuntimeError(f"HTTP inesperado: {resp.status}")
+            resposta = json.loads(resp.read().decode("utf-8"))
+
+        atual = resposta.get("current")
+        if not isinstance(atual, dict):
+            raise ValueError("Resposta sem bloco current.")
+
+        valor = atual.get("precipitation")
+        if valor is None:
+            raise ValueError("Precipitacao ausente na resposta.")
+
+        valor = float(valor)
+        if not math.isfinite(valor) or valor < 0:
+            raise ValueError("Valor de precipitacao invalido.")
+
+        return valor
     except Exception as e:
-        print(f"Aviso: Falha ao consultar coordenadas ({lat}, {lon}): {e}")
-    return 0.0
+        print(
+            f"ERRO DE COLETA ({lat}, {lon}): {e}. "
+            "O dado sera marcado como indisponivel."
+        )
+        return None
+
 
 def calcular_impacto(precipitacao_mm_h):
     if precipitacao_mm_h >= 50.0:
@@ -37,26 +62,57 @@ def calcular_impacto(precipitacao_mm_h):
 
 def main():
     motor = create_engine(URL_BANCO)
-    print("Iniciando telemetria meteorologica para o corredor SP-310 / SP-348...")
-    
-    with motor.begin() as conn:
-        for id_trecho, dados in COORDENADAS_SEGMENTOS.items():
-            chuva = consultar_precipitacao(dados["lat"], dados["lon"])
-            status, fator = calcular_impacto(chuva)
-            
-            stmt = text("""
-                INSERT INTO condicoes_corredor (id_trecho, status_pista, precipitacao_mm_h, fator_atraso, atualizado_em)
-                VALUES (:id, :status, :chuva, :fator, NOW())
-                ON CONFLICT (id_trecho) DO UPDATE 
-                SET status_pista = EXCLUDED.status_pista,
-                    precipitacao_mm_h = EXCLUDED.precipitacao_mm_h,
-                    fator_atraso = EXCLUDED.fator_atraso,
-                    atualizado_em = NOW();
-            """)
-            conn.execute(stmt, {"id": id_trecho, "status": status, "chuva": chuva, "fator": fator})
-            print(f"Segmento {id_trecho} ({dados['nome']}): {chuva:.1f} mm/h -> Status: {status} (Atraso: {fator}x)")
+    sucessos = 0
+    falhas = 0
+    print("Iniciando coleta meteorologica do corredor.")
 
-    print("Telemetria do corredor atualizada com sucesso no PostGIS.")
+    try:
+        with motor.begin() as conn:
+            for id_trecho, dados in COORDENADAS_SEGMENTOS.items():
+                chuva = consultar_precipitacao(
+                    dados["lat"], dados["lon"]
+                )
+
+                if chuva is None:
+                    falhas += 1
+                    print(
+                        f"SEM ATUALIZACAO: trecho {id_trecho} "
+                        f"({dados['nome']}); registro anterior preservado."
+                    )
+                    continue
+
+                status, fator = calcular_impacto(chuva)
+                stmt = text("""
+                    INSERT INTO condicoes_corredor
+                        (id_trecho, status_pista, precipitacao_mm_h,
+                         fator_atraso, atualizado_em)
+                    VALUES (:id, :status, :chuva, :fator, NOW())
+                    ON CONFLICT (id_trecho) DO UPDATE
+                    SET status_pista = EXCLUDED.status_pista,
+                        precipitacao_mm_h = EXCLUDED.precipitacao_mm_h,
+                        fator_atraso = EXCLUDED.fator_atraso,
+                        atualizado_em = NOW();
+                """)
+                conn.execute(stmt, {
+                    "id": id_trecho,
+                    "status": status,
+                    "chuva": chuva,
+                    "fator": fator
+                })
+                sucessos += 1
+                print(
+                    f"Trecho {id_trecho} ({dados['nome']}): "
+                    f"valor recebido={chuva:.1f}; "
+                    f"classificacao heuristica={status}."
+                )
+    finally:
+        motor.dispose()
+
+    print(
+        f"Coleta concluida: {sucessos} atualizados; "
+        f"{falhas} indisponiveis. Falha de coleta nao significa "
+        "pista liberada."
+    )
 
 if __name__ == "__main__":
     main()

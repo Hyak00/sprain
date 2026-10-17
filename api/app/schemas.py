@@ -112,6 +112,8 @@ class WebhookAlertaRequest(BaseModel):
 
 class PlanejamentoD1Request(BaseModel):
     data_alvo: str
-    previsao_chuva_mm: float
-    fator_severidade: float = 1.0
+    previsao_chuva_mm: Optional[float] = Field(
+        default=None, ge=0, allow_inf_nan=False
+    )
+    fator_severidade: float = Field(default=1.0, ge=0, allow_inf_nan=False)
     tenant_id: str = "demo_corp"

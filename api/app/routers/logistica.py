@@ -25,6 +25,7 @@ from app.services.viagem_caminhao import ContextoViagens, dados_viagem, objeto, 
 from app.services.infraestrutura_viaria import dimensoes_veiculo
 from app.schemas_infraestrutura import VeiculoDimensoes
 from app.url_segura import is_safe_url, post_seguro
+from app.services.validacao_clima import validar_precipitacao_cenario, precipitacao_para_csv
 
 router = APIRouter(prefix="/api/v1/logistica", tags=["Logistica B2B"])
 
@@ -556,11 +557,14 @@ async def listar_alertas_ativos(tenant_id: str = Depends(resolve_tenant), conn: 
 @router.post("/planejamento-d1", dependencies=[Depends(require_role(["ADMIN", "OPERATOR"]))])
 async def planejar_operacoes_d1(dados: PlanejamentoD1Request, conn: asyncpg.Connection = Depends(get_connection), tenant_id: str = Depends(resolve_tenant)):
     dados.tenant_id = tenant_id
-    from app.services.weather import OpenMeteoProvider
-
-    if dados.previsao_chuva_mm <= 0:
-        provider = OpenMeteoProvider()
-        dados.previsao_chuva_mm = (provider.get_forecast_rainfall(-21.79, -48.17, days=1) or 0.0)
+    if dados.previsao_chuva_mm is None:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Previsao de chuva indisponivel. Informe uma previsao "
+                "confiavel para a operacao; nenhum valor zero sera presumido."
+            ),
+        )
 
     query_ops = """
         SELECT o.id_operacao, o.id_veiculo, o.distancia_planejada_km, o.tempo_planejado_min, o.custo_estimado,
@@ -689,7 +693,7 @@ async def exportar_auditoria_csv(tenant_id: str = Depends(resolve_tenant), conn:
             COALESCE(o.id_veiculo, 'N/A') AS id_veiculo,
             COALESCE(o.origem_nome, 'Origem') AS origem,
             COALESCE(o.destino_nome, 'Destino') AS destino,
-            COALESCE(c.precipitacao_mm, 0.0) AS precipitacao_mm,
+            c.precipitacao_mm AS precipitacao_mm,
             COALESCE(r.nivel_risco, 'NORMAL') AS impacto_detectado,
             COALESCE(r.prejuizo_potencial_evitado, 0.0) AS custo_evitado_reais,
             TO_CHAR(COALESCE(r.gerado_em, o.criado_em), 'YYYY-MM-DD HH24:MI') AS data_registro
@@ -706,14 +710,14 @@ async def exportar_auditoria_csv(tenant_id: str = Depends(resolve_tenant), conn:
     writer.writerow(["id_veiculo", "origem", "destino", "precipitacao_mm", "impacto_detectado", "custo_evitado_reais", "data_registro"])
 
     if not rows:
-        writer.writerow(["SEM_DADOS", "Nenhum registro para o tenant informado", "", 0.0, "N/A", 0.0, ""])
+        writer.writerow(["SEM_DADOS", "Nenhum registro para o tenant informado", "", "", "N/A", 0.0, ""])
     else:
         for r in rows:
             writer.writerow([
                 r["id_veiculo"],
                 r["origem"],
                 r["destino"],
-                r["precipitacao_mm"],
+                precipitacao_para_csv(r["precipitacao_mm"]),
                 r["impacto_detectado"],
                 r["custo_evitado_reais"],
                 r["data_registro"]
@@ -1061,7 +1065,11 @@ async def registrar_decisao_gestor(id_operacao: str, payload: DecisaoGestorReque
                 WHERE r.id_operacao=$1 AND r.tenant_id=$2 ORDER BY r.id_recomendacao DESC LIMIT 1''',id_operacao,tenant_id)
             if not rec or not rec['rota_alternativa_geojson']:
                 raise HTTPException(409,'Nenhuma alternativa disponivel para aprovar. Recalcule a operacao.')
-            avaliacao=await contexto.analisar(viagem,float(rec['precipitacao_mm'] or 0),forcar=True)
+            try:
+                chuva_cenario = validar_precipitacao_cenario(rec["precipitacao_mm"])
+            except ValueError as exc:
+                raise HTTPException(status_code=409, detail=str(exc)) from exc
+            avaliacao=await contexto.analisar(viagem, chuva_cenario, forcar=True)
             ids={f['properties']['id_trecho'] for f in objeto(rec['rota_alternativa_geojson']).get('features',[])}
             if not avaliacao['alternativa'] or ids!=set(avaliacao['alternativa']['ids_trechos']):
                 raise HTTPException(409,'A alternativa mudou ou ficou indisponivel para este caminhao. Recalcule antes de aprovar.')
