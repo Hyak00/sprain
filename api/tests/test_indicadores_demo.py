@@ -15,8 +15,10 @@ async def test_indicadores_qualidade_e_demo():
         assert "total_registros_base" in data_ind
         
         resp_demo = await client.post("/demonstracao/cenario-historico-sp310")
-        assert resp_demo.status_code == 200
-        data_demo = resp_demo.json()
-        assert data_demo["modo"] == "DATASET_DEMONSTRACAO_B2B"
-        assert "comparativo_rotas" in data_demo
-        assert "aviso" in data_demo
+        # O banco de CI não é uma base reservada de demonstração.
+        assert resp_demo.status_code == 503
+        estado = await client.get('/demonstracao/estado')
+        assert estado.status_code == 200 and not estado.json()['demo_isolada']
+        assert (await client.post('/demonstracao/preparar',headers={'X-API-Key':'key_viewer_demo'})).status_code == 403
+        assert (await client.post('/demonstracao/reproduzir',headers={'X-API-Key':'key_viewer_demo'},json={'etapa':'BLOQUEIO'})).status_code == 503
+        assert (await client.post('/demonstracao/reproduzir',json={'etapa':'INVALIDA'})).status_code == 422

@@ -6,6 +6,7 @@ from pathlib import Path
 import subprocess
 import sys
 import urllib.request
+from demo_guard import verificar_api_demo
 
 ROOT=Path(__file__).resolve().parents[1]
 
@@ -19,6 +20,7 @@ def api(path,body=None):
 
 
 def main():
+    verificar_api_demo('http://127.0.0.1:8000')
     if os.environ.get('ENVIRONMENT','development').strip().lower()=='production':
         raise SystemExit('A demonstracao nao deve ser carregada em producao.')
     previous=api('/api/v1/infraestrutura/malha/importacoes')

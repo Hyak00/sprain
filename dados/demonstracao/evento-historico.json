@@ -1,0 +1,26 @@
+{
+  "id": "ARTESP_OC17928",
+  "versao": 1,
+  "titulo": "Deslizamento seguido de alagamento na SP-310 em Itirapina",
+  "origem_referencia": "REFERENCIA_PUBLICA_PESQUISADA; evento originalmente pretendido pela equipe ainda não identificado",
+  "fonte_nome": "ARTESP / Centro de Controle Multimodal; informação do CCO Eixo SP",
+  "fonte_url": "https://ccm.artesp.sp.gov.br/rodovias/oc17928",
+  "consultado_em": "2026-10-16",
+  "rodovia": "SP-310",
+  "municipio": "Itirapina-SP",
+  "km_publicado": 205,
+  "sentido": "SUL",
+  "inicio_publicado": "2026-01-19T02:55:00",
+  "atualizacao_fonte_publicada": "2026-01-20T17:41:00",
+  "resumo": "A concessionária registrou queda de talude, acúmulo de água e uma carreta imobilizada. Houve bloqueio total das faixas; depois, liberação das faixas com restrição no acostamento.",
+  "marcos": [
+    {"horario_publicado": "2026-01-19T04:40:00", "fato": "Início da interdição de todas as faixas e acostamento no sentido sul."},
+    {"horario_publicado": "2026-01-19T09:45:00", "fato": "Término da interdição total; a atualização informa acostamento ainda interditado."}
+  ],
+  "incognitas": [
+    "A fonte consultada não informa medição de chuva em mm/h, profundidade da água ou custo das viagens.",
+    "O fuso dos horários publicados não está explícito; são apresentados literalmente.",
+    "Não há associação verificada entre o km publicado e IDs da malha do projeto.",
+    "A malha, caminhão, custos e bloqueio usados no exercício são sintéticos; não reconstituem a rota realmente percorrida em 2026."
+  ]
+}

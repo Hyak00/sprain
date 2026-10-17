@@ -5,6 +5,7 @@ import asyncpg
 import httpx
 
 from app.config import settings
+from demo_guard import verificar_api_demo
 
 BASE = "http://127.0.0.1:8000/api/v1/logistica"
 VIEWER = {"X-API-Key": "key_viewer_demo"}
@@ -48,6 +49,7 @@ def decidir(cliente, coords, chuva):
 
 
 def principal():
+    verificar_api_demo(BASE.split('/api/v1/')[0])
     import asyncio
     lista = asyncio.run(buscar_coordenadas())
 
@@ -94,4 +96,4 @@ def principal():
         print("veiculos vistos por log_express:", len(express))
 
 
-principal()
+if __name__=='__main__':principal()

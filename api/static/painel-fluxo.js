@@ -20,6 +20,7 @@
     async function enviar(path,body,method='POST'){const r=await root.PainelSessao.request('/api/v1/painel'+path,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});return r.json();}
     function limpar(){geracao++;atual=null;caixa.replaceChildren();}
     function exibir(dados,consulta){
+        root.PainelDemonstracao?.limparMapa();
         limpar();atual={dados,consulta};const n=geracao,c=dados.contexto_consulta||{};
         const meta=el(caixa,'div');meta.className='mvp-natureza';el(meta,'strong','Natureza: '+(c.natureza||'Não informada'));
         el(meta,'p','Fonte: '+(c.fonte||'Não informada')+' Cálculo: '+D.data(c.calculo_gerado_em)+'. Consulta: '+D.data(consulta?.registrado_em)+'.');

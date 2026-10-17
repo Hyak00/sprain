@@ -34,8 +34,10 @@ test('leitor nao envia gravacao, mas pode consultar rota por POST', async () => 
     await assert.rejects(c.request('/api/v1/logistica/veiculos', { method: 'POST' }), { status: 403 });
     await c.request('/api/v1/infraestrutura/rota-caminhao', { method: 'POST' });
     await c.request('/api/v1/painel/consultas', { method: 'POST' });
+    await c.request('/api/v1/demonstracao/reproduzir', { method: 'POST' });
+    await assert.rejects(c.request('/api/v1/demonstracao/preparar', { method: 'POST' }), { status: 403 });
     await assert.rejects(c.request('/api/v1/painel/operacoes/OP1/premissas', { method: 'PUT' }), { status: 403 });
-    assert.deepEqual(caminhos, ['/api/v1/infraestrutura/rota-caminhao', '/api/v1/painel/consultas']);
+    assert.deepEqual(caminhos, ['/api/v1/infraestrutura/rota-caminhao', '/api/v1/painel/consultas', '/api/v1/demonstracao/reproduzir']);
 });
 test('chave usada vem da sessao e transporte recusa redirecionamento', async () => {
     let opcoes;

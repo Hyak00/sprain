@@ -4,6 +4,7 @@ import json
 import urllib.request
 import asyncpg
 import asyncio
+from demo_guard import verificar_api_demo
 from datetime import datetime, timedelta
 
 API_URL = os.getenv("API_URL", "http://127.0.0.1:8000/api/v1/logistica")
@@ -39,6 +40,9 @@ async def obter_pontos_validos():
     return [(float(r["lat"]), float(r["lon"]), r["nome"]) for r in rows]
 
 def main():
+    verificar_api_demo(API_URL.split('/api/v1/')[0])
+    if DB_NAME!='sprain_demo' and not DB_NAME.startswith('sprain_demo_'):
+        raise SystemExit('A carga antiga exige DB_NAME reservado para demonstração.')
     print("Cadastrando 50 veiculos...")
     tipos = ["VUC", "TOCO", "VAN", "CARRETA"]
     for i in range(1, 51):

@@ -1,0 +1,4 @@
+#demo-faixa {position:fixed;top:0;left:0;right:0;z-index:100000;background:#422006;color:#fef3c7;border-bottom:2px solid #fbbf24;padding:8px 12px;box-sizing:border-box;font:600 12px/1.5 sans-serif;overflow-wrap:anywhere;}
+#demo-faixa[hidden] {display:none;}
+body.demo-identificada {box-sizing:border-box;padding-top:var(--demo-faixa-altura,52px);}
+body.demo-identificada #login-overlay {top:var(--demo-faixa-altura,52px);}

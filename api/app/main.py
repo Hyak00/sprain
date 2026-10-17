@@ -9,6 +9,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
+from app.services.demonstracao import validar_configuracao as validar_demonstracao, habilitada as demonstracao_habilitada
 from app.seguranca import validar_configuracao_producao
 from app.services.security_headers import SecurityHeadersMiddleware
 from app.services.observabilidade import ObservabilidadeMiddleware
@@ -57,6 +58,7 @@ async def agendador_telemetria_corredor():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     validar_configuracao_producao()
+    validar_demonstracao()
     await init_db_pool()
     await WebhookDispatcher.garantir_schema()
     await garantir_infraestrutura()
@@ -66,15 +68,16 @@ async def lifespan(app: FastAPI):
     await garantir_painel()
     await garantir_acesso()
     await garantir_administracao()
-    task_clima = asyncio.create_task(agendador_telemetria_corredor())
+    task_clima = None if demonstracao_habilitada() else asyncio.create_task(agendador_telemetria_corredor())
     try:
         yield
     finally:
-        task_clima.cancel()
-        try:
-            await task_clima
-        except asyncio.CancelledError:
-            pass
+        if task_clima:
+            task_clima.cancel()
+            try:
+                await task_clima
+            except asyncio.CancelledError:
+                pass
         await close_db_pool()
 
 tags_metadata = [
