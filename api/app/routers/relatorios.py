@@ -96,9 +96,16 @@ async def exportar_auditoria_intermunicipal(
             r.id_trecho,
             r.name,
             ROUND((r.length / 1000.0)::numeric, 1) AS distancia_km,
-            COALESCE(c.status_pista, 'LIBERADA') AS status_pista,
+            CASE
+                WHEN c.id_trecho IS NULL OR c.atualizado_em IS NULL
+                    THEN 'DADOS_INDISPONIVEIS'
+                WHEN c.atualizado_em < NOW() - INTERVAL '60 minutes'
+                    THEN 'DADOS_DESATUALIZADOS'
+                ELSE COALESCE(c.status_pista, 'DADOS_INDISPONIVEIS')
+            END AS status_pista,
             c.precipitacao_mm_h,
-            c.fator_atraso
+            c.fator_atraso,
+            c.atualizado_em
         FROM corredor_sp_araraquara r
         LEFT JOIN condicoes_corredor c ON c.id_trecho = r.id_trecho
         ORDER BY r.id_trecho;
@@ -107,8 +114,24 @@ async def exportar_auditoria_intermunicipal(
     
     total_km = sum(float(r["distancia_km"]) for r in rows)
     
-    trechos_bloqueados = [r for r in rows if r["status_pista"] == "RISCO_CRITICO_ALAGAMENTO"]
+    trechos_bloqueados = [
+        r for r in rows
+        if r["status_pista"] == "RISCO_CRITICO_ALAGAMENTO"
+    ]
     houve_alerta = len(trechos_bloqueados) > 0
+    indisponiveis = any(
+        r["status_pista"] in (
+            "DADOS_INDISPONIVEIS", "DADOS_DESATUALIZADOS"
+        )
+        for r in rows
+    )
+
+    if houve_alerta:
+        status_operacional = "ALERTA_METEOROLOGICO_ESTIMADO"
+    elif indisponiveis or not rows:
+        status_operacional = "DADOS_INDISPONIVEIS"
+    else:
+        status_operacional = "SEM_ALERTA_METEOROLOGICO"
     
     dados_sumario = {
         "rota": f"{origem} -> {destino}",
@@ -120,7 +143,20 @@ async def exportar_auditoria_intermunicipal(
         "custo_diesel_extra_brl": None,
         "economia_hora_parada_brl": None,
         "beneficio_liquido_brl": None,
-        "status_operacional": "ALERTA_DETECTADO" if houve_alerta else "ROTA_NORMAL",
+        "status_operacional": status_operacional,
+        "qualidade_dados": {
+            "total_trechos": len(rows),
+            "trechos_indisponiveis_ou_desatualizados": sum(
+                1 for r in rows
+                if r["status_pista"] in (
+                    "DADOS_INDISPONIVEIS", "DADOS_DESATUALIZADOS"
+                )
+            ),
+            "limite_antiguidade_minutos": 60,
+            "observacao": (
+                "Ausencia de alerta nao comprova seguranca da rodovia."
+            )
+        },
         "motivo_indisponivel": "Tempo e custos dependem de velocidade calibrada por classe de via e consumo real por categoria; valores ficticios foram removidos."
     }
     

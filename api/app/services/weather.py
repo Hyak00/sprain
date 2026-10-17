@@ -1,3 +1,4 @@
+import math
 from abc import ABC, abstractmethod
 import urllib.request
 import json
@@ -44,7 +45,6 @@ class WeatherService:
                 "motivo_indisponivel": "Estacao ativa, mas sem leituras disponiveis.", "precipitacao_mm": None,
                 "estacao": row["estacao"],
                 "distancia_m": round(row["distancia_m"], 1),
-                "precipitacao_mm": 0.0
             }
 
         idade = row["idade_minutos"]
@@ -100,11 +100,22 @@ class CGEWeatherProvider(WeatherProvider):
             texto = re.sub(r'\s+', ' ', re.sub(r'<[^>]+>', ' ', html))
             m_atual = re.search(r'Per[íi\.]*\s*Atual[:\s]+([\d\.,]+)\s*mm', texto, re.I)
             m_ant = re.search(r'Per[íi\.]*\s*Anterior[:\s]+([\d\.,]+)\s*mm', texto, re.I)
-            if not m_atual and not m_ant: return None
-            v1 = float(m_atual.group(1).replace(",", ".")) if m_atual else 0.0
-            v2 = float(m_ant.group(1).replace(",", ".")) if m_ant else 0.0
+            if not m_atual or not m_ant:
+                return None
+            v1 = float(m_atual.group(1).replace(",", "."))
+            v2 = float(m_ant.group(1).replace(",", "."))
+            if (
+                not math.isfinite(v1)
+                or not math.isfinite(v2)
+                or v1 < 0
+                or v2 < 0
+            ):
+                return None
             return round(v1 + v2, 1)
-        except Exception: return None
+        except (ValueError, TypeError, OverflowError):
+            return None
+        except Exception:
+            return None
     def get_forecast_rainfall(self, lat: float, lon: float, days: int = 1) -> Optional[float]: return None
 
 class SimulatedWeatherProvider(WeatherProvider):
@@ -114,15 +125,38 @@ class SimulatedWeatherProvider(WeatherProvider):
     def get_forecast_rainfall(self, lat: float, lon: float, days: int = 1) -> Optional[float]: return self.fixed_mm
 
 class OpenMeteoProvider(WeatherProvider):
-    def get_current_rainfall(self, station_id: str) -> Optional[float]: return None
+    def get_current_rainfall(self, station_id: str) -> Optional[float]:
+        return None
+
     def get_forecast_rainfall(self, lat: float, lon: float, days: int = 1) -> Optional[float]:
         try:
-            url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&daily=precipitation_sum&timezone=America%2FSao_Paulo&forecast_days={days+1}"
+            lat, lon = float(lat), float(lon)
+            if not math.isfinite(lat) or not -90 <= lat <= 90:
+                return None
+            if not math.isfinite(lon) or not -180 <= lon <= 180:
+                return None
+            if isinstance(days, bool) or not isinstance(days, int) or not 0 <= days <= 15:
+                return None
+
+            url = (
+                "https://api.open-meteo.com/v1/forecast?"
+                f"latitude={lat}&longitude={lon}"
+                "&daily=precipitation_sum&timezone=America%2FSao_Paulo"
+                f"&forecast_days={days + 1}"
+            )
             req = urllib.request.Request(url, headers={"User-Agent": "SPRain-B2B/3.0"})
             with urllib.request.urlopen(req, timeout=8) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
-                if "daily" in data and "precipitation_sum" in data["daily"]:
-                    valor = data["daily"]["precipitation_sum"][days]
-                    if valor is not None: return float(valor)
+
+            daily = data.get("daily")
+            values = daily.get("precipitation_sum") if isinstance(daily, dict) else None
+            if not isinstance(values, list) or len(values) <= days:
+                return None
+
+            value = values[days]
+            if value is None or isinstance(value, bool):
+                return None
+            value = float(value)
+            return value if math.isfinite(value) and value >= 0 else None
+        except Exception:
             return None
-        except Exception: return None

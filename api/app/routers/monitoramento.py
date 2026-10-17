@@ -54,45 +54,15 @@ async def aplicar_impacto_chuva(conn, acumulado_mm: float) -> int:
         return 0
 
 @router.post("/sincronizar-cge", dependencies=[Depends(require_role(["ADMIN", "OPERATOR"]))])
-async def sincronizar_cge(conn=Depends(get_connection)):
-    if not coletar_chuva_cge:
-        from app.services.weather import CGEWeatherProvider
-        provider = CGEWeatherProvider()
-        acumulado = provider.get_current_rainfall(POSTO_ITAQUERA_ID)
-        if acumulado is None:
-            raise HTTPException(
-                status_code=502,
-                detail="Fonte CGE indisponivel no momento. Estado operacional preservado para seguranca viaria."
-            )
-        dados = {"posto": POSTO_ITAQUERA_ID, "nome": "Itaquera", "chuva_acumulada_recente_mm": acumulado}
-    else:
-        try:
-            dados = coletar_chuva_cge()
-        except Exception as e:
-            raise HTTPException(
-                status_code=502,
-                detail=f"Falha de comunicacao com a estacao meteorologica: {str(e)}"
-            )
-
-    if not dados or "chuva_acumulada_recente_mm" not in dados:
-        raise HTTPException(
-            status_code=502,
-            detail="Dados meteorologicos ausentes. Malha viaria mantida em estado seguro anterior."
-        )
-
-    acumulado = float(dados["chuva_acumulada_recente_mm"])
-    linhas = await aplicar_impacto_chuva(conn, acumulado)
-    return {
-        "status": "sucesso",
-        "telemetria": {
-            "posto_id": dados.get("posto", POSTO_ITAQUERA_ID),
-            "posto_nome": dados.get("nome", "Itaquera"),
-            "acumulado_mm": acumulado,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-            "confiabilidade": "VALIDADO_SENSOR"
-        },
-        "trechos_atualizados": linhas
-    }
+async def sincronizar_cge():
+    raise HTTPException(
+        status_code=503,
+        detail=(
+            "Sincronizacao CGE temporariamente desativada: "
+            "o escopo geografico dos trechos afetados ainda nao foi validado. "
+            "Nenhum estado operacional foi alterado."
+        ),
+    )
 
 @router.post("/simular-chuva", dependencies=[Depends(require_role(["ADMIN", "OPERATOR"]))])
 async def simular_chuva_manual(acumulado_mm: float, conn=Depends(get_connection)):
