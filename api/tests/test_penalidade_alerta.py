@@ -1,4 +1,4 @@
-﻿import pytest
+import pytest
 
 
 @pytest.mark.parametrize(
@@ -21,7 +21,8 @@ def test_multiplicador_penalidade_alerta_incerto(
 def test_sql_do_motor_aplica_penalidade_e_isola_tenant():
     from pathlib import Path
 
-    codigo = Path("api/app/services/routing_engine.py").read_text(
+    caminho = Path("api/app/services/routing_engine.py") if Path("api/app/services/routing_engine.py").exists() else Path("app/services/routing_engine.py")
+    codigo = caminho.read_text(
         encoding="utf-8"
     )
 
@@ -38,7 +39,7 @@ from pathlib import Path
 
 def test_penalidade_incerta_tem_multiplicador_e_filtros_corretos():
     codigo = Path(
-        "api/app/services/routing_engine.py"
+        ("api/app/services/routing_engine.py" if Path("api/app/services/routing_engine.py").exists() else "app/services/routing_engine.py")
     ).read_text(encoding="utf-8")
 
     inicio = codigo.index("if any(a[\"status_evento\"] == \"INCERTO\"")
@@ -246,4 +247,3 @@ async def test_cache_compute_route_invalida_quando_alerta_incerto_muda():
 
     finally:
         RoutingEngine.clear_cache()
-
