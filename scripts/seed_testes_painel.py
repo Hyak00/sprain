@@ -12,12 +12,12 @@ SENHA_TESTE='Apenas-Teste-Isolado-2026!'
 
 
 async def main():
-    if settings.ambiente_atual!='testing' or settings.DB_NAME!='sprain_demo_e2e':
-        raise SystemExit('Seed permitido somente em testing no banco reservado sprain_demo_e2e.')
+    if settings.ambiente_atual!='testing' or settings.DB_NAME!='sprain_demo':
+        raise SystemExit('Seed permitido somente em testing no banco reservado sprain_demo.')
     await init_db_pool()
     try:
         async for conn in get_connection():
-            if await conn.fetchval('SELECT current_database()')!='sprain_demo_e2e':
+            if await conn.fetchval('SELECT current_database()')!='sprain_demo':
                 raise SystemExit('Banco conectado incorreto; nenhuma conta criada.')
             async with conn.transaction():
                 for nome,papel,tenant in [('admin','ADMIN','demo_corp'),('operador','OPERATOR','demo_corp'),('leitor','VIEWER','demo_corp'),('outra','ADMIN','log_express')]:

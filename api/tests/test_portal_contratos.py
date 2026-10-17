@@ -30,7 +30,7 @@ async def test_contratos_de_leitura_da_central(chave):
 async def payload(conn, identificador):
     origem = await conn.fetchrow("""SELECT origem_nome,origem_lat,origem_lon,destino_nome,destino_lat,destino_lon
         FROM operacoes WHERE tenant_id='demo_corp' AND origem_lat IS NOT NULL AND destino_lat IS NOT NULL
-        ORDER BY id_operacao LIMIT 1""")
+        ORDER BY CASE WHEN id_operacao = 'OP-001' THEN 0 ELSE 1 END, id_operacao LIMIT 1""")
     assert origem is not None, 'Fixture de operacoes do CI ausente'
     agora = datetime.now(timezone.utc)
     return {**dict(origem), 'id_operacao': identificador, 'janela_inicio': agora.isoformat(),
