@@ -16,6 +16,8 @@ TABELAS_OBRIGATORIAS = (
     "historico_avaliacoes_risco", "alertas_operacionais",
     "auditoria_qualidade_espacial", "feedback_alertas_operacionais",
     "bacias_hidrograficas",
+    "painel_financeiro", "painel_admin_auditoria", "painel_recuperacoes",
+    "painel_recuperacao_tentativas",
 )
 
 

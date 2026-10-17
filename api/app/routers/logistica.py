@@ -115,7 +115,8 @@ async def criar_operacao(dados: OperacaoCreate, conn: asyncpg.Connection = Depen
     cadastradas=await dimensoes_veiculo(conn,tenant_id,dados.id_veiculo)
     dims=dados.dimensoes.model_dump() if dados.dimensoes else cadastradas
     frota=await conn.fetchrow("SELECT tipo_veiculo,custos_operacionais FROM veiculos WHERE id_veiculo=$1 AND tenant_id=$2",dados.id_veiculo,tenant_id)
-    custos=(objeto(frota['custos_operacionais']) if frota else {}) | (
+    from app.services.administracao_painel import custos_empresa
+    custos=await custos_empresa(conn,tenant_id) | (objeto(frota['custos_operacionais']) if frota else {}) | (
         dados.custos_operacionais.model_dump(mode="json", exclude_none=True) if dados.custos_operacionais else {})
     custos=await resolver_custos(conn,custos,dims)
     dono=await conn.fetchval("SELECT tenant_id FROM operacoes WHERE id_operacao=$1",dados.id_operacao)
