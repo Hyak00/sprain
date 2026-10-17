@@ -44,7 +44,8 @@ na central: [Painel operacional interno](docs/painel-operacional-interno.md).
 Os formatos PDF/CSV/HTML e os critérios de custos, fontes e fotografias históricas
 estão descritos em [Relatórios na interface](docs/relatorios-painel.md).
 
-Pré-requisitos: Git, Docker com Compose e Python 3.9+ para a sonda opcional.
+Pré-requisitos: Git, Docker com Compose v2 e Python 3.11+ para as ferramentas
+locais; Node.js 22+ para testes de interface. O runtime da API usa Python 3.11.
 Instruções completas, limitações e dependências estão no
 [guia da central](docs/central-operacional.md) e no
 [roteiro de instalação e demonstração](docs/instalacao-demonstracao.md).
@@ -69,7 +70,7 @@ consulte o [guia de backup e restauração](docs/backup-restauracao-postgis.md).
 - `POST /api/v1/logistica/simular-impacto` — Simulação parametrizada de impacto pluviométrico nas operações do tenant.
 - `GET /api/v1/logistica/operacoes/{id_operacao}/explicacao` — Auditoria detalhada com geometria GeoJSON da alternativa e limitações operacionais.
 - `POST /api/v1/logistica/operacoes/{id_operacao}/decisao` — Registro formal da decisão do gestor operacional.
-- `GET /api/v1/rotas/intermunicipal` — Análise preditiva e financeira do corredor rodoviário SP-310 / SP-348.
+- `GET /api/v1/rotas/intermunicipal` — Referência geográfica e financeira do corredor SP-310 / SP-348, com cobertura e limitações explícitas.
 - `GET /api/v1/logistica/exportar-contingencia/csv` — Exportação tabular de contingência para TMS/ERP.
 
 ## Caminhoes e infraestrutura na torre existente
@@ -77,3 +78,18 @@ consulte o [guia de backup e restauração](docs/backup-restauracao-postgis.md).
 Consulte [o guia de integracao](docs/integracao-caminhoes.md) para medidas, custos, pedagios, pontes, dados de referencia e execucao da demonstracao. Login, abas, filtros, despacho e auditoria existentes foram preservados.
 
 O [complemento de dados e custos automaticos](docs/integracao-dados-viagem.md) descreve consumo de referencia, preco semanal ANP, fontes no mapa, tarifas conferidas e limites de cobertura.
+
+## Testes e operação
+
+- [Instalação e suítes API, DOM e Chromium](docs/testes-e-instalacao.md).
+- [Contratos do painel e Swagger](docs/api-painel.md): `/docs` e `/openapi.json`.
+- [Onboarding técnico de um cliente](docs/onboarding-tecnico-cliente.md).
+- [Arquitetura, fontes e frequência efetiva](docs/arquitetura-e-fontes.md).
+- [Runbook de deploy, rollback, backup e incidentes](docs/runbook-operacao.md).
+- [Evidências e limites da validação](docs/evidencias-validacao-3-6.md).
+- [Quadro de seis áreas e modelo de issue](docs/quadro-github.md).
+
+O Docker instala versões Python fixadas em `requirements.lock.txt`. O CI
+executa testes de API e interface em ambientes isolados; o navegador usa backend
+real e banco reservado. Testes automatizados não comprovam condições atuais de
+estrada, economia realizada ou homologação de produção.

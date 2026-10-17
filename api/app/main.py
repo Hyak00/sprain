@@ -106,7 +106,7 @@ tags_metadata = [
 
 app = FastAPI(
     title="SPRain B2B - Climate Resilience & Logistics Intelligence API",
-    description="Plataforma corporativa de inteligencia climatica, predicao de intransitabilidade urbana e roteamento dinamicode frotas.",
+    description="Apoio a decisao logistica com vulnerabilidade viaria, cenarios climaticos, rotas alternativas e custos com fontes e limitacoes explicitas.",
     version="1.1.0",
     lifespan=lifespan,
     openapi_tags=tags_metadata,
@@ -163,3 +163,6 @@ async def health_check():
 @app.get('/',include_in_schema=False)
 async def pagina_inicial():
     return RedirectResponse('/static/b2b.html')
+
+from app.documentacao import instalar as instalar_documentacao
+instalar_documentacao(app)
