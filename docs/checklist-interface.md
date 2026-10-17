@@ -1,5 +1,7 @@
 # Checklist rastreável da interface
 
+Revalidação de 3.1 sobre main `e450ec5`: [correções e evidências atuais](validacao-painel-atual.md), com 197 testes da API e 58 da interface aprovados. Os estados das demais seções abaixo não são encerrados por esta validação.
+
 Referência: seções 3.1–3.7 da lista técnica enviada, páginas 9–11. Atualização do fluxo 3.1 sobre main `8c2c188`, 16/10/2026. Aceites e limites em [fluxo-mvp-painel.md](fluxo-mvp-painel.md). **Implementado** significa o comportamento descrito existe; não equivale à homologação de todo o MVP. **Parcial** e **dependência** não devem ser encerrados como concluídos.
 
 | Item | Situação | Evidência / próximo aceite |
