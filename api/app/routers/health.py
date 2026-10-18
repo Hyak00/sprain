@@ -20,6 +20,7 @@ TABELAS_OBRIGATORIAS = (
     "painel_recuperacao_tentativas",
     "monitor_importacoes",
     "painel_onboarding",
+    "resultados_viagem",
 )
 
 

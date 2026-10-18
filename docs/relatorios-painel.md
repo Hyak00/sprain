@@ -12,11 +12,12 @@ Acesse **Central de trabalho → Relatórios e exportações**. ADMIN, OPERATOR 
 ## Interpretação financeira
 
 - **Economia comprovada:** indisponível no cadastro atual. O sistema não registra uma medição auditada da execução nem um contrafactual validado. Aprovação de desvio não é comprovação de economia.
-- **Custo observado:** indisponível no cadastro atual. Não há comprovantes de despesas efetivamente realizadas neste domínio. Não se transforma planejamento ou atraso informado em custo observado.
+- **Custo observado comprovado:** indisponível. Os resultados de viagem agora aceitam custos informados, mas não verificam comprovantes de despesas; por isso o indicador anterior continua `null`.
+- **Custo informado:** soma parcial dos custos declarados no último resultado de cada operação, com cobertura explícita e natureza `AUTODECLARADO_NAO_VERIFICADO`. Está no JSON do piloto; a apresentação no PDF da interface ainda depende de integração.
 - **Custo estimado:** soma dos valores finitos, não negativos e disponíveis em `operacoes.custo_estimado`, correspondentes às parcelas conhecidas da rota original na emissão. São mostrados os números de operações com e sem valor. Não se apresenta cobertura completa de pedágios/combustível por haver um valor cadastrado.
 - **Impacto potencial:** soma de `prejuizo_potencial_evitado` somente da recomendação mais recente de cada operação selecionada, evitando duplicar recálculos. Também mostra cobertura. Não significa prejuízo realmente evitado.
 
-Ausência é representada por `null` no JSON e célula vazia no CSV. Um zero registrado continua sendo zero; ausência de qualquer amostra não vira zero financeiro. O modelo não preenche resultados reais por suposição. O cadastro/validação de comprovantes e a medição de economia em campo não são substituídos por um relatório.
+Ausência é representada por `null` no JSON e célula vazia no CSV. Um zero registrado continua sendo zero; ausência de qualquer amostra não vira zero financeiro. Resultados informados são separados de planejamento e de economia comprovada. O fluxo de registro está em [resultados de viagem do piloto](resultados-viagem-piloto.md).
 
 ## Período, fotografia e fontes
 

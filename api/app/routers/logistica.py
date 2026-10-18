@@ -751,7 +751,11 @@ async def obter_sumario_executivo(tenant_id: str = Depends(resolve_tenant), conn
             COALESCE(SUM(r.minutos_adicionais) FILTER (WHERE r.tipo_acao = 'ALTERAR_ROTA'), 0.0)::float
                 AS tempo_adicional_planejado,
             COALESCE(SUM(r.custo_desvio) FILTER (WHERE r.tipo_acao = 'ALTERAR_ROTA'), 0.0)::float
-                AS custo_desvio_planejado
+                AS custo_desvio_planejado,
+            COUNT(v.id)::int AS viagens_com_resultado_informado,
+            COUNT(v.custo_real_brl)::int AS viagens_com_custo_informado,
+            COALESCE(SUM(v.custo_real_brl), 0.0)::float AS custo_informado,
+            COUNT(v.id) FILTER (WHERE v.rota_executada = 'DESVIO')::int AS desvios_informados
         FROM operacoes o
         LEFT JOIN LATERAL (
             SELECT id_operacao, nivel_risco, tipo_acao, prejuizo_potencial_evitado,
@@ -761,6 +765,12 @@ async def obter_sumario_executivo(tenant_id: str = Depends(resolve_tenant), conn
             ORDER BY id_recomendacao DESC
             LIMIT 1
         ) r ON true
+        LEFT JOIN LATERAL (
+            SELECT atual.id, atual.custo_real_brl, atual.rota_executada
+            FROM resultados_viagem atual
+            WHERE atual.id_operacao = o.id_operacao AND atual.tenant_id = o.tenant_id
+              AND NOT EXISTS (SELECT 1 FROM resultados_viagem proximo WHERE proximo.substitui_id = atual.id)
+        ) v ON true
         WHERE o.tenant_id = $1;
     """
     row = await conn.fetchrow(query, tenant_id)
@@ -810,6 +820,17 @@ async def obter_sumario_executivo(tenant_id: str = Depends(resolve_tenant), conn
                 "aguardar_melhora": int(decisoes["aguardar"] or 0),
             },
             "decisoes_vinculadas_consulta": int(decisoes["vinculadas_consulta"] or 0),
+            "viagens_com_resultado_informado": int(row["viagens_com_resultado_informado"] or 0),
+            "viagens_com_custo_informado": int(row["viagens_com_custo_informado"] or 0),
+            "custo_informado_brl": (
+                round(float(row["custo_informado"] or 0.0), 2)
+                if row["viagens_com_custo_informado"] else None
+            ),
+            "desvios_informados": (
+                int(row["desvios_informados"] or 0)
+                if row["viagens_com_resultado_informado"] else None
+            ),
+            "natureza_resultados": "AUTODECLARADO_NAO_VERIFICADO",
             "desvios_realizados": None,
             "custo_observado_brl": None,
             "economia_comprovada_brl": None,
