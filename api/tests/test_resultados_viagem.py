@@ -11,6 +11,7 @@ from pydantic import ValidationError
 
 from app.config import settings
 from app.database import get_connection
+from app.routers.logistica import obter_sumario_executivo
 from app.routers.relatorios_painel import router as relatorios_router
 from app.routers.resultados_viagem import ResultadoViagemRequest, router as resultados_router
 from app.seguranca import get_current_user_claims
@@ -115,12 +116,19 @@ async def test_resultado_corrigido_e_piloto_separam_informado_de_comprovado():
             assert piloto["indicadores"]["desvios_informados"]["quantidade"] == 0
             assert piloto["indicadores"]["custo_observado"]["valor_brl"] is None
             assert piloto["indicadores"]["economia_comprovada"]["valor_brl"] is None
+            sumario = (await obter_sumario_executivo(tenant_id=tenant, conn=conn))["kpis"]
+            assert sumario["viagens_com_resultado_informado"] == 1
+            assert sumario["custo_informado_brl"] == 45.2
+            assert sumario["desvios_informados"] == 0
+            assert sumario["custo_observado_brl"] is None
+            assert sumario["economia_comprovada_brl"] is None
 
             claims["tenant_id"] = outro
             assert (await cli.get(caminho)).status_code == 404
             claims["role"] = "OPERATOR"
             assert (await cli.post(caminho, json=dados())).status_code == 404
             assert (await cli.get("/api/v1/painel/relatorios/piloto")).json()["amostra"]["viagens_com_resultado"] == 0
+            assert (await obter_sumario_executivo(tenant_id=outro, conn=conn))["kpis"]["custo_informado_brl"] is None
     finally:
         await tx.rollback()
         await conn.close()

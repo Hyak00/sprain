@@ -45,6 +45,13 @@ pagamento e uma viagem realizada não estabelece qual teria sido o resultado da
 rota que não foi escolhida. O piloto seleciona operações pela data de criação,
 inclusive ao aplicar filtro de período.
 
+O resumo sem filtro de período em `GET /api/v1/logistica/relatorios/sumario-executivo`
+também mostra `viagens_com_resultado_informado`, `viagens_com_custo_informado`,
+`custo_informado_brl` e `desvios_informados`. A marca
+`natureza_resultados=AUTODECLARADO_NAO_VERIFICADO` diferencia essas medidas
+das recomendações de planejamento. Os campos legados `custo_observado_brl`,
+`economia_comprovada_brl` e `desvios_realizados` continuam `null`.
+
 O esquema `db/ci/14_resultados_viagem.sql` é aditivo e aplicado na inicialização
 após as tabelas de operações e decisões. O teste de integração usa transação
 revertida, cobre correção, vínculo com decisão, separação entre empresas e os
