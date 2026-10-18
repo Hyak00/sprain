@@ -34,6 +34,7 @@
     async function render(aba){
         if(!usuario)return;secao=aba;const v=++versao;controle?.abort();controle=new AbortController();conteudo.replaceChildren();dialog.scrollTop=0;
         nav.querySelectorAll('button').forEach(b=>b.setAttribute('aria-current',String(b.dataset.secao===aba)));
+        nav.querySelector('[data-secao="'+aba+'"]')?.scrollIntoView?.({block:'nearest',inline:'nearest'});
         el(conteudo,'h3',rotulos[aba]);const carregando=mensagem(conteudo,'Carregando…');
         try {await telas[aba](conteudo,v);if(atual(v))carregando.remove();}
         catch(e){if(atual(v)&&!e?.silencioso){carregando.textContent=textoErro(e);botao(conteudo,'Tentar novamente',()=>render(aba));}}

@@ -63,6 +63,8 @@ button:focus-visible,a:focus-visible,summary:focus-visible,input:focus-visible,s
 .ux-comparacao pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:11px;color:#cbd5e1}
 .ux-pronta .btn-dec{padding:12px 8px;font-size:12px;min-height:44px}
 .ux-pronta #portal-operacional nav{background:#0b1220;border-radius:10px;padding:12px;gap:6px}
+.ux-pronta #portal-operacional nav{flex-wrap:nowrap;overflow-x:auto;align-items:center}
+.ux-pronta #portal-operacional nav button{flex:0 0 auto;margin:0;white-space:nowrap;min-height:40px}
 .ux-etapas{list-style:decimal;padding-left:25px;display:grid;gap:16px}
 .ux-etapas article,.ux-onboarding-resumo{border:1px solid #3c526d;border-radius:10px;padding:18px;background:#111f33}
 .ux-etapas h4{margin-top:0!important}.ux-etapa-estado{color:#bae6fd;font-size:13px;border:1px solid #47718d;border-radius:20px;padding:4px 10px}
