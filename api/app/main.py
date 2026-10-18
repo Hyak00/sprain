@@ -10,6 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
+from app.services.manutencao import carregar_janela
 from app.versao import API_VERSION, informacao_versao
 from app.services.demonstracao import validar_configuracao as validar_demonstracao, habilitada as demonstracao_habilitada
 from app.seguranca import validar_configuracao_producao
@@ -62,6 +63,7 @@ async def agendador_telemetria_corredor():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    carregar_janela()
     identificacao = informacao_versao()
     logging.getLogger("uvicorn.error").info(
         "SPRain iniciando versao=%s revisao=%s",

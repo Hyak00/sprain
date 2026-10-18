@@ -1,7 +1,7 @@
 """Enriquece o OpenAPI sem alterar handlers, validação ou autorização."""
 from fastapi.openapi.utils import get_openapi
 
-PUBLICOS={'/api/v1/health/liveness','/api/v1/health/readiness','/api/v1/acesso/configuracao',
+PUBLICOS={'/api/v1/health/liveness','/api/v1/health/readiness','/api/v1/health/manutencao','/api/v1/acesso/configuracao',
     '/api/v1/acesso/login','/api/v1/logistica/auth/login','/api/v1/administracao/recuperacao/solicitar',
     '/api/v1/administracao/recuperacao/concluir','/api/v1/demonstracao/estado'}
 
@@ -92,6 +92,7 @@ def instalar(app):
         for caminho,exemplo in {
             '/api/v1/health/liveness':{'status':'UP','timestamp':1792234800,'servico':'sprain_api'},
             '/api/v1/health/readiness':{'status':'READY','banco':'sprain_db','postgis':'OPERACIONAL','total_trechos_osm':4,'latencia_db_ms':2.5},
+            '/api/v1/health/manutencao':{'situacao':'SEM_JANELA','consultado_em':'2026-10-18T12:00:00Z','inicio_em':None,'fim_em':None,'aviso':None},
             '/api/v1/demonstracao/estado':{'modo':'DEMONSTRACAO_ISOLADA','demo_isolada':True,'aviso':'Exemplo sintético, sem uso operacional.'},
             '/api/v1/painel/corredores':{'items':[],'proximo_offset':None},
             '/api/v1/operacional/importacoes':{'items':[],'proximo_offset':None,'primeiro_registro_em':None,'consultado_em':'2026-10-17T12:00:00Z','aviso':'Histórico começa na instrumentação.'},

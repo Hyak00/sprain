@@ -20,6 +20,16 @@ o startup com credenciais de exemplo. Nunca contornar essa validação.
 
 ## Deploy
 
+Para anunciar uma janela planejada, defina `MANUTENCAO_INICIO`,
+`MANUTENCAO_FIM` (ISO 8601 com fuso) e `MANUTENCAO_AVISO` (até 240 caracteres)
+no ambiente da API e aplique a configuração aprovada. O endpoint público
+`/api/v1/health/manutencao` e a página `/static/status.html` mostram o aviso
+antes e durante a janela. Após o fim, o aviso desaparece automaticamente.
+Configuração incompleta ou datas inválidas impedem a inicialização. O aviso não
+bloqueia requisições e não muda readiness; mantenha o procedimento de deploy e
+os healthchecks normais. Como a página está na mesma API, use monitor externo
+para informar indisponibilidade total.
+
 1. Executar CI e revisar diff e dependências. Registrar imagem anterior e nova;
    manter ambas disponíveis por digest. Aprovar mudanças de esquema e verificar
    compatibilidade reversa. A inicialização aplica schemas idempotentes; ainda

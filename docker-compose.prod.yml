@@ -40,6 +40,9 @@ services:
       DB_NAME: ${DB_NAME:?defina DB_NAME no .env.prod}
       API_KEYS: ${API_KEYS:?defina API_KEYS no .env.prod}
       TENANT_API_KEYS: ${TENANT_API_KEYS:?defina TENANT_API_KEYS no .env.prod}
+      MANUTENCAO_INICIO: ${MANUTENCAO_INICIO:-}
+      MANUTENCAO_FIM: ${MANUTENCAO_FIM:-}
+      MANUTENCAO_AVISO: ${MANUTENCAO_AVISO:-}
       WEBHOOK_SECRET_KEY: ${WEBHOOK_SECRET_KEY:?defina WEBHOOK_SECRET_KEY no .env.prod}
     ports:
       - "127.0.0.1:8000:8000"

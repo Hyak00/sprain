@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Estado do SPRain</title>
+  <style>
+    :root { color-scheme: dark; font-family: system-ui, sans-serif; background: #0b1220; color: #eef3fb; }
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 24px; box-sizing: border-box; }
+    main { width: min(100%, 650px); padding: 32px; border: 1px solid #34445c; border-radius: 16px; background: #152238; }
+    h1 { margin: 0 0 24px; font-size: 1.7rem; }
+    h2 { margin: 0 0 12px; font-size: 1.25rem; }
+    p { line-height: 1.5; }
+    .muted { color: #bdcadd; }
+    .pill { display: inline-block; padding: 6px 12px; border-radius: 999px; background: #324964; font-weight: 700; }
+    .ok { background: #145a44; }
+    .alert { background: #885418; }
+    .error { background: #7b2e34; }
+    button { margin-top: 16px; padding: 10px 16px; border-radius: 8px; border: 1px solid #71bdf3; background: #17476b; color: white; cursor: pointer; }
+    a { color: #a6d9ff; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Estado do SPRain</h1>
+    <section role="status" aria-live="polite">
+      <span id="selo" class="pill">Consultando</span>
+      <h2 id="titulo">Verificando a API</h2>
+      <p id="detalhe" class="muted">Aguarde a resposta mais recente.</p>
+      <p id="janela" hidden></p>
+      <p id="consulta" class="muted"></p>
+    </section>
+    <button id="atualizar" type="button">Atualizar agora</button>
+    <p class="muted">Esta página é servida pela própria API. Se o servidor estiver fora do ar, ela também poderá ficar inacessível. A prontidão da API não confirma a atualização de todas as fontes externas.</p>
+    <a href="/static/b2b.html">Voltar ao SPRain</a>
+  </main>
+  <script>
+    const selo = document.getElementById('selo');
+    const titulo = document.getElementById('titulo');
+    const detalhe = document.getElementById('detalhe');
+    const janela = document.getElementById('janela');
+    const consulta = document.getElementById('consulta');
+    const horario = valor => new Date(valor).toLocaleString('pt-BR');
+    async function atualizar() {
+      const abortar = new AbortController();
+      const limite = setTimeout(() => abortar.abort(), 8000);
+      try {
+        const [aviso, prontidao] = await Promise.all([
+          fetch('/api/v1/health/manutencao', {cache: 'no-store', signal: abortar.signal}),
+          fetch('/api/v1/health/readiness', {cache: 'no-store', signal: abortar.signal})
+        ]);
+        if (!aviso.ok) throw new Error('aviso indisponível');
+        const dados = await aviso.json();
+        const pronto = prontidao.ok && (await prontidao.json()).status === 'READY';
+        selo.className = 'pill ' + (dados.situacao === 'EM_ANDAMENTO' ? 'alert' : pronto ? 'ok' : 'error');
+        janela.hidden = !dados.inicio_em;
+        janela.textContent = dados.inicio_em ? `Janela: ${horario(dados.inicio_em)} até ${horario(dados.fim_em)} (horário deste dispositivo).` : '';
+        if (dados.situacao === 'EM_ANDAMENTO') {
+          selo.textContent = 'Manutenção';
+          titulo.textContent = 'Manutenção em andamento';
+          detalhe.textContent = dados.aviso + (pronto ? '' : ' A API também não confirmou prontidão.');
+        } else if (!pronto) {
+          selo.textContent = 'Indisponível';
+          titulo.textContent = 'Não foi possível confirmar a prontidão da API';
+          detalhe.textContent = dados.aviso || 'Tente novamente em alguns minutos.';
+        } else if (dados.situacao === 'PROGRAMADA') {
+          selo.textContent = 'Programada';
+          titulo.textContent = 'Manutenção programada';
+          detalhe.textContent = dados.aviso;
+        } else {
+          selo.textContent = 'API pronta';
+          titulo.textContent = 'API respondendo';
+          detalhe.textContent = 'Nenhuma janela de manutenção está programada.';
+        }
+        consulta.textContent = `Consulta: ${horario(dados.consultado_em)}.`;
+      } catch (_) {
+        selo.className = 'pill error';
+        selo.textContent = 'Sem confirmação';
+        titulo.textContent = 'Estado indisponível';
+        detalhe.textContent = 'Não foi possível consultar a API agora. Tente novamente em alguns minutos.';
+        janela.hidden = true;
+        consulta.textContent = '';
+      } finally {
+        clearTimeout(limite);
+      }
+    }
+    document.getElementById('atualizar').addEventListener('click', atualizar);
+    atualizar();
+    setInterval(atualizar, 60000);
+  </script>
+</body>
+</html>
