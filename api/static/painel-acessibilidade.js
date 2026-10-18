@@ -17,7 +17,7 @@
     let anterior,aberto=false;
     new MutationObserver(()=>{
         const visivel=despacho.style.display==='flex';
-        if(visivel&&!aberto){anterior=document.activeElement;document.querySelectorAll('header,.workspace').forEach(x=>x.inert=true);despacho.querySelector('input:not([type="hidden"])')?.focus();}
+        if(visivel&&!aberto){anterior=document.activeElement;document.querySelectorAll('header,.workspace,#ux-navegacao,.ux-cabecalho-pagina,.ux-visao-geral').forEach(x=>x.inert=true);despacho.querySelector('input:not([type="hidden"])')?.focus();}
         if(!visivel&&aberto){window.PainelSessao.permissoes();if(anterior?.isConnected)anterior.focus();}aberto=visivel;
     }).observe(despacho,{attributes:true,attributeFilter:['style']});
     despacho.addEventListener('keydown',e=>{

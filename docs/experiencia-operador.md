@@ -89,3 +89,6 @@ outro banco reservado à demonstração/E2E. Todos passaram. A primeira execuç�
 completa da API foi feita na base E2E já alterada pelos formulários e revelou
 duas expectativas incompatíveis com aquele ambiente; a conferência completa
 foi repetida no ambiente separado equivalente ao CI, sem alterar essas regras.
+
+A reorganização azul escuro e o mapa dos caminhos de todos os recursos estão em
+[Organização visual do painel](organizacao-visual-painel.md).

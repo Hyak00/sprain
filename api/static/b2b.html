@@ -134,7 +134,8 @@
     <link rel="stylesheet" href="/static/infraestrutura-caminhoes.css">
     <link rel="stylesheet" href="/static/portal-operacional.css">
     <link rel="stylesheet" href="/static/painel-fluxo.css">
-    <link rel="stylesheet" href="/static/painel-experiencia.css?v=experiencia-1">
+    <link rel="stylesheet" href="/static/painel-experiencia.css?v=layout-2">
+    <link rel="stylesheet" href="/static/painel-layout.css?v=layout-2">
 </head>
 <body>
 
@@ -427,7 +428,7 @@
     </div>
 
         <div id="painel-status" role="status" aria-live="polite" aria-atomic="true" hidden></div>
-        <script src="/static/painel-sessao.js?v=experiencia-1"></script>
+        <script src="/static/painel-sessao.js?v=layout-2"></script>
         <script>
         window.API_KEY = '';
         let operacaoSelecionadaId = null;
@@ -552,7 +553,7 @@
         }
 
         function limparRotasExibidas() {
-            consultaSelecionadaId=null;window.FluxoPainel?.limpar();
+            consultaSelecionadaId=null;window.PainelLayout?.limparSelecao();window.FluxoPainel?.limpar();
             window.AlertasComparacao?.limpar();
             window.DadosViagem?.limpar();
             ['rota-original','rota-segura','trechos-criticos','infra-pontos','infra-limites'].forEach(id => {
@@ -564,6 +565,7 @@
         function falhaPainel(acao) {
             if(acao==='carregarCorredorRegional')document.getElementById('corredor-detalhes').textContent='Corredor indisponível. Abra a aba para tentar novamente; não é confirmação de pista livre.';
             if(acao==='abrirExplicacaoDecisao'){
+                window.PainelLayout?.erro();
                 document.getElementById('inspector').style.display='flex';
                 ['modal-op-title','modal-origem-destino','modal-acao','modal-confianca','box-orig-km','box-orig-min','box-alt-km','box-alt-min','modal-custo','modal-prejuizo','modal-limitacao','modal-trechos-lista'].forEach(id=>document.getElementById(id).textContent='Indisponível');
                 document.getElementById('modal-justificativa').textContent='Não foi possível consultar a operação. Selecione-a novamente para tentar.';
@@ -912,11 +914,11 @@
                     : 'Rota mantida';
 
                 const corCusto = rec.impacto.custo_desvio_brl > 0 ? '#fbbf24' : 'var(--text-muted)';
-                tr.innerHTML = '<td class="mono" style="font-weight:700; color:#fff;"><span class="ux-id" title="' + window.PainelApresentacao.escapar(rec.id_operacao) + '">' + window.PainelApresentacao.escapar(rec.id_operacao) + '</span>' + tagDecisao + '<span class="ux-inline-truck" title="Caminhão: ' + window.PainelApresentacao.escapar(rec.id_veiculo) + '">' + window.PainelApresentacao.escapar(rec.id_veiculo) + '</span></td>' +
+                tr.innerHTML = '<td data-coluna="operacao" class="mono" style="font-weight:700; color:#fff;"><span class="ux-id" title="' + window.PainelApresentacao.escapar(rec.id_operacao) + '">' + window.PainelApresentacao.escapar(rec.id_operacao) + '</span>' + tagDecisao + '<span class="ux-inline-truck" title="Caminhão: ' + window.PainelApresentacao.escapar(rec.id_veiculo) + '">' + window.PainelApresentacao.escapar(rec.id_veiculo) + '</span></td>' +
                     '<td class="mono" style="color:var(--text-muted);">' + window.PainelApresentacao.escapar(rec.id_veiculo) + '</td>' +
                     '<td><span class="badge badge-' + window.PainelApresentacao.escapar(rec.nivel_risco) + '">' + window.PainelApresentacao.escapar(rec.nivel_risco) + '</span></td>' +
-                    '<td class="mono" style="font-size:11px;">' + deltaTxt + '</td>' +
-                    '<td class="mono" style="font-weight:600; color:' + corCusto + ';">R$ ' + window.PainelApresentacao.numero(rec.impacto.custo_desvio_brl,2) + '</td>';
+                    '<td class="mono" style="font-size:11px;"><span class="ux-cell-label">Distância e tempo extras</span>' + deltaTxt + '</td>' +
+                    '<td class="mono" style="font-weight:600; color:' + corCusto + ';"><span class="ux-cell-label">Diferença estimada</span>R$ ' + window.PainelApresentacao.numero(rec.impacto.custo_desvio_brl,2) + '</td>';
                 tr.dataset.rotuloOperacao='Inspecionar '+rec.id_operacao+', caminhão '+(rec.id_veiculo||'não informado')+', risco '+rec.nivel_risco+', '+deltaTxt;
                 tr.onclick = () => selecionarOperacao(rec.id_operacao);
                 tbody.appendChild(tr);
@@ -927,6 +929,7 @@
             operacaoSelecionadaId = idOp;
             document.getElementById('inspector').style.display = 'none';
             limparRotasExibidas();
+            window.PainelLayout?.carregando(idOp);
             document.getElementById('historico-decisoes').textContent = 'Carregando histórico...';
             renderizarTabela();
             document.getElementById('feedback-decisao').innerText = '';
@@ -1005,7 +1008,7 @@
                 });
                 if (coords.length > 0) {
                     const bounds = coords.reduce((b, c) => b.extend(c), new maplibregl.LngLatBounds(coords[0], coords[0]));
-                    map.fitBounds(bounds, { padding: { top: 70, bottom: 70, left: 70, right: 460 }, maxZoom: 15 });
+                    map.fitBounds(bounds, { padding: { top: 75, bottom: 245, left: 55, right: 55 }, maxZoom: 15 });
                 }
             }
 
@@ -1075,14 +1078,14 @@
     </script>
     <script src="/static/infraestrutura-caminhoes.js"></script>
     <script src="/static/dados-viagem.js"></script>
-    <script src="/static/infraestrutura-cadastro.js"></script>
+    <script src="/static/infraestrutura-cadastro.js?v=layout-2"></script>
     <script src="/static/alertas-comparacao.js"></script>
     <script src="/static/portal-dados.js?v=relatorios-1"></script>
     <script src="/static/portal-pdf.js?v=relatorios-1"></script>
-    <script src="/static/portal-operacional.js?v=experiencia-1"></script>
+    <script src="/static/portal-operacional.js?v=layout-2"></script>
     <script src="/static/painel-relatorios.js?v=relatorios-1"></script>
-    <script src="/static/painel-acessibilidade.js?v=experiencia-1"></script>
-    <script src="/static/painel-fluxo.js?v=experiencia-1"></script>
+    <script src="/static/painel-acessibilidade.js?v=layout-2"></script>
+    <script src="/static/painel-fluxo.js?v=layout-2"></script>
     <script src="/static/painel-corredores.js"></script>
     <script src="/static/painel-eventos.js"></script>
     <script src="/static/painel-administracao.js"></script>
@@ -1090,7 +1093,8 @@
     <script src="/static/painel-interno.js?v=interno35-1"></script>
     <script>window.PainelSessao.instalar();</script>
     <script src="/static/painel-homologacao.js"></script>
-    <script src="/static/painel-onboarding.js?v=experiencia-1"></script>
-    <script src="/static/painel-experiencia.js?v=experiencia-1"></script>
+    <script src="/static/painel-onboarding.js?v=layout-2"></script>
+    <script src="/static/painel-experiencia.js?v=layout-2"></script>
+    <script src="/static/painel-layout.js?v=layout-2"></script>
 </body>
 </html>

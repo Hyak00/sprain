@@ -76,8 +76,8 @@ window.CadastroInfra = (()=>{
         status.textContent=data.aviso;
     });
     candidatos.onchange=()=>campos.id_trecho.value=candidatos.value;
-    escolher.onclick=()=>{escolhendo=true;status.textContent='Clique no mapa no local da estrutura. Confira a pista associada.';};
-    map.on('click',e=>{if(!escolhendo||painel.hidden)return;escolhendo=false;campos.longitude.value=e.lngLat.lng;campos.latitude.value=e.lngLat.lat;});
+    escolher.onclick=()=>{window.PainelLayout?.escolherMapa();escolhendo=true;status.textContent='Clique no mapa no local da estrutura. Confira a pista associada.';};
+    map.on('click',e=>{if(!escolhendo||painel.hidden)return;escolhendo=false;campos.longitude.value=e.lngLat.lng;campos.latitude.value=e.lngLat.lat;window.PainelLayout?.concluirMapa();});
     form.onsubmit=e=>{e.preventDefault();executar(async()=>{
         const payload={tipo:tipo.value,origem_dados:'CADASTRO_MANUAL'};
         Object.entries(campos).forEach(([k,i])=>{
@@ -94,5 +94,5 @@ window.CadastroInfra = (()=>{
     });};
     historico.onclick=()=>executar(async()=>{const data=await request('infraestrutura/pontos/'+id+'/historico');status.textContent=JSON.stringify(data,null,2);});
     desativar.onclick=()=>executar(async()=>{await request('infraestrutura/pontos/'+id,'DELETE');await carregarPontos();status.textContent='Referência desativada; histórico preservado. Recalcule as operações.';});
-    return {sessao:role=>{geracao++;escolhendo=false;painel.hidden=role!=='ADMIN';painel.open=false;pontos=[];lista.replaceChildren();preparar(null);}};
+    return {cancelarEscolha:()=>{escolhendo=false;},sessao:role=>{geracao++;escolhendo=false;painel.hidden=role!=='ADMIN';painel.open=false;pontos=[];lista.replaceChildren();preparar(null);}};
 })();
