@@ -7,6 +7,8 @@ PUBLICOS={'/api/v1/health/liveness','/api/v1/health/readiness','/api/v1/acesso/c
 
 MEDIDAS={'altura_m':3,'largura_m':2.4,'comprimento_m':8,'peso_total_t':10,'eixos':2}
 EXEMPLOS={
+ 'PrimeiroResultado':{'consulta_id':'00000000-0000-4000-8000-000000000001'},
+ 'Acompanhamento':{'operacoes':['EXEMPLO_OP_001']},
  'Login':{'email':'operador@cliente.example','senha':'EXEMPLO_NAO_USAR_COMO_SENHA'},
  'LoginCorporativoRequest':{'email':'operacional@democorp.com.br','senha':'EXEMPLO_APENAS_AMBIENTE_DEMO'},
  'NovoUsuario':{'email':'leitor@cliente.example','senha':'EXEMPLO_NAO_USAR_COMO_SENHA','papel':'VIEWER'},

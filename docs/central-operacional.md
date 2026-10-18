@@ -9,7 +9,7 @@ Entrega complementar ao painel existente; fluxo 3.1 atualizado sobre main `8c2c1
 3. Baixe o PDF, CSV, JSON integral ou HTML compartilhável. Os arquivos contêm informações da empresa; encaminhe somente a destinatários autorizados. O código não envia relatórios a terceiros.
 4. Em **Qualidade e serviços**, atualize a situação da API/banco, idade das fontes, feedback e métricas permitidas ao perfil. Falhas são indicadas individualmente; a tela não transforma falta de dados em ausência de risco.
 5. Em **Importar rotas**, baixe o modelo JSON, preencha coordenadas e janelas com fuso, valide e confira a prévia. Operador/admin podem importar; VIEWER apenas valida. A prévia recusa identificadores existentes na empresa. A gravação não é atômica; baixe somente as falhas para corrigir. Em resultado incerto, consulte as operações antes de reenviar.
-6. **Acesso e configurações** reúne os caminhos de cadastro já disponíveis e explica as integrações administrativas ausentes. **Demonstração** e **Primeiros passos** fornecem o roteiro, natureza dos dados e limitações.
+6. **Acesso e configurações** reúne os caminhos de cadastro e administração. **Configurar primeiro cliente** guia a ativação e registra o primeiro resultado útil no servidor. **Demonstração** e **Primeiros passos** fornecem roteiro, natureza dos dados e limitações. Veja [experiência do operador](experiencia-operador.md).
 
 ## Relatórios e interpretação
 

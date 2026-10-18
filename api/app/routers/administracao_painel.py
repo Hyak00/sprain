@@ -123,7 +123,7 @@ EXPORTACOES = {
     nome:f'SELECT to_jsonb(t) AS dados FROM {nome} t WHERE t.tenant_id=$1'
     for nome in ('veiculos','operacoes','recomendacoes_operacao','cenarios_clima',
         'decisoes_gestor_operacao','painel_corredores','painel_recorrencias','painel_despachos',
-        'painel_consultas','painel_relatos','painel_financeiro','painel_usuarios_auditoria',
+        'painel_consultas','painel_relatos','painel_financeiro','painel_onboarding','painel_usuarios_auditoria',
         'painel_admin_auditoria','feedback_alertas_operacionais','infraestrutura_viaria',
         'infraestrutura_revisoes','malha_importacoes','malha_limites_revisoes','auditoria_previsao_realidade')
 }

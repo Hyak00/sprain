@@ -16,9 +16,13 @@ test.beforeEach(async({page,request,baseURL})=>{
  });
  await page.goto('/static/b2b.html');
 });
-async function entrar(page,nome){await page.getByLabel('E-mail Corporativo',{exact:true}).fill(nome+'@e2e.invalid');await page.getByLabel('Senha de Acesso',{exact:true}).fill(senha);await page.getByRole('button',{name:'Entrar na Torre de Controle',exact:true}).click();await expect(page.getByRole('button',{name:'Central de trabalho',exact:true})).toBeVisible();}
+async function entrar(page,nome){await page.getByLabel('E-mail Corporativo',{exact:true}).fill(nome+'@e2e.invalid');await page.getByLabel('Senha de Acesso',{exact:true}).fill(senha);await page.getByRole('button',{name:'Entrar na Torre de Controle',exact:true}).click();await expect(page.locator('#login-overlay')).toBeHidden();await expect(page.getByRole('button',{name:'Central de trabalho',exact:true})).toBeVisible();}
 async function central(page,secao){await page.getByRole('button',{name:'Central de trabalho',exact:true}).click();await page.getByRole('navigation',{name:'Seções da central',exact:true}).getByRole('button',{name:secao,exact:true}).click();}
 async function baixar(page,nome){const evento=page.waitForEvent('download');await page.getByRole('button',{name:nome,exact:true}).click();const d=await evento;const file=await d.path();expect(file).toBeTruthy();return fs.readFile(file);}
+function proximaSegunda(){
+ const hoje=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+ const data=new Date(hoje+'T12:00:00Z');data.setUTCDate(data.getUTCDate()+((8-data.getUTCDay())%7||7));return data.toISOString().slice(0,10);
+}
 
 test('VIEWER: login, controle de papel, PDF/CSV reais e logout',async({page})=>{
  await entrar(page,'leitor');await expect(page.getByText('PERFIL: VIEWER',{exact:true})).toBeVisible();await expect(page.getByRole('button',{name:'↓ Exportar CSV',exact:true})).toBeDisabled();
@@ -36,7 +40,7 @@ test('OPERADOR: corredor persistente, recorrência e despacho idempotente',async
  const card=page.getByRole('article').filter({has:page.getByRole('heading',{name:nome,exact:true})});await card.getByRole('button',{name:'Adicionar recorrência',exact:true}).click();
  await page.getByLabel('Nome da recorrência',{exact:true}).fill('E2E semanal');await page.getByLabel('Horário de partida (São Paulo)',{exact:true}).fill('08:00');await page.getByLabel('Duração da janela (minutos)',{exact:true}).fill('240');await page.getByLabel('Segunda',{exact:true}).check();
  await page.getByRole('combobox',{name:'Caminhão da frota (opcional)',exact:true}).selectOption('DEMO_34_CAMINHAO');await page.getByRole('button',{name:'Salvar recorrência',exact:true}).click();
- await card.getByText('E2E semanal',{exact:true}).click();await card.getByRole('button',{name:'Preparar despacho',exact:true}).click();await page.getByLabel('Data da viagem',{exact:true}).fill('2026-10-19');
+ await card.getByText('E2E semanal',{exact:true}).click();await card.getByRole('button',{name:'Preparar despacho',exact:true}).click();await page.getByLabel('Data da viagem',{exact:true}).fill(proximaSegunda());
  await page.getByRole('button',{name:'Criar viagem desta recorrência',exact:true}).click();await expect(page.getByRole('button',{name:'Abrir viagem criada',exact:true})).toBeVisible();
  await page.getByRole('button',{name:'Criar viagem desta recorrência',exact:true}).click();await expect(page.getByText(/nenhum despacho duplicado/)).toBeVisible();
 });
@@ -44,14 +48,14 @@ test('OPERADOR: corredor persistente, recorrência e despacho idempotente',async
 test('ADMIN: premissas versionadas, fontes e falhas internas reais',async({page})=>{
  await entrar(page,'admin');await central(page,'Premissas financeiras');
  await page.getByRole('dialog').getByLabel('Custo total por km (R$/km)',{exact:true}).fill('4.5');await page.getByRole('button',{name:'Salvar padrões financeiros',exact:true}).click();await expect(page.getByText(/Versão: [1-9]/)).toBeVisible();
- await page.getByRole('button',{name:'Painel operacional interno',exact:true}).click();await expect(page.getByRole('heading',{name:'Fontes e atualização',exact:true})).toBeVisible();
+ await page.getByRole('navigation',{name:'Seções da central',exact:true}).getByRole('button',{name:'Painel operacional interno',exact:true}).click();await expect(page.getByRole('heading',{name:'Fontes e atualização',exact:true})).toBeVisible();
  await expect(page.getByRole('heading',{name:'Métricas de qualidade',exact:true})).toBeVisible();await page.getByRole('combobox',{name:'Situação da importação',exact:true}).selectOption('FALHA');await expect(page.getByText(/offset=0&status=FALHA/)).toBeVisible();
 });
 
 test('DEMO: bloqueio, custo, liberação e mapa pelo motor real',async({page})=>{
  await entrar(page,'leitor');await central(page,'Demonstração');await expect(page.getByText(/evento originalmente pretendido pela equipe não foi identificado/)).toBeVisible();
  await page.getByRole('button',{name:'2. Simular bloqueio ilustrativo',exact:true}).click();await expect(page.getByRole('cell',{name:'3.03',exact:true})).toBeVisible();await expect(page.getByText(/Economia comprovada: indisponível/)).toBeVisible();
- await page.getByRole('button',{name:'Ver exercício sintético no mapa',exact:true}).click();await expect(page.getByText(/Exercício sintético: linha roxa original/)).toBeVisible();
+ await page.getByRole('button',{name:'Ver exercício sintético no mapa',exact:true}).click();await page.getByText('Legenda e camadas do mapa',{exact:true}).click();await expect(page.getByText(/Exercício sintético: linha roxa original/)).toBeVisible();
  await central(page,'Demonstração');await page.getByRole('button',{name:'3. Simular liberação',exact:true}).click();await expect(page.getByRole('cell',{name:'2.06',exact:true})).toHaveCount(2);
 });
 
@@ -93,4 +97,47 @@ test('VIEWER: central acessível em tela pequena e Escape devolve foco',async({p
  await page.getByRole('button',{name:'Baixar PDF do piloto',exact:true}).scrollIntoViewIfNeeded();await expect(page.getByRole('button',{name:'Baixar PDF do piloto',exact:true})).toBeInViewport();
  await page.keyboard.press('Escape');await expect(page.getByRole('dialog')).toBeHidden();
  await expect(page.getByRole('button',{name:'Central de trabalho',exact:true})).toBeFocused();
+});
+
+test('UX: menu principal e configuração do primeiro cliente persistem o aceite',async({page,request})=>{
+ await entrar(page,'operador');const nav=page.getByRole('navigation',{name:'Navegação principal',exact:true});
+ await expect(nav.getByRole('button',{name:'Frota',exact:true})).toBeVisible();
+ await nav.getByRole('button',{name:'Configurar primeiro cliente',exact:true}).click();
+ await expect(page.getByRole('heading',{name:'Configurar primeiro cliente',exact:true})).toBeVisible();
+ const iniciar=page.getByRole('button',{name:'Iniciar configuração do cliente',exact:true});
+ if(await iniciar.isVisible())await iniciar.click();
+ await expect(page.getByRole('button',{name:'Consultar viagens',exact:true})).toBeVisible();
+ await page.getByRole('button',{name:'Consultar viagens',exact:true}).click();
+ await expect(page.getByRole('row',{name:/^Inspecionar/}).first()).toBeVisible({timeout:45000});
+ await page.getByRole('row',{name:/^Inspecionar/}).first().click();
+ await page.getByRole('button',{name:'Confirmar primeiro resultado útil',exact:true}).click();
+ await expect(page.getByText('Primeiro resultado útil registrado no servidor. Consulte Configurar primeiro cliente para ver a medição.',{exact:true})).toBeVisible();
+ await nav.getByRole('button',{name:'Configurar primeiro cliente',exact:true}).click();
+ await expect(page.getByRole('heading',{name:'Primeiro resultado registrado',exact:true})).toBeVisible();
+ await expect(page.getByText(/Tempo até o primeiro resultado: .* segundos/)).toBeVisible();
+ await page.getByRole('button',{name:'Fechar',exact:true}).click();await page.getByRole('button',{name:'Trocar Conta',exact:true}).click();
+ await entrar(page,'operador');await nav.getByRole('button',{name:'Configurar primeiro cliente',exact:true}).click();
+ await expect(page.getByRole('heading',{name:'Primeiro resultado registrado',exact:true})).toBeVisible();
+});
+
+test('UX: comparação de espera consome o motor econômico sem afirmar economia real',async({page})=>{
+ await entrar(page,'operador');
+ const linha=page.getByRole('row',{name:/^Inspecionar/}).first();await expect(linha).toBeVisible({timeout:45000});await linha.click();
+ await expect(page.getByRole('heading',{name:'Compare os custos da viagem',exact:true})).toBeVisible();
+ await page.getByText('Comparar um cenário de espera',{exact:true}).click();
+ await page.getByLabel('Tempo de espera informado (min)',{exact:true}).fill('30');
+ await page.getByLabel('Chuva simulada para comparar a espera (mm/h)',{exact:true}).fill('35');
+ await page.getByRole('button',{name:'Calcular cenário de espera',exact:true}).click();
+ await expect(page.getByText('Cenário calculado. Confira os valores e as premissas abaixo.',{exact:true})).toBeVisible();
+ await expect(page.getByText(/Custo estimado original: R\$.*Alternativa: R\$.*Aguardar: R\$/)).toBeVisible();
+ await expect(page.getByText(/Risco apos a espera nao foi reavaliado/)).toBeVisible();
+});
+
+test('UX: menu recolhível em celular mantém acesso à frota e aos relatórios',async({page})=>{
+ await page.setViewportSize({width:390,height:844});await entrar(page,'leitor');
+ const nav=page.getByRole('navigation',{name:'Navegação principal',exact:true});await expect(nav).toBeHidden();
+ await page.getByRole('button',{name:'Menu',exact:true}).click();await nav.getByRole('button',{name:'Frota',exact:true}).click();
+ await expect(nav).toBeHidden();await expect(page.getByRole('button',{name:'Menu',exact:true})).toHaveAttribute('aria-expanded','false');
+ await page.getByRole('button',{name:'Menu',exact:true}).click();await nav.getByRole('button',{name:'Relatórios e exportações',exact:true}).click();
+ expect((await baixar(page,'Baixar PDF do piloto')).subarray(0,8).toString()).toContain('%PDF-1.4');
 });

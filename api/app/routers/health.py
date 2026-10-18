@@ -19,6 +19,7 @@ TABELAS_OBRIGATORIAS = (
     "painel_financeiro", "painel_admin_auditoria", "painel_recuperacoes",
     "painel_recuperacao_tentativas",
     "monitor_importacoes",
+    "painel_onboarding",
 )
 
 

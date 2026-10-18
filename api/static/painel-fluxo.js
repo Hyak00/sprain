@@ -40,6 +40,11 @@
         },{escrita:true,valido:()=>n===geracao});
         botao(caixa,'Ver histórico persistente de consultas',()=>root.PortalOperacional.navegar('consultas'));
         botao(caixa,'Reportar ocorrência não detectada',()=>root.PortalOperacional.navegar('relatos'));
+        const onboarding=status(caixa,'A primeira comparação útil pode ser registrada na configuração do cliente.');
+        botao(caixa,'Confirmar primeiro resultado útil',async()=>{
+            try{await root.PainelOnboarding.confirmar(consulta.id);if(n===geracao)onboarding.textContent='Primeiro resultado útil registrado no servidor. Consulte Configurar primeiro cliente para ver a medição.';}
+            catch(e){if(n===geracao)onboarding.textContent=erro(e);}
+        },{escrita:true,valido:()=>n===geracao&&!!consulta?.id});
         root.PainelEventos?.consultar(false).catch(e=>{if(n===geracao&&!e?.silencioso)status(caixa,'Ocorrências do mapa indisponíveis. Atualize os alertas; isso não significa ausência de risco.');});
     }
     async function historico(p,ctx){

@@ -1,0 +1,90 @@
+/* Camada visual do painel existente; sem dependências externas novas. */
+:root{--ux-nav:212px}
+[hidden]{display:none!important}
+button,a,input,select,summary,textarea{touch-action:manipulation}
+button:focus-visible,a:focus-visible,summary:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid #7dd3fc;outline-offset:3px}
+#ux-navegacao{position:fixed;inset:0 auto 0 0;width:var(--ux-nav);z-index:21;background:#0c1425;border-right:1px solid #334155;padding:24px 12px;overflow:auto}
+.ux-marca{font-size:23px;letter-spacing:-1px;display:block;color:#f8fafc;padding:0 12px 24px}
+#ux-menu{display:none}
+#ux-navegacao nav{display:flex;flex-direction:column;gap:6px}
+#ux-navegacao .nav-tabs{display:flex;flex-direction:column;background:transparent;border:0;padding:0;gap:6px}
+#ux-navegacao button{font:500 14px/1.45 Inter,sans-serif;color:#cbd5e1;text-align:left;border:1px solid transparent;border-radius:8px;padding:11px 12px;background:transparent;cursor:pointer;white-space:normal}
+#ux-navegacao button:hover{background:#1e293b;color:#fff}
+#ux-navegacao button.active,#ux-navegacao button[aria-current=page]{background:#12314b;border-color:#256387;color:#bae6fd}
+.ux-grupo{font:600 10px/1.5 Inter,sans-serif;letter-spacing:1.4px;color:#94a3b8;margin:18px 12px 6px}
+.ux-empresa{font-size:12px;overflow-wrap:anywhere;color:#94a3b8;border-top:1px solid #334155;padding:16px 12px}
+.ux-pular{position:absolute;left:-10000px}.ux-pular:focus{position:static;color:#7dd3fc;padding:12px}
+.ux-pronta>header,.ux-pronta>.workspace{margin-left:var(--ux-nav);width:calc(100% - var(--ux-nav))}
+.ux-pronta>header{padding:12px 18px;height:auto;min-height:72px;flex-wrap:wrap;gap:10px}
+.ux-pronta .workspace{height:auto;min-height:0;flex:1}
+.ux-pronta.demo-identificada #ux-navegacao{top:var(--demo-faixa-altura,52px)}
+.ux-pronta .brand-group{flex:1 1 260px;min-width:0}
+.ux-pronta .brand-title{max-width:300px}
+.ux-pronta #sidebar{width:350px;min-width:310px}
+.ux-pronta .brand-title{font-size:14px}
+.ux-pronta .ctrl-label,.ux-pronta th{font-size:11px}
+.ux-pronta td{padding:11px 6px;font-size:12px}
+.ux-inline-truck{display:none}
+.ux-pronta .ux-id{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ux-pronta #grid-operacoes .badge-DECIDIDO{display:block;width:fit-content;margin:2px 0;font-size:9px;padding:0 4px}
+.ux-pronta .ux-inline-truck{display:block;font:10px/1.5 Inter,sans-serif;color:#aab9cc;overflow:hidden;text-overflow:ellipsis}
+.ux-pronta #table-container table{table-layout:fixed}
+.ux-pronta #table-container th:nth-child(2),.ux-pronta #table-container td:nth-child(2){display:none}
+.ux-pronta #table-container th{padding:9px 6px;font-size:10px}
+.ux-pronta #table-container td:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ux-pronta .filter-bar{flex-wrap:wrap}
+.ux-pronta .filter-pills{flex-wrap:wrap}
+.ux-pronta .search-box{min-width:180px;font-size:13px;padding:10px}
+.ux-pronta .filter-pill{font-size:12px;padding:7px 10px}
+.ux-pronta .top-controls{flex-wrap:wrap;gap:8px}
+.ux-pronta .btn-top,.ux-pronta .btn-action-top{font-size:12px;padding:9px 12px}
+.ux-atencao{padding:18px 16px 10px;border-bottom:1px solid #334155}
+.ux-atencao h1{font-size:22px;letter-spacing:-.6px;margin:0 0 8px}
+.ux-atencao p{font-size:12px;line-height:1.6;color:#b6c4d8;margin:6px 0}
+.ux-atencao summary{font-size:12px;color:#bae6fd;cursor:pointer;padding:5px 0}
+.ux-atencao .btn-top{margin-top:6px;font-size:11px;padding:6px 8px}
+.ux-kpis .kpi-grid{padding:8px 0;background:transparent;grid-template-columns:repeat(2,minmax(0,1fr))}
+.ux-simulacao{font-size:13px;line-height:1.55}
+.ux-simulacao summary{cursor:pointer;color:#bae6fd;padding:8px 0}
+.ux-simulacao p{font-size:12px;color:#aab9cc}
+.ux-pronta #inspector{width:430px;padding:20px;gap:14px;line-height:1.55}
+.ux-pronta .route-box{padding:14px}
+.ux-comparacao{background:#101e32;padding:14px;border:1px solid #34516d;border-radius:10px}
+.ux-comparacao h3{font-size:16px;margin:0 0 10px}
+.ux-comparacao table{font-size:12px}.ux-comparacao th{position:static;text-transform:none}
+.ux-comparacao td,.ux-comparacao th{padding:9px 6px}
+.ux-comparacao caption{text-align:left;font-size:12px;color:#cbd5e1;padding-bottom:10px}
+.ux-comparacao p{font-size:12px;color:#cbd5e1;margin:10px 0 0}
+.ux-comparacao summary{cursor:pointer;color:#bae6fd;font-size:13px;padding:10px 0}
+.ux-comparacao label{display:block;font-size:12px;margin:10px 0}
+.ux-comparacao input{display:block;width:100%;padding:9px 10px;border:1px solid #52718c;background:#0b1424;color:#f8fafc;border-radius:6px;font:inherit;margin-top:5px}
+.ux-comparacao button{background:#0369a1;color:#fff;border:1px solid #38bdf8;border-radius:7px;padding:10px 12px;font:600 12px Inter,sans-serif;cursor:pointer}
+.ux-comparacao button:disabled{opacity:.55;cursor:not-allowed}
+.ux-comparacao pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:11px;color:#cbd5e1}
+.ux-pronta .btn-dec{padding:12px 8px;font-size:12px;min-height:44px}
+.ux-pronta #portal-operacional nav{background:#0b1220;border-radius:10px;padding:12px;gap:6px}
+.ux-pronta #portal-operacional nav{flex-wrap:nowrap;overflow-x:auto;align-items:center}
+.ux-pronta #portal-operacional nav button{flex:0 0 auto;margin:0;white-space:nowrap;min-height:40px}
+.ux-etapas{list-style:decimal;padding-left:25px;display:grid;gap:16px}
+.ux-etapas article,.ux-onboarding-resumo{border:1px solid #3c526d;border-radius:10px;padding:18px;background:#111f33}
+.ux-etapas h4{margin-top:0!important}.ux-etapa-estado{color:#bae6fd;font-size:13px;border:1px solid #47718d;border-radius:20px;padding:4px 10px}
+.ux-pronta .map-legend{max-width:290px;max-height:50%;overflow:auto;font-size:12px}
+.ux-pronta .map-legend summary{cursor:pointer;padding:5px}
+@media(min-width:1650px){.ux-pronta #sidebar{width:420px}.ux-pronta #inspector{width:480px}}
+@media(max-width:1200px){.ux-pronta .brand-sub{max-width:340px}.ux-pronta #inspector{width:min(430px,calc(100% - 24px));right:12px}}
+@media(max-width:900px){
+ #ux-navegacao{position:relative;width:100%;padding:8px 12px;display:flex;flex-wrap:wrap;align-items:center;gap:10px;border-right:0}
+ .ux-pronta.demo-identificada #ux-navegacao{top:auto}
+ .ux-marca{padding:8px 0;font-size:20px}#ux-menu{display:block;margin-left:auto;border:1px solid #475569}
+ #ux-menu-conteudo{width:100%}.ux-pronta>header,.ux-pronta>.workspace{margin-left:0;width:100%}
+ .ux-pronta .workspace{height:auto;min-height:0;display:flex;flex-direction:column}
+ .ux-pronta #sidebar{width:100%;min-width:0}
+ .ux-pronta #table-container{max-height:42dvh}
+ .ux-pronta #map-container{width:100%;min-height:360px;display:flex;flex-direction:column}
+ .ux-pronta #map{height:360px;flex:none}
+ .ux-pronta #inspector{position:relative;width:calc(100% - 16px);margin:8px;inset:auto;max-height:none}
+ .ux-pronta .map-legend{position:static;max-width:none;max-height:none;margin:8px;order:1}
+ .ux-pronta #inspector{order:2}.ux-pronta .top-controls{width:100%}
+ .ux-pronta #portal-operacional{padding:14px;width:96vw}
+ .ux-etapas{padding-left:20px}.ux-etapas article{padding:12px}
+}

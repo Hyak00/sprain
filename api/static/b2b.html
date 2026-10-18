@@ -134,6 +134,7 @@
     <link rel="stylesheet" href="/static/infraestrutura-caminhoes.css">
     <link rel="stylesheet" href="/static/portal-operacional.css">
     <link rel="stylesheet" href="/static/painel-fluxo.css">
+    <link rel="stylesheet" href="/static/painel-experiencia.css?v=experiencia-1">
 </head>
 <body>
 
@@ -426,7 +427,7 @@
     </div>
 
         <div id="painel-status" role="status" aria-live="polite" aria-atomic="true" hidden></div>
-        <script src="/static/painel-sessao.js?v=compatibilidade-1"></script>
+        <script src="/static/painel-sessao.js?v=experiencia-1"></script>
         <script>
         window.API_KEY = '';
         let operacaoSelecionadaId = null;
@@ -586,6 +587,7 @@
         }
 
         function alternarAba(aba) {
+            window.PainelExperiencia?.aba(aba);
             window.DadosViagem?.limpar();
             document.getElementById('tab-urbano').classList.toggle('active', aba === 'URBANO');
             document.getElementById('tab-frota').classList.toggle('active', aba === 'FROTA');
@@ -877,12 +879,14 @@
         }
 
         function renderizarTabela() {
+            window.PainelExperiencia?.resumo(recomendacoesAtuais,decisoesMap);
             const tbody = document.getElementById('grid-operacoes');
             const busca = valOr(document.getElementById('input-busca').value, '').toLowerCase();
             tbody.innerHTML = '';
 
             const filtradas = recomendacoesAtuais.filter(r => {
                 if (filtroAtivo === 'CRITICO' && r.nivel_risco !== 'CRITICO') return false;
+                if (filtroAtivo === 'PENDENTE' && window.PainelExperiencia?.semDecisao(r.id_operacao)!==true) return false;
                 if (filtroAtivo === 'COM_DESVIO' && r.acao !== 'ALTERAR_ROTA' && r.impacto.km_adicionais <= 0) return false;
                 if (busca) {
                     const matchOp = r.id_operacao.toLowerCase().includes(busca);
@@ -908,11 +912,12 @@
                     : 'Rota mantida';
 
                 const corCusto = rec.impacto.custo_desvio_brl > 0 ? '#fbbf24' : 'var(--text-muted)';
-                tr.innerHTML = '<td class="mono" style="font-weight:700; color:#fff;">' + window.PainelApresentacao.escapar(rec.id_operacao) + tagDecisao + '</td>' +
+                tr.innerHTML = '<td class="mono" style="font-weight:700; color:#fff;"><span class="ux-id" title="' + window.PainelApresentacao.escapar(rec.id_operacao) + '">' + window.PainelApresentacao.escapar(rec.id_operacao) + '</span>' + tagDecisao + '<span class="ux-inline-truck" title="Caminhão: ' + window.PainelApresentacao.escapar(rec.id_veiculo) + '">' + window.PainelApresentacao.escapar(rec.id_veiculo) + '</span></td>' +
                     '<td class="mono" style="color:var(--text-muted);">' + window.PainelApresentacao.escapar(rec.id_veiculo) + '</td>' +
                     '<td><span class="badge badge-' + window.PainelApresentacao.escapar(rec.nivel_risco) + '">' + window.PainelApresentacao.escapar(rec.nivel_risco) + '</span></td>' +
                     '<td class="mono" style="font-size:11px;">' + deltaTxt + '</td>' +
                     '<td class="mono" style="font-weight:600; color:' + corCusto + ';">R$ ' + window.PainelApresentacao.numero(rec.impacto.custo_desvio_brl,2) + '</td>';
+                tr.dataset.rotuloOperacao='Inspecionar '+rec.id_operacao+', caminhão '+(rec.id_veiculo||'não informado')+', risco '+rec.nivel_risco+', '+deltaTxt;
                 tr.onclick = () => selecionarOperacao(rec.id_operacao);
                 tbody.appendChild(tr);
             });
@@ -1074,10 +1079,10 @@
     <script src="/static/alertas-comparacao.js"></script>
     <script src="/static/portal-dados.js?v=relatorios-1"></script>
     <script src="/static/portal-pdf.js?v=relatorios-1"></script>
-    <script src="/static/portal-operacional.js?v=interno35-1"></script>
+    <script src="/static/portal-operacional.js?v=experiencia-1"></script>
     <script src="/static/painel-relatorios.js?v=relatorios-1"></script>
-    <script src="/static/painel-acessibilidade.js"></script>
-    <script src="/static/painel-fluxo.js?v=demo34-1"></script>
+    <script src="/static/painel-acessibilidade.js?v=experiencia-1"></script>
+    <script src="/static/painel-fluxo.js?v=experiencia-1"></script>
     <script src="/static/painel-corredores.js"></script>
     <script src="/static/painel-eventos.js"></script>
     <script src="/static/painel-administracao.js"></script>
@@ -1085,5 +1090,7 @@
     <script src="/static/painel-interno.js?v=interno35-1"></script>
     <script>window.PainelSessao.instalar();</script>
     <script src="/static/painel-homologacao.js"></script>
+    <script src="/static/painel-onboarding.js?v=experiencia-1"></script>
+    <script src="/static/painel-experiencia.js?v=experiencia-1"></script>
 </body>
 </html>
