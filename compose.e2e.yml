@@ -15,7 +15,10 @@ services:
       timeout: 3s
       retries: 60
   api:
-    build: .
+    build:
+      context: .
+      args:
+        SPRAIN_BUILD_COMMIT: ${SPRAIN_BUILD_COMMIT:-unknown}
     environment:
       ENVIRONMENT: testing
       SPRAIN_DEMO_ENABLED: "1"

@@ -18,7 +18,10 @@ services:
       retries: 5
 
   api:
-    build: .
+    build:
+      context: .
+      args:
+        SPRAIN_BUILD_COMMIT: ${SPRAIN_BUILD_COMMIT:-unknown}
     container_name: sprain_api
     restart: always
     environment:
@@ -43,7 +46,10 @@ services:
       retries: 3
 
   dados-publicos:
-    build: .
+    build:
+      context: .
+      args:
+        SPRAIN_BUILD_COMMIT: ${SPRAIN_BUILD_COMMIT:-unknown}
     profiles: ["dados"]
     restart: unless-stopped
     command: ["python", "-B", "/app/scripts/worker_dados_publicos.py"]

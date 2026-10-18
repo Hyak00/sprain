@@ -1,6 +1,7 @@
 import os
 import sys
 import asyncio
+import logging
 from pathlib import Path
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
@@ -9,6 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
+from app.versao import API_VERSION, informacao_versao
 from app.services.demonstracao import validar_configuracao as validar_demonstracao, habilitada as demonstracao_habilitada
 from app.seguranca import validar_configuracao_producao
 from app.services.security_headers import SecurityHeadersMiddleware
@@ -58,6 +60,11 @@ async def agendador_telemetria_corredor():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    identificacao = informacao_versao()
+    logging.getLogger("uvicorn.error").info(
+        "SPRain iniciando versao=%s revisao=%s",
+        identificacao["versao_api"], identificacao["revisao"] or "nao_informada",
+    )
     validar_configuracao_producao()
     validar_demonstracao()
     await init_db_pool()
@@ -107,7 +114,7 @@ tags_metadata = [
 app = FastAPI(
     title="SPRain B2B - Climate Resilience & Logistics Intelligence API",
     description="Apoio a decisao logistica com vulnerabilidade viaria, cenarios climaticos, rotas alternativas e custos com fontes e limitacoes explicitas.",
-    version="1.1.0",
+    version=API_VERSION,
     lifespan=lifespan,
     openapi_tags=tags_metadata,
     docs_url="/docs",

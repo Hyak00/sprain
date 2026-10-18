@@ -3,9 +3,16 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, Query, Response
 from app.database import get_connection
 from app.seguranca import require_role, resolver_tenant_autenticado
+from app.versao import informacao_versao
 
 router=APIRouter(prefix='/api/v1/operacional',tags=['Painel operacional interno'],
     dependencies=[Depends(require_role(['ADMIN']))])
+
+
+@router.get('/versao')
+async def versao(response: Response):
+    response.headers['Cache-Control']='no-store'
+    return informacao_versao()
 
 
 def idade(data, agora):

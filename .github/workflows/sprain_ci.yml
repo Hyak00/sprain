@@ -9,6 +9,8 @@ on:
 jobs:
   test-and-validate:
     runs-on: ubuntu-latest
+    env:
+      SPRAIN_BUILD_COMMIT: ${{ github.sha }}
 
     steps:
       - name: Checkout Code
@@ -44,6 +46,11 @@ jobs:
             sleep 2
           done
           curl -fsS http://127.0.0.1:8000/api/v1/health/readiness
+
+      - name: Verify running image revision
+        run: |
+          running_revision=$(curl -fsS -H 'X-API-Key: key_admin_demo' http://127.0.0.1:8000/api/v1/operacional/versao | python3 -c 'import json,sys; print(json.load(sys.stdin)["revisao"])')
+          test "$running_revision" = "$SPRAIN_BUILD_COMMIT"
 
       - name: Run Full Test Suite Inside Container
         run: |
