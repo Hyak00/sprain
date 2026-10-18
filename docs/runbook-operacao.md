@@ -38,6 +38,17 @@ o startup com credenciais de exemplo. Nunca contornar essa validação.
 5. Monitorar erros, latência, importações e idade das fontes. Registrar resultado
    e critérios de reversão. Nunca remover volume para corrigir startup.
 
+Para observar tamanho e conexões do PostgreSQL, execute no host de operação,
+com as variáveis DB_* do ambiente correto, `python scripts/monitorar_banco.py`.
+O comando faz apenas uma consulta em sessão de leitura e emite JSON. Guarde a
+série temporal em observabilidade de acesso restrito; uma amostra isolada não
+define tendência nem substitui alertas. `tamanho_banco_bytes` abrange todo o
+banco conectado, não uma empresa. `conexoes_banco` conta conexões nesse banco;
+`conexoes_servidor` e `limite_global_conexoes` abrangem a instância PostgreSQL.
+A porcentagem é indicativa: conexões reservadas, outros bancos e limites do pool
+reduzem a capacidade efetivamente disponível. O comando não mede espaço livre
+em disco, não prevê crescimento e não estabelece um limite de alerta.
+
 ## Rollback
 
 1. Conter a falha e preservar logs/estado. Se houver suspeita de corrupção,
