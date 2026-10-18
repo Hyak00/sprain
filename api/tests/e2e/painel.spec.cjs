@@ -19,6 +19,10 @@ test.beforeEach(async({page,request,baseURL})=>{
 async function entrar(page,nome){await page.getByLabel('E-mail Corporativo',{exact:true}).fill(nome+'@e2e.invalid');await page.getByLabel('Senha de Acesso',{exact:true}).fill(senha);await page.getByRole('button',{name:'Entrar na Torre de Controle',exact:true}).click();await expect(page.locator('#login-overlay')).toBeHidden();await expect(page.getByRole('button',{name:'Central de trabalho',exact:true})).toBeVisible();}
 async function central(page,secao){await page.getByRole('button',{name:'Central de trabalho',exact:true}).click();await page.getByRole('navigation',{name:'Seções da central',exact:true}).getByRole('button',{name:secao,exact:true}).click();}
 async function baixar(page,nome){const evento=page.waitForEvent('download');await page.getByRole('button',{name:nome,exact:true}).click();const d=await evento;const file=await d.path();expect(file).toBeTruthy();return fs.readFile(file);}
+function proximaSegunda(){
+ const hoje=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+ const data=new Date(hoje+'T12:00:00Z');data.setUTCDate(data.getUTCDate()+((8-data.getUTCDay())%7||7));return data.toISOString().slice(0,10);
+}
 
 test('VIEWER: login, controle de papel, PDF/CSV reais e logout',async({page})=>{
  await entrar(page,'leitor');await expect(page.getByText('PERFIL: VIEWER',{exact:true})).toBeVisible();await expect(page.getByRole('button',{name:'↓ Exportar CSV',exact:true})).toBeDisabled();
@@ -36,7 +40,7 @@ test('OPERADOR: corredor persistente, recorrência e despacho idempotente',async
  const card=page.getByRole('article').filter({has:page.getByRole('heading',{name:nome,exact:true})});await card.getByRole('button',{name:'Adicionar recorrência',exact:true}).click();
  await page.getByLabel('Nome da recorrência',{exact:true}).fill('E2E semanal');await page.getByLabel('Horário de partida (São Paulo)',{exact:true}).fill('08:00');await page.getByLabel('Duração da janela (minutos)',{exact:true}).fill('240');await page.getByLabel('Segunda',{exact:true}).check();
  await page.getByRole('combobox',{name:'Caminhão da frota (opcional)',exact:true}).selectOption('DEMO_34_CAMINHAO');await page.getByRole('button',{name:'Salvar recorrência',exact:true}).click();
- await card.getByText('E2E semanal',{exact:true}).click();await card.getByRole('button',{name:'Preparar despacho',exact:true}).click();await page.getByLabel('Data da viagem',{exact:true}).fill('2026-10-19');
+ await card.getByText('E2E semanal',{exact:true}).click();await card.getByRole('button',{name:'Preparar despacho',exact:true}).click();await page.getByLabel('Data da viagem',{exact:true}).fill(proximaSegunda());
  await page.getByRole('button',{name:'Criar viagem desta recorrência',exact:true}).click();await expect(page.getByRole('button',{name:'Abrir viagem criada',exact:true})).toBeVisible();
  await page.getByRole('button',{name:'Criar viagem desta recorrência',exact:true}).click();await expect(page.getByText(/nenhum despacho duplicado/)).toBeVisible();
 });
