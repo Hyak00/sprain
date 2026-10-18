@@ -57,6 +57,14 @@ executado uma vez com `python scripts/worker_dados_publicos.py --once`.
 O webhook opcional `WEBHOOK_ALERTA_DADOS` envia falhas para um endereço público;
 destinos internos/privados são recusados e redirecionamentos não são seguidos.
 
+O contêiner `dados-publicos` registra o andamento de cada fonte em um arquivo
+local e possui healthcheck. Consulte `docker compose --profile dados ps` e
+`docker compose --profile dados logs dados-publicos`. O estado fica `unhealthy`
+se uma rodada falhar, se uma fonte não avançar em 15 minutos ou se a próxima
+rodada não começar até 15 minutos após o intervalo configurado. O Docker
+apenas sinaliza esse estado: conecte um monitor externo para receber aviso.
+O webhook opcional avisa falhas individuais, quando configurado.
+
 O importador procura os anos recentes no catalogo da ARTESP, o CSV mensal mais
 recente de diesel e gasolina na ANP, o cadastro georreferenciado da ANP e os
 trimestres publicados pela SSP-SP.
