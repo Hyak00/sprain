@@ -912,11 +912,12 @@
                     : 'Rota mantida';
 
                 const corCusto = rec.impacto.custo_desvio_brl > 0 ? '#fbbf24' : 'var(--text-muted)';
-                tr.innerHTML = '<td class="mono" style="font-weight:700; color:#fff;">' + window.PainelApresentacao.escapar(rec.id_operacao) + tagDecisao + '<span class="ux-inline-truck">Caminhão: ' + window.PainelApresentacao.escapar(rec.id_veiculo) + '</span></td>' +
+                tr.innerHTML = '<td class="mono" style="font-weight:700; color:#fff;"><span class="ux-id" title="' + window.PainelApresentacao.escapar(rec.id_operacao) + '">' + window.PainelApresentacao.escapar(rec.id_operacao) + '</span>' + tagDecisao + '<span class="ux-inline-truck" title="Caminhão: ' + window.PainelApresentacao.escapar(rec.id_veiculo) + '">' + window.PainelApresentacao.escapar(rec.id_veiculo) + '</span></td>' +
                     '<td class="mono" style="color:var(--text-muted);">' + window.PainelApresentacao.escapar(rec.id_veiculo) + '</td>' +
                     '<td><span class="badge badge-' + window.PainelApresentacao.escapar(rec.nivel_risco) + '">' + window.PainelApresentacao.escapar(rec.nivel_risco) + '</span></td>' +
                     '<td class="mono" style="font-size:11px;">' + deltaTxt + '</td>' +
                     '<td class="mono" style="font-weight:600; color:' + corCusto + ';">R$ ' + window.PainelApresentacao.numero(rec.impacto.custo_desvio_brl,2) + '</td>';
+                tr.dataset.rotuloOperacao='Inspecionar '+rec.id_operacao+', caminhão '+(rec.id_veiculo||'não informado')+', risco '+rec.nivel_risco+', '+deltaTxt;
                 tr.onclick = () => selecionarOperacao(rec.id_operacao);
                 tbody.appendChild(tr);
             });

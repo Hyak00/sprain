@@ -9,7 +9,7 @@
         document.querySelectorAll('button').forEach(b=>{if(b.textContent.trim()==='×')b.setAttribute('aria-label',b.closest('#modal-despacho')?'Fechar despacho':'Fechar detalhes da operação');});
         const busca=document.getElementById('input-busca');if(busca)busca.setAttribute('aria-label','Buscar operação ou caminhão');
         document.getElementById('input-motivo-gestor')?.setAttribute('aria-label','Motivo da decisão do gestor');
-        document.querySelectorAll('#grid-operacoes tr').forEach(tr=>{if(tr.querySelector('td')&&tr.onclick){tr.tabIndex=0;tr.setAttribute('aria-label','Inspecionar '+tr.textContent.trim());}});
+        document.querySelectorAll('#grid-operacoes tr').forEach(tr=>{if(tr.querySelector('td')&&tr.onclick){tr.tabIndex=0;tr.setAttribute('aria-label',tr.dataset.rotuloOperacao||'Inspecionar '+tr.textContent.trim());}});
     }
     rotulos();new MutationObserver(rotulos).observe(document.getElementById('sidebar'),{childList:true,subtree:true});
     document.getElementById('grid-operacoes').addEventListener('keydown',e=>{if(e.target.tagName==='TR'&&['Enter',' '].includes(e.key)){e.preventDefault();e.target.click();}});

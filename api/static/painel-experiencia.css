@@ -25,6 +25,8 @@ button:focus-visible,a:focus-visible,summary:focus-visible,input:focus-visible,s
 .ux-pronta .ctrl-label,.ux-pronta th{font-size:11px}
 .ux-pronta td{padding:11px 6px;font-size:12px}
 .ux-inline-truck{display:none}
+.ux-pronta .ux-id{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ux-pronta #grid-operacoes .badge-DECIDIDO{display:block;width:fit-content;margin:2px 0;font-size:9px;padding:0 4px}
 .ux-pronta .ux-inline-truck{display:block;font:10px/1.5 Inter,sans-serif;color:#aab9cc;overflow:hidden;text-overflow:ellipsis}
 .ux-pronta #table-container table{table-layout:fixed}
 .ux-pronta #table-container th:nth-child(2),.ux-pronta #table-container td:nth-child(2){display:none}
