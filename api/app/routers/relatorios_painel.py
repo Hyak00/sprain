@@ -66,13 +66,34 @@ async def piloto(response: Response,inicio: date|None=None,fim: date|None=None,
             AND ($2::timestamptz IS NULL OR criado_em>=$2) AND ($3::timestamptz IS NULL OR criado_em<$3)''',claims['tenant_id'],de,ate)
         decisoes=await conn.fetchval('''SELECT count(*) FROM decisoes_gestor_operacao WHERE tenant_id=$1
             AND ($2::timestamptz IS NULL OR registrado_em>=$2) AND ($3::timestamptz IS NULL OR registrado_em<$3)''',claims['tenant_id'],de,ate)
+        resultados=await conn.fetchrow('''SELECT
+            count(v.id)::int AS viagens_com_resultado,
+            count(v.custo_real_brl)::int AS viagens_com_custo_informado,
+            sum(v.custo_real_brl) AS custo_informado,
+            count(*) FILTER (WHERE v.rota_executada='DESVIO')::int AS desvios_informados
+            FROM operacoes o LEFT JOIN LATERAL (
+                SELECT atual.id,atual.custo_real_brl,atual.rota_executada
+                FROM resultados_viagem atual
+                WHERE atual.id_operacao=o.id_operacao AND atual.tenant_id=o.tenant_id
+                  AND NOT EXISTS (SELECT 1 FROM resultados_viagem proximo WHERE proximo.substitui_id=atual.id)
+            ) v ON true WHERE o.tenant_id=$1 AND ($2::timestamptz IS NULL OR o.criado_em>=$2)
+            AND ($3::timestamptz IS NULL OR o.criado_em<$3)''',claims['tenant_id'],de,ate)
     return {'empresa':claims['tenant_id'],'ambiente':ambiente_relatorio(),'emitido_em':datetime.now(timezone.utc),
         'periodo':{'inicio':inicio,'fim':fim,'fuso':'America/Sao_Paulo',
             'criterio':'Operações pela criação; consultas e decisões pelo registro. Última recomendação de cada operação na emissão, sem duplicar recálculos.'},
-        'amostra':{**dict(r),'consultas':consultas,'decisoes':decisoes},
+        'amostra':{**dict(r),'consultas':consultas,'decisoes':decisoes,
+            'viagens_com_resultado':resultados['viagens_com_resultado'],
+            'viagens_com_custo_informado':resultados['viagens_com_custo_informado']},
         'indicadores':{
             'economia_comprovada':{'valor_brl':None,'natureza':'NAO_DISPONIVEL','motivo':'Não há medição auditada de execução nem contrafactual validado neste cadastro.'},
-            'custo_observado':{'valor_brl':None,'natureza':'NAO_DISPONIVEL','motivo':'O cadastro não contém comprovantes de despesas efetivamente realizadas.'},
+            'custo_observado':{'valor_brl':None,'natureza':'NAO_DISPONIVEL','motivo':'Resultados informados ainda não comprovam despesas efetivamente realizadas.'},
+            'custo_informado':{'valor_brl':float(round(resultados['custo_informado'],2)) if resultados['viagens_com_custo_informado'] else None,
+                'natureza':'AUTODECLARADO_NAO_VERIFICADO',
+                'viagens_com_valor':resultados['viagens_com_custo_informado'],
+                'viagens_sem_valor':r['operacoes']-resultados['viagens_com_custo_informado'],
+                'fonte':'Último resultado informado por operação; custo parcial autodeclarado, sem auditoria de comprovantes.'},
+            'desvios_informados':{'quantidade':resultados['desvios_informados'] if resultados['viagens_com_resultado'] else None,
+                'natureza':'AUTODECLARADO_NAO_VERIFICADO'},
             'custo_estimado':{'valor_brl':float(round(r['estimado'],2)) if r['custos'] else None,
                 'natureza':'ESTIMATIVA_PARCIAL','operacoes_com_valor':r['custos'],'operacoes_sem_valor':r['operacoes']-r['custos'],
                 'fonte':'operacoes.custo_estimado: parcelas de planejamento conhecidas da rota original, na emissão.'},
@@ -83,8 +104,10 @@ async def piloto(response: Response,inicio: date|None=None,fim: date|None=None,
             'O custo estimado refere-se à rota original; não é soma de desvios nem custo observado.',
             'Tarifas, combustível e restrições têm cobertura e validade próprias; estimativas não confirmam passagem segura.',
             'Simulações e recomendações não comprovam execução, economia ou causalidade.',
-            'Aprovar uma decisão não comprova que a viagem foi realizada.'],
-        'fontes':['operacoes','recomendacoes_operacao (somente a última por operação)','painel_consultas','decisoes_gestor_operacao']}
+            'Aprovar uma decisão não comprova que a viagem foi realizada.',
+            'Resultados informados podem ser corrigidos; o piloto usa somente o último registro por operação e não valida comprovantes.'],
+        'fontes':['operacoes','recomendacoes_operacao (somente a última por operação)','painel_consultas','decisoes_gestor_operacao',
+            'resultados_viagem (somente o último por operação)']}
 
 
 @router.get('/decisoes')

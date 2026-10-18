@@ -26,8 +26,10 @@ from app.routers import gestao_usuarios
 from app.routers import administracao_painel
 from app.routers import relatorios_painel
 from app.routers import operacional_interno
+from app.routers import resultados_viagem
 from app.services.administracao_painel import garantir_schema as garantir_administracao
 from app.services.acesso_painel import garantir_schema as garantir_acesso
+from app.services.resultados_viagem import garantir_schema as garantir_resultados_viagem
 from app.routers import infraestrutura, malha, dados_publicos, transito, indicadores, demonstracao, feedback_alertas, operacoes_cliente
 from app.routers import (
     estatisticas,
@@ -67,6 +69,7 @@ async def lifespan(app: FastAPI):
     await garantir_esquema_operacional()
     await garantir_auditoria()
     await garantir_painel()
+    await garantir_resultados_viagem()
     await garantir_acesso()
     await garantir_administracao()
     task_clima = None if demonstracao_habilitada() else asyncio.create_task(agendador_telemetria_corredor())
@@ -149,6 +152,7 @@ app.include_router(gestao_usuarios.router)
 app.include_router(administracao_painel.router)
 app.include_router(relatorios_painel.router)
 app.include_router(operacional_interno.router)
+app.include_router(resultados_viagem.router)
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 static_dir = BASE_DIR / "static"
