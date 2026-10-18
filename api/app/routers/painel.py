@@ -97,8 +97,8 @@ async def confirmar_primeiro_resultado(dados: PrimeiroResultado, claims=Depends(
         snapshot = objeto(consulta['snapshot'])
         distancia = snapshot.get('metricas',{}).get('distancia_original_km')
         geometrias = snapshot.get('geometrias',{}).get('rota_original_geojson') or {}
-        rota = any(f.get('geometry',{}).get('type') in ('LineString','MultiLineString')
-                   and f.get('geometry',{}).get('coordinates') for f in geometrias.get('features',[]) if isinstance(f,dict))
+        rota = any((f.get('geometry') or {}).get('type') in ('LineString','MultiLineString')
+                   and (f.get('geometry') or {}).get('coordinates') for f in (geometrias.get('features') or []) if isinstance(f,dict))
         if (consulta['criado_em'] < estado['iniciado_em'] or isinstance(distancia,bool)
                 or not isinstance(distancia,(int,float)) or distancia <= 0 or not rota):
             raise HTTPException(422, 'Abra uma viagem após iniciar a configuração e confira uma rota calculada antes de confirmar.')

@@ -31,12 +31,12 @@ async def onboarding():
     await cliente.aclose();await conn.close()
 
 
-async def fotografia(a,tenant='demo_corp',antiga=False,valida=True):
+async def fotografia(a,tenant='demo_corp',antiga=False,valida=True,geometria=True):
     conn,_,ids=a;identificador=uuid4()
     op=await conn.fetchval('SELECT id_operacao FROM operacoes WHERE tenant_id=$1 LIMIT 1',tenant)
     assert op
     snapshot={'metricas':{'distancia_original_km':2 if valida else None},
-        'geometrias':{'rota_original_geojson':{'features':[{'geometry':{'type':'LineString','coordinates':[[0,0],[1,1]]}}]}}}
+        'geometrias':{'rota_original_geojson':{'features':[{'geometry':{'type':'LineString','coordinates':[[0,0],[1,1]]} if geometria else None}]}}}
     await conn.execute('''INSERT INTO painel_consultas(id,tenant_id,id_operacao,perfil,snapshot,criado_em)
         VALUES($1,$2,$3,'OPERATOR',$4::jsonb,$5)''',identificador,tenant,op,json.dumps(snapshot),datetime.now(timezone.utc)-timedelta(days=1) if antiga else datetime.now(timezone.utc))
     ids.append(identificador);return str(identificador)
@@ -70,7 +70,7 @@ async def test_onboarding_recusa_sem_inicio_consulta_antiga_e_outra_empresa(onbo
     r=await c.post('/api/v1/painel/onboarding/primeiro-resultado',headers=key(),json={'consulta_id':consulta})
     assert r.status_code==409
     await c.post('/api/v1/painel/onboarding/iniciar',headers=key(),json={})
-    for consulta,status in [(consulta,422),(await fotografia(onboarding,valida=False),422),(await fotografia(onboarding,'log_express'),404)]:
+    for consulta,status in [(consulta,422),(await fotografia(onboarding,valida=False),422),(await fotografia(onboarding,geometria=False),422),(await fotografia(onboarding,'log_express'),404)]:
         r=await c.post('/api/v1/painel/onboarding/primeiro-resultado',headers=key(),json={'consulta_id':consulta})
         assert r.status_code==status,r.text
     estado=(await c.get('/api/v1/painel/onboarding',headers=key())).json()['onboarding']
