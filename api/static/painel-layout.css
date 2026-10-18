@@ -1,0 +1,1053 @@
+/* Organização aprovada: azul escuro, uma navegação principal e mapa desobstruído. */
+:root {
+  --ux-nav:188px;
+  --bg-base:#0b1426;
+  --bg-panel:#111f36;
+  --bg-card:#172840;
+  --bg-hover:#203956;
+  --border:#293c59;
+  --text-main:#e8effa;
+  --text-muted:#a5b5cd;
+  --accent:#8acaff;
+}
+html {
+  color-scheme:dark;
+}
+body {
+  height:100dvh;
+  min-height:680px;
+  overflow:auto;
+}
+button,input,select,textarea {
+  font:inherit;
+}
+button,summary {
+  touch-action:manipulation;
+}
+button:disabled {
+  cursor:not-allowed;
+}
+.mono {
+  font-family:Inter,-apple-system,sans-serif;
+  font-variant-numeric:tabular-nums;
+}
+#ux-navegacao {
+  padding:28px 14px;
+  background:#0e1a30;
+  border-color:var(--border);
+  display:flex;
+  flex-direction:column;
+  gap:24px;
+  font-size:14px;
+}
+.ux-marca {
+  padding:0 12px 12px;
+  font-size:25px;
+  letter-spacing:-1px;
+}
+.ux-marca::before {
+  content:'sp';
+  display:inline-grid;
+  place-items:center;
+  background:#398de8;
+  width:30px;
+  height:34px;
+  border-radius:10px 10px 10px 3px;
+  font-size:17px;
+  margin-right:9px;
+  letter-spacing:-1px;
+}
+#ux-navegacao #ux-menu-conteudo {
+  gap:7px;
+}
+#ux-navegacao #ux-menu-conteudo button {
+  font:500 14px/1.5 Inter,sans-serif;
+  padding:12px;
+  border:0;
+  min-height:44px;
+  border-radius:7px;
+}
+#ux-navegacao button.active {
+  background:transparent;
+  color:var(--text-muted);
+}
+#ux-navegacao button[aria-current=page] {
+  background:#193858;
+  color:#b8dcff;
+  border-color:transparent;
+}
+.ux-rodape {
+  margin-top:auto;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  border-top:1px solid var(--border);
+  padding-top:14px;
+}
+.ux-rodape button {
+  font-size:12px!important;
+  background:transparent!important;
+  line-height:1.6;
+}
+.ux-rodape .ux-empresa {
+  border:0;
+  margin:0;
+  padding:8px 12px;
+  line-height:1.6;
+}
+.ux-pular {
+  order:5;
+}
+.ux-pronta>header {
+  min-height:72px;
+  padding:16px 28px;
+  background:#101e35;
+  border-color:var(--border);
+  flex-shrink:0;
+  gap:16px;
+}
+.brand-group .brand-logo {
+  display:none;
+}
+.ux-pronta .brand-title {
+  font-size:17px;
+  font-weight:600;
+  max-width:none;
+}
+.brand-sub {
+  font-size:12px;
+  margin-top:5px;
+}
+.corp-badge {
+  border:0;
+  background:transparent;
+  font-size:12px;
+}
+.ux-pronta .top-controls {
+  width:auto;
+}
+.ux-pronta .top-controls button[hidden] {
+  display:none;
+}
+.ux-pronta .btn-top,.ux-pronta .btn-action-top {
+  font-size:12px;
+  border-radius:7px;
+  padding:10px 14px;
+  background:#172840;
+  border-color:var(--border);
+  line-height:1.5;
+}
+.ux-pronta button[data-acao=abrirModalDespacho] {
+  background:#398de8;
+  border-color:#398de8;
+  font-weight:600;
+  color:#fff;
+}
+.ux-cabecalho-pagina {
+  margin-left:var(--ux-nav);
+  padding:24px 28px 18px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:20px;
+  flex-shrink:0;
+}
+.ux-cabecalho-pagina h1 {
+  font-size:27px;
+  font-weight:600;
+  letter-spacing:-.7px;
+  line-height:1.25;
+  margin:0 0 7px;
+}
+.ux-cabecalho-pagina p {
+  font-size:13px;
+  line-height:1.6;
+  color:var(--text-muted);
+}
+.ux-acoes-pagina {
+  display:flex;
+  gap:12px;
+  align-items:center;
+  flex-wrap:wrap;
+}
+.ux-visao-geral {
+  margin:0 28px 18px calc(var(--ux-nav) + 28px);
+  padding:12px 18px;
+  background:#111f36;
+  border:1px solid var(--border);
+  border-radius:9px;
+  display:flex;
+  align-items:center;
+  gap:18px;
+  justify-content:space-between;
+  flex-shrink:0;
+}
+.ux-visao-geral p {
+  font-size:13px;
+  line-height:1.6;
+  color:#c0d1e8;
+}
+.ux-visao-geral .btn-top {
+  padding:7px 10px;
+  font-size:11px;
+  background:transparent;
+}
+.ux-ferramentas {
+  position:relative;
+  font-size:12px;
+}
+.ux-ferramentas>summary {
+  border:1px solid var(--border);
+  padding:10px 12px;
+  border-radius:7px;
+  cursor:pointer;
+  list-style-position:inside;
+  background:#172840;
+}
+.ux-ferramentas[open] {
+  z-index:30;
+}
+.ux-ferramentas[open]>summary {
+  margin-bottom:12px;
+}
+.ux-ferramentas>details,.ux-ferramentas>.ux-simulacao {
+  max-width:390px;
+  padding:10px;
+  border-bottom:1px solid var(--border);
+}
+.ux-ferramentas[open] {
+  position:absolute;
+  right:28px;
+  top:calc(144px + var(--demo-faixa-altura,0px));
+  width:min(390px,calc(100vw - 40px));
+  max-height:65dvh;
+  overflow:auto;
+  padding:14px;
+  background:#122139;
+  box-shadow:0 15px 50px #02081180;
+  border:1px solid var(--border);
+  border-radius:9px;
+}
+.ux-ferramentas summary {
+  color:#c0d9f5;
+  line-height:1.6;
+}
+.ux-ferramentas p {
+  margin-top:8px;
+  font-size:12px;
+  line-height:1.6;
+  color:var(--text-muted);
+}
+.ux-ferramentas .kpi-grid {
+  padding:10px 0;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  border:0;
+}
+.ux-simulacao .control-row {
+  flex-wrap:wrap;
+}
+.ux-simulacao .ctrl-group {
+  min-width:140px;
+}
+.ux-simulacao .btn-primary {
+  margin-top:0;
+}
+.ux-pronta>.workspace {
+  width:calc(100% - var(--ux-nav) - 56px);
+  margin:0 28px 24px calc(var(--ux-nav) + 28px);
+  min-height:360px;
+  border:1px solid var(--border);
+  border-radius:11px;
+  overflow:hidden;
+  flex:1;
+  isolation:isolate;
+}
+.ux-pronta #sidebar {
+  width:304px;
+  min-width:304px;
+  border-color:var(--border);
+  z-index:1;
+}
+.ux-pronta #urbano-panel {
+  min-height:0;
+}
+.ux-pronta .control-bar {
+  padding:16px;
+  border-color:var(--border);
+}
+.ux-pronta .filter-bar {
+  flex-direction:column-reverse;
+  align-items:stretch;
+  gap:12px;
+}
+.ux-pronta .search-box {
+  width:100%;
+  min-width:0;
+  padding:11px 12px;
+  font-size:13px;
+  background:#0d1a2d;
+}
+.ux-pronta .filter-pills {
+  gap:4px;
+}
+.ux-pronta .filter-pill {
+  font-size:11px;
+  font-weight:500;
+  padding:6px 8px;
+  border:0;
+  background:transparent;
+  border-radius:5px;
+  line-height:1.5;
+}
+.ux-pronta .filter-pill.active {
+  background:#193858;
+  color:#b8dcff;
+}
+.ux-pronta #table-container thead {
+  position:absolute;
+  clip-path:inset(50%);
+  height:1px;
+  width:1px;
+  overflow:hidden;
+}
+.ux-pronta #table-container tr:has([data-coluna]) {
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(90px,.75fr);
+  gap:12px 8px;
+  padding:16px;
+  border-bottom:1px solid var(--border);
+  border-left:3px solid transparent;
+}
+.ux-pronta #table-container tr.active {
+  border-left-color:#64b5ff;
+  background:#193450;
+}
+.ux-pronta #table-container td {
+  border:0;
+  padding:0;
+  font-size:12px;
+  line-height:1.6;
+  min-width:0;
+}
+.ux-pronta #table-container td:nth-child(3) {
+  text-align:right;
+  align-self:start;
+}
+.ux-pronta #table-container td:first-child {
+  white-space:normal;
+  font-size:14px;
+}
+.ux-pronta #table-container td:last-child {
+  text-align:right;
+}
+.ux-pronta .ux-id {
+  white-space:normal;
+  overflow-wrap:anywhere;
+}
+.ux-pronta .ux-inline-truck {
+  font:12px/1.6 Inter,sans-serif;
+  white-space:normal;
+  color:var(--text-muted);
+  margin-top:5px;
+}
+.ux-cell-label {
+  display:block;
+  font-size:10px;
+  color:var(--text-muted);
+  font-weight:400;
+  margin-bottom:4px;
+}
+.ux-pronta #table-container td:nth-child(4) {
+  font-size:12px!important;
+}
+.ux-pronta #grid-operacoes .badge-DECIDIDO {
+  display:inline-block;
+  margin:4px 0 0;
+  font-size:10px;
+}
+.ux-pronta .badge {
+  font-size:10px;
+  font-weight:600;
+  padding:3px 6px;
+  border:0;
+  line-height:1.5;
+}
+.badge-CRITICO {
+  background:#482b36;
+  color:#ffb0aa;
+}
+.badge-RISCO {
+  background:#3d3425;
+  color:#f3d393;
+}
+.badge-NORMAL,.badge-DECIDIDO {
+  background:#213e43;
+  color:#a9ded4;
+}
+.ux-pronta #map-container {
+  min-width:0;
+  min-height:360px;
+}
+.ux-pronta #map {
+  height:100%;
+}
+.ux-pronta .map-legend {
+  top:14px;
+  right:52px;
+  bottom:auto;
+  left:auto;
+  max-width:320px;
+  max-height:calc(100% - 28px);
+  padding:9px 12px;
+  background:#122139;
+  border-color:var(--border);
+  border-radius:7px;
+}
+.map-legend summary {
+  font-size:11px;
+  line-height:1.6;
+}
+.maplibregl-ctrl-group {
+  background:#172840;
+}
+.maplibregl-ctrl-icon {
+  filter:invert(1);
+}
+.maplibregl-ctrl-attrib {
+  background:#101e35e6!important;
+  color:#b2c5dc;
+}
+.maplibregl-ctrl-attrib a {
+  color:#b2c5dc;
+}
+#ux-rota-resumo {
+  position:absolute;
+  left:20px;
+  right:20px;
+  bottom:30px;
+  max-height:48%;
+  overflow:auto;
+  z-index:4;
+  background:#122139;
+  border:1px solid var(--border);
+  border-radius:9px;
+  padding:16px 18px;
+  box-shadow:0 8px 32px #030a1630;
+  line-height:1.6;
+}
+#ux-rota-resumo .ux-sobretitulo {
+  font-size:10px;
+  text-transform:uppercase;
+  letter-spacing:1px;
+  color:var(--text-muted);
+  margin-bottom:5px;
+}
+#ux-rota-resumo h2 {
+  font-size:16px;
+  font-weight:600;
+  margin:0 0 6px;
+  overflow-wrap:anywhere;
+}
+#ux-rota-resumo>[role=status] {
+  font-size:12px;
+  color:#b6c8df;
+  margin:0 0 12px;
+}
+.ux-rota-acoes {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:16px;
+  border-top:1px solid var(--border);
+  padding-top:12px;
+}
+.ux-rota-acoes p {
+  font-size:10px;
+  color:var(--text-muted);
+}
+.ux-primario {
+  background:#398de8;
+  border:1px solid #398de8;
+  border-radius:7px;
+  padding:10px 16px;
+  color:#fff;
+  font-weight:600;
+  font-size:12px;
+  white-space:nowrap;
+}
+#ux-comparar {
+  width:min(970px,calc(100vw - 40px));
+  max-height:calc(100dvh - 50px);
+  margin:auto;
+  padding:0;
+  border:1px solid var(--border);
+  border-radius:12px;
+  background:#111f36;
+  color:var(--text-main);
+  overflow:auto;
+  overscroll-behavior:contain;
+}
+#ux-comparar::backdrop,#portal-operacional::backdrop {
+  background:#020811b8;
+}
+.ux-pronta #ux-comparar #inspector {
+  position:static!important;
+  inset:auto!important;
+  width:100%!important;
+  max-height:none!important;
+  margin:0!important;
+  overflow:visible;
+  background:transparent;
+  border:0;
+  box-shadow:none;
+  padding:28px;
+  gap:18px;
+  line-height:1.7;
+}
+.ux-carga-comparacao:empty {
+  display:none;
+}
+.ux-carga-comparacao {
+  padding:16px 28px;
+  font-size:14px;
+}
+.ux-pronta .insp-header {
+  padding-bottom:18px;
+}
+.ux-pronta .insp-header button {
+  font-size:26px!important;
+  min-width:44px;
+  min-height:44px;
+}
+.ux-pronta .route-box {
+  padding:18px;
+}
+.ux-pronta .route-box .mono {
+  font-size:16px!important;
+}
+.ux-pronta .route-box .mono:last-child {
+  font-size:13px!important;
+  margin-top:5px;
+}
+.ux-comparacao {
+  padding:18px;
+  background:#15263f;
+  border-color:var(--border);
+}
+.ux-comparacao table {
+  font-size:14px;
+}
+.ux-comparacao h3 {
+  font-size:18px;
+}
+.ux-comparacao caption {
+  font-size:12px;
+}
+.ux-comparacao td,.ux-comparacao th {
+  padding:14px 10px;
+  font-size:13px;
+}
+.ux-comparacao th {
+  background:transparent;
+}
+.ux-comparacao p {
+  font-size:12px;
+  line-height:1.7;
+}
+.ux-comparacao button {
+  background:#398de8;
+  border-color:#398de8;
+}
+.ux-pronta .justificativa-box,.ux-pronta .disclaimer-box {
+  font-size:13px;
+  padding:12px 16px;
+  line-height:1.7;
+}
+.ux-pronta .trechos-list {
+  max-height:210px;
+  padding:12px;
+}
+.ux-pronta .trecho-item {
+  font-size:12px;
+  padding:8px;
+  gap:16px;
+}
+.ux-pronta .audit-log {
+  max-height:190px;
+  line-height:1.7;
+  padding:14px;
+}
+.mvp-complemento,.infra-auditoria,.dados-viagem-auditoria {
+  font-size:13px;
+  line-height:1.7;
+}
+.mvp-complemento details {
+  padding:12px;
+  border-color:var(--border);
+}
+.mvp-natureza {
+  background:#192d49;
+}
+.ux-pronta .btn-dec {
+  min-height:44px;
+  padding:12px;
+  font-size:13px;
+}
+.ux-pronta .ctrl-input {
+  padding:10px 12px;
+  font-size:13px;
+  background:#0d1a2d;
+}
+.ux-pronta #input-motivo-gestor {
+  padding:13px;
+}
+.ux-pronta #portal-operacional {
+  width:min(1040px,calc(100vw - 40px));
+  padding:28px;
+  border-color:var(--border);
+  background:#111f36;
+  max-height:calc(100dvh - 50px);
+  line-height:1.7;
+}
+.ux-ferramentas-central {
+  margin:18px 0;
+}
+.ux-ferramentas-central>summary {
+  padding:12px 16px;
+  background:#172840;
+  border:1px solid var(--border);
+  border-radius:7px;
+  cursor:pointer;
+  font-size:13px;
+}
+.ux-pronta #portal-operacional nav {
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  overflow:visible;
+  padding:14px;
+  margin:0;
+  gap:8px;
+  background:#101c30;
+}
+.ux-pronta #portal-operacional nav button {
+  white-space:normal;
+  min-height:44px;
+  text-align:left;
+  margin:0;
+  font-size:12px;
+  line-height:1.6;
+}
+.ux-pronta #portal-operacional button {
+  border-color:#3c5373;
+  background:#172840;
+  border-radius:7px;
+  padding:10px 14px;
+  font-size:13px;
+  line-height:1.6;
+}
+.ux-pronta #portal-operacional button[aria-current=true] {
+  background:#193858;
+  border-color:#64b5ff;
+}
+.ux-pronta #portal-operacional h3 {
+  font-size:24px;
+  color:#e8effa;
+  font-weight:600;
+}
+.ux-pronta #portal-operacional h4 {
+  font-size:17px;
+}
+.ux-pronta #portal-operacional article {
+  padding:20px;
+  margin:18px 0;
+  background:#14243b;
+  border-color:var(--border);
+  border-radius:9px;
+}
+.ux-pronta #portal-operacional p {
+  font-size:13px;
+  color:#bdcde2;
+  line-height:1.75;
+}
+.ux-pronta #portal-operacional input,.ux-pronta #portal-operacional select,.ux-pronta #portal-operacional textarea {
+  background:#0d1a2d;
+  border-color:#3c5373;
+  border-radius:6px;
+  padding:12px;
+  font-size:14px;
+}
+.ux-pronta #portal-operacional label {
+  font-size:13px;
+  line-height:1.7;
+}
+.ux-pronta #portal-operacional th {
+  background:#15253e;
+  color:#a5b5cd;
+  padding:12px;
+}
+.ux-pronta #portal-operacional td {
+  padding:14px 12px;
+}
+.portal-cab {
+  padding-bottom:16px;
+  border-bottom:1px solid var(--border);
+}
+.portal-cab h2 {
+  font-size:18px;
+  font-weight:600;
+}
+.ux-etapas {
+  gap:10px;
+}
+.ux-etapas article {
+  margin:0!important;
+}
+.ux-etapa-estado {
+  display:inline-block;
+  margin:8px 0;
+  font-size:12px;
+  border-color:#3c5373;
+  background:#193858;
+  color:#c4e0ff;
+}
+.ux-onboarding-resumo {
+  padding:20px;
+  background:#14243b;
+  border-color:var(--border);
+}
+body[data-area=FROTA] #map-container {
+  display:none;
+}
+body[data-area=FROTA] #sidebar {
+  width:100%;
+  min-width:0;
+}
+body[data-area=FROTA] #frota-panel {
+  padding:24px;
+  gap:20px;
+}
+.ux-pronta #lista-frota-cards {
+  display:grid!important;
+  grid-template-columns:repeat(auto-fit,minmax(300px,1fr));
+  gap:16px!important;
+}
+.ux-pronta .panel-card {
+  background:#14243b;
+  border-color:var(--border);
+  padding:20px;
+  border-radius:9px;
+}
+.ux-pronta .mvp-proveniencia {
+  margin:0 0 12px;
+  line-height:1.7;
+  font-size:12px;
+}
+.ux-pronta #frota-panel .panel-card:first-of-type {
+  max-width:900px;
+}
+.ux-pronta #corredor-panel {
+  padding:20px;
+  gap:18px;
+}
+.ux-pronta #corredor-panel .panel-card {
+  padding:16px;
+}
+#demo-faixa {
+  background:#28263c;
+  color:#e4ddf5;
+  border-bottom:1px solid #4b4569;
+  font-size:11px;
+  padding:7px 14px;
+  z-index:100000;
+}
+.login-card {
+  background:#111f36;
+  box-shadow:0 20px 60px #02081160;
+}
+.login-brand {
+  margin-bottom:26px;
+}
+.login-field label {
+  font-size:12px;
+  text-transform:none;
+}
+.login-input {
+  font-size:14px;
+  padding:12px;
+}
+.btn-login {
+  background:#398de8;
+  border-color:#398de8;
+  font-size:14px;
+  padding:12px;
+}
+#ux-voltar-frota {
+  display:none;
+  position:absolute;
+  top:16px;
+  left:16px;
+  z-index:6;
+  padding:12px;
+  background:#172840;
+  color:#e8effa;
+  border:1px solid #8acaff;
+  border-radius:7px;
+}
+body.ux-escolhendo-mapa #ux-voltar-frota {
+  display:block;
+}
+body.ux-escolhendo-mapa #map-container {
+  display:block;
+}
+body.ux-escolhendo-mapa #sidebar {
+  width:430px;
+  min-width:350px;
+}
+body.ux-escolhendo-mapa #frota-panel {
+  overflow:auto;
+}
+body.ux-escolhendo-mapa #ux-rota-resumo {
+  display:none;
+}
+@media(min-width:1650px) {
+  .ux-pronta #sidebar {
+    width:350px;
+    min-width:350px;
+  }
+  .ux-pronta #ux-comparar #inspector {
+    width:100%!important;
+  }
+}
+@media(max-width:1200px) {
+  :root {
+    --ux-nav:168px;
+  }
+  .ux-pronta>header {
+    padding:14px 20px;
+  }
+  .ux-pronta .corp-badge {
+    flex-wrap:wrap;
+  }
+  .ux-pronta .brand-group {
+    flex-basis:180px;
+  }
+  .ux-pronta .brand-sub {
+    max-width:320px;
+  }
+  .ux-rota-acoes {
+    align-items:start;
+  }
+  .ux-rota-acoes p {
+    max-width:65%;
+  }
+}
+@media(max-width:900px) {
+  body {
+    height:auto;
+    min-height:100dvh;
+    overflow:auto;
+  }
+  #ux-navegacao {
+    position:relative;
+    width:100%;
+    padding:10px 16px;
+    display:flex;
+    flex-direction:row;
+    flex-wrap:wrap;
+    align-items:center;
+    gap:8px;
+  }
+  .ux-pronta.demo-identificada #ux-navegacao {
+    top:auto;
+  }
+  .ux-marca {
+    padding:0;
+    font-size:21px;
+  }
+  .ux-marca::before {
+    width:25px;
+    height:29px;
+    font-size:14px;
+  }
+  #ux-menu {
+    display:block;
+    margin-left:auto;
+  }
+  #ux-menu-conteudo {
+    width:100%;
+  }
+  .ux-rodape {
+    width:100%;
+    display:flex;
+    flex-direction:row;
+    flex-wrap:wrap;
+    align-items:center;
+    margin-top:0;
+    padding-top:8px;
+    gap:4px;
+  }
+  .ux-rodape .ux-empresa {
+    margin-left:auto;
+    padding:8px;
+    font-size:11px;
+  }
+  .ux-pronta>header {
+    margin:0;
+    width:100%;
+    padding:14px 18px;
+  }
+  .ux-pronta .brand-group {
+    flex-basis:200px;
+  }
+  .ux-pronta .top-controls {
+    width:auto;
+  }
+  .ux-pronta .corp-badge {
+    padding:0;
+  }
+  .ux-pronta .brand-title {
+    font-size:16px;
+  }
+  .ux-cabecalho-pagina {
+    margin-left:0;
+    padding:22px 16px 16px;
+    align-items:start;
+    flex-wrap:wrap;
+    gap:14px;
+  }
+  .ux-cabecalho-pagina h1 {
+    font-size:25px;
+  }
+  .ux-cabecalho-pagina p {
+    font-size:12px;
+  }
+  .ux-acoes-pagina {
+    width:100%;
+    justify-content:space-between;
+  }
+  .ux-visao-geral {
+    margin:0 16px 16px;
+    padding:12px;
+    gap:10px;
+  }
+  .ux-visao-geral p {
+    font-size:12px;
+  }
+  .ux-visao-geral .btn-top {
+    font-size:10px;
+    padding:7px;
+  }
+  .ux-ferramentas[open] {
+    position:static;
+    width:100%;
+    max-height:none;
+  }
+  .ux-pronta>.workspace {
+    margin:0 16px 24px;
+    width:calc(100% - 32px);
+    display:flex;
+    flex-direction:column;
+    min-height:0;
+    overflow:hidden;
+  }
+  .ux-pronta #sidebar {
+    width:100%;
+    min-width:0;
+  }
+  .ux-pronta #table-container {
+    max-height:330px;
+  }
+  .ux-pronta #map-container {
+    min-height:540px;
+    display:block;
+    height:540px;
+  }
+  .ux-pronta #map {
+    height:100%;
+  }
+  .ux-pronta .map-legend {
+    position:absolute;
+    top:12px;
+    right:48px;
+    left:auto;
+    bottom:auto;
+    max-width:calc(100% - 70px);
+    max-height:60%;
+    margin:0;
+  }
+  .ux-pronta #ux-comparar #inspector {
+    padding:20px;
+    margin:0!important;
+    width:100%!important;
+  }
+  .ux-pronta #portal-operacional {
+    padding:20px;
+    width:calc(100vw - 24px);
+    max-height:calc(100dvh - 30px);
+  }
+  .ux-pronta #portal-operacional nav {
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+  .ux-pronta #frota-panel {
+    max-height:none;
+    padding:16px!important;
+  }
+  .ux-pronta #lista-frota-cards {
+    grid-template-columns:1fr!important;
+  }
+  #ux-rota-resumo {
+    left:12px;
+    right:12px;
+    bottom:28px;
+    max-height:50%;
+    padding:14px;
+  }
+  .ux-rota-acoes {
+    flex-wrap:wrap;
+  }
+  .ux-rota-acoes p {
+    max-width:none;
+    width:100%;
+  }
+  .ux-rota-acoes button {
+    width:100%;
+  }
+  .ux-pronta #corredor-panel {
+    overflow:visible;
+  }
+  .ux-pronta #ux-comparar {
+    width:calc(100vw - 16px);
+    max-height:calc(100dvh - 20px);
+  }
+  .ux-pronta .route-compare {
+    gap:8px;
+  }
+  .ux-pronta .route-box {
+    padding:12px;
+  }
+  .ux-pronta .route-box .mono {
+    font-size:14px!important;
+  }
+  .ux-pronta .trecho-item {
+    flex-direction:column;
+    gap:4px;
+  }
+  .ux-pronta .btn-group {
+    grid-template-columns:1fr;
+  }
+  .ux-pronta .ctrl-input,.ux-pronta #portal-operacional input,.ux-pronta #portal-operacional select {
+    font-size:16px;
+  }
+  .ux-pronta #portal-operacional article {
+    padding:14px;
+  }
+}
+@media(max-width:900px) {
+  body.ux-escolhendo-mapa #sidebar {
+    width:100%;
+    min-width:0;
+  }
+  .ux-pronta #frota-panel .infra-grid {
+    grid-template-columns:1fr;
+  }
+}

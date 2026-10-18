@@ -107,7 +107,7 @@
     function permissoes() {
         const autenticado = cliente.perfil() !== null;
         const modalAberto=document.getElementById('modal-despacho')?.style.display==='flex';
-        document.querySelectorAll('header, .workspace, #ux-navegacao').forEach(el => { el.inert = !autenticado||modalAberto; });
+        document.querySelectorAll('header, .workspace, #ux-navegacao, .ux-cabecalho-pagina, .ux-visao-geral').forEach(el => { el.inert = !autenticado||modalAberto; });
         document.getElementById('login-overlay').inert = autenticado;
         document.querySelectorAll('[data-escrita]').forEach(el => {
             const bloqueado = !cliente.podeEscrever();
