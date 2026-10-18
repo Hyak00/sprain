@@ -17,9 +17,9 @@ async def comparar_tempo_transito(dados: TransitoRequest):
     if info["status"] == "INDISPONIVEL":
         raise HTTPException(status_code=502, detail=info["motivo"])
     return {
-        "status": "OPERACIONAL",
+        "status": "ESTIMATIVA",
         "transito": info,
-        "aviso": "Comparacao de tempo real obtida com isolamento de provedor e cache ativo."
+        "aviso": "Tempo estimado pelo OSRM, sem transito observado em tempo real. Nao comprova congestionamento ou atraso."
     }
 
 @router.get("/metricas")

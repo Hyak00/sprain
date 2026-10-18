@@ -23,6 +23,7 @@ datas e versões. A autorização é aplicada pelo backend, não só pelos botõ
 | Fontes e importações | `/api/v1/operacional/*` | ADMIN; histórico começa na instrumentação |
 | Exportação privada | `GET /api/v1/administracao/exportacao` | ZIP, manifesto e JSON Lines, sem credenciais |
 | Saúde | `/api/v1/health/liveness`, `/api/v1/health/readiness` | Pública; readiness não homologa fornecedores |
+| Estimativa de percurso | `POST /api/v1/transito/comparar` | Somente desenvolvimento/testes; OSRM demo, sem trânsito observado |
 
 Use o Swagger para os caminhos completos e os schemas de cada método. A tabela
 agrupa contratos, não substitui o inventário executável. PDF e HTML são gerados
@@ -51,6 +52,16 @@ retorne o PDF. Downloads CSV usam `text/csv`; ZIP usa `application/zip`.
 potencial e economia comprovada são categorias diferentes. Fotografias guardam
 o resultado de uma consulta passada; não autorizam decisão atual. Chuva simulada
 não é previsão nem observação. Ausência de limite de ponte não garante passagem.
+
+O endpoint de trânsito retorna `tempo_estimado_min` e `tempo_observado_min: null`
+quando obtém uma rota do OSRM demo. A duração é uma estimativa de percurso, não
+uma medição de trânsito ao vivo; `custo_consulta_usd: null` indica que não há
+tarifa conhecida para lançar em custos. O contador em `/api/v1/transito/metricas`
+mede tentativas de acesso ao demo neste processo, não uso faturado. Em produção,
+`/comparar` responde `502` sem acessar o demo, até existir integração adequada
+para trânsito observado. O [contrato de rotas do OSRM](https://project-osrm.org/docs/v5.24.0/api/)
+define `duration` como tempo estimado; o [servidor demo](https://github.com/Project-OSRM/osrm-backend/wiki/Demo-server)
+é restrito a uso razoável e não comercial, sem garantia de disponibilidade.
 
 O OpenAPI acrescenta descrições, segurança, exemplos de corpos e tipos de
 download sem alterar handlers, validação ou cálculo. Seus exemplos de entrada
