@@ -13,6 +13,7 @@ async def garantir_schema():
     async for conn in get_connection():
         await conn.execute(SCHEMA)
         await conn.execute((Path(__file__).resolve().parents[3]/'db/ci/12_metadados_frota.sql').read_text(encoding='utf-8'))
+        await conn.execute((Path(__file__).resolve().parents[3]/'db/ci/15_onboarding_cliente.sql').read_text(encoding='utf-8'))
 
 
 def objeto(v):

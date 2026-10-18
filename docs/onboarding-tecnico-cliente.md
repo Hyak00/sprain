@@ -72,5 +72,9 @@ senha revogam acessos conforme o contrato. Ver [administração](administracao-i
 
 Guardar aceite, responsável, data e fontes validadas. Economia comprovada e custo
 observado exigem evidências de execução; cálculo de planejamento não basta.
+Na interface, Configurar primeiro cliente reúne as etapas. Iniciar configuração
+começa a medição persistente; após abrir uma comparação calculada, Confirmar
+primeiro resultado útil registra a consulta e o tempo pelo relógio do servidor.
+O critério, permissões e limites estão em [experiência do operador](experiencia-operador.md).
 Na saída do cliente, desativar usuários e aplicar retenção/exportação acordadas
 com infraestrutura; não apagar bases públicas compartilhadas.

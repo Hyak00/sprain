@@ -41,8 +41,8 @@ Referência: seções 3.1–3.7 da lista técnica enviada, páginas 9–11. Atua
 | 3.6 Arquitetura/fontes | Documentado | arquitetura-e-fontes.md: módulos, origem, frequência de tentativa/publicação e limites |
 | 3.6 Runbooks conjuntos | Procedimentos e ensaio; revisão humana pendente | runbook-operacao.md e backup/restore em banco novo; yanpefnsc indicado para revisão conjunta, sem presumir aceite |
 | 3.6 GitHub Projects/modelo de issue | Modelo e issues prontos; quadro oficial pendente | Seis áreas e issues #46–#51 no repositório yanpefnsc/sprain; quadro pessoal não substitui o quadro da equipe. Veja quadro-github.md |
-| 3.7 Importar arquivo/premissas | Parcial | JSON validado com prévia e resultados por item; recorrência agora disponível; importação condicional/atômica permanece pendente |
-| 3.7 Primeiro resultado útil | Dependência | Tempo local de sessão não substitui evento persistido de onboarding |
+| 3.7 Importar arquivo/premissas | Implementado com contrato parcial explícito | JSON validado com modelo, prévia e resultados por item no onboarding guiado; lote não atômico, sem reenvio automático |
+| 3.7 Primeiro resultado útil | Implementado com confirmação explícita | Início/consulta/primeiro resultado/tempo persistidos por empresa no servidor; consulta após início com geometria e distância, confirmada pelo usuário. Ver experiencia-operador.md |
 | Compartilhado: corredor/piloto | Pendente de equipe | Escolha com dados reais, não apenas corredor de referência |
 | Compartilhado: revisão cruzada | Pendente de equipe | Revisão humana do PR, especialmente proteção de concorrência |
 | Compartilhado: E2E/checklist de lançamento | Parcial | Fluxos verificáveis existentes; Parte 12 completa não fornecida, e há bloqueadores de contrato |

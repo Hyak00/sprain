@@ -189,12 +189,13 @@
         const ol=el(p,'ol');passos.forEach(s=>el(ol,'li',s));
         el(p,'h4','Como ler o mapa');el(p,'p','Azul contínuo: alternativa calculada. Vermelho tracejado: rota original. Vermelho espesso: vulnerabilidade física da malha; não confirma interdição. Pedágios e restrições mantêm as camadas próprias, com dados e limitações nos detalhes.');
         el(p,'p','Histórico descreve o passado; previsão estima condições futuras; observação registra uma leitura; confirmação é o estado declarado pela fonte. Uma informação não substitui outra.');
-        el(p,'p','Tempo desta sessão até a primeira consulta de relatório útil: '+(primeiro?((primeiro-inicio)/1000).toFixed(1)+' s':'ainda não registrado nesta sessão')+'. Medição apenas em memória: não é evento auditável persistido. Esse evento de onboarding ainda precisa de endpoint.');
+        el(p,'p','Em Configurar primeiro cliente, inicie as etapas e confirme a primeira comparação útil. O início, a consulta e o tempo decorrido ficam registrados no servidor por empresa.');
+        botao(p,'Abrir configuração do primeiro cliente',()=>navegar('onboarding'));
         el(p,'h4','Quando pedir suporte');el(p,'p','Em falha de fonte, atualize a consulta e confira a idade dos dados. Em conflito de decisão, recalcule a rota. Em resultado incerto de importação, consulte as operações antes de reenviar. Nunca envie sua chave de API em relatórios ou mensagens de suporte.');
     }
-    function sessao(user){limpar();usuario={tenant_id:user.tenant_id,role:user.role,email:user.email};inicio=Date.now();aviso.hidden=user.tipo_acesso==='INDIVIDUAL'&&!root.PainelDemonstracao?.estado()?.demo_isolada;}
-    function limpar(){usuario=null;selecionada=null;primeiro=null;versao++;controle?.abort();dialog.close();conteudo.replaceChildren();urls.forEach(u=>URL.revokeObjectURL(u));urls.clear();}
-    function selecionar(op){selecionada=op;}
+    function sessao(user){limpar();usuario={tenant_id:user.tenant_id,role:user.role,email:user.email};inicio=Date.now();aviso.hidden=user.tipo_acesso==='INDIVIDUAL'&&!root.PainelDemonstracao?.estado()?.demo_isolada;root.PainelExperiencia?.sessao(usuario);}
+    function limpar(){usuario=null;selecionada=null;primeiro=null;versao++;controle?.abort();dialog.close();conteudo.replaceChildren();urls.forEach(u=>URL.revokeObjectURL(u));urls.clear();root.PainelExperiencia?.limpar();}
+    function selecionar(op){selecionada=op;root.PainelExperiencia?.selecionar(op);}
     function registrarSecao(id,label,fn){
         if(telas[id])throw Error('Seção já registrada.');rotulos[id]=label;
         telas[id]=(p,v)=>fn(p,{atual:()=>atual(v),obter:(path,options)=>obter(path,v,options),recarregar:()=>render(id)});

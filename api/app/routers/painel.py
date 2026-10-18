@@ -20,6 +20,94 @@ router = APIRouter(prefix='/api/v1/painel', tags=['Fluxo persistente do painel']
 escrita = Depends(require_role(['ADMIN', 'OPERATOR']))
 
 
+class PrimeiroResultado(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    consulta_id: UUID
+
+
+class Acompanhamento(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    operacoes: list[str] = Field(min_length=1,max_length=500)
+
+
+@router.post('/acompanhamento')
+async def acompanhar_operacoes(dados: Acompanhamento, claims=Depends(get_current_user_claims), conn=Depends(get_connection)):
+    """Leitura para todos os perfis: existência de decisão no histórico das viagens exibidas.
+
+    Não confirma que uma decisão passada continue válida para o cenário atual.
+    Registros de outra empresa não são retornados.
+    """
+    if any(not op or len(op)>200 for op in dados.operacoes):
+        raise HTTPException(422,'Identificador de operacao invalido.')
+    rows=await conn.fetch('''SELECT o.id_operacao,
+        EXISTS(SELECT 1 FROM decisoes_gestor_operacao d WHERE d.tenant_id=o.tenant_id
+            AND d.id_operacao=o.id_operacao) AS possui_decisao
+        FROM operacoes o WHERE o.tenant_id=$1 AND o.id_operacao=ANY($2::text[])''',
+        claims['tenant_id'],list(set(dados.operacoes)))
+    return {'items':[dict(r) for r in rows],'criterio':'Existência de decisão no histórico; não valida uma decisão passada no cenário atual.'}
+
+
+async def estado_onboarding(conn, tenant):
+    row = await conn.fetchrow('SELECT * FROM painel_onboarding WHERE tenant_id=$1', tenant)
+    totais = await conn.fetchrow('''SELECT
+        (SELECT count(*) FROM veiculos WHERE tenant_id=$1) AS caminhoes,
+        (SELECT count(*) FROM painel_corredores WHERE tenant_id=$1 AND dados->>'ativo'='true') AS corredores,
+        (SELECT count(*) FROM operacoes WHERE tenant_id=$1) AS viagens,
+        EXISTS(SELECT 1 FROM painel_financeiro WHERE tenant_id=$1) AS financeiro''', tenant)
+    estado = serializar(row) if row else None
+    if estado:
+        estado['consulta_id'] = str(row['consulta_id']) if row['consulta_id'] else None
+        estado['usuario_id'] = str(row['usuario_id']) if row['usuario_id'] else None
+        estado['tempo_ate_primeiro_resultado_segundos'] = (
+            (row['primeiro_resultado_em']-row['iniciado_em']).total_seconds()
+            if row['primeiro_resultado_em'] else None)
+    return {'empresa':tenant,'onboarding':estado,'cadastros':dict(totais),
+        'criterio':'Tempo do início explícito até confirmar uma comparação consultada após esse início. '
+                   'Não comprova viagem realizada, economia, qualidade das medidas ou cobertura das fontes.'}
+
+
+@router.get('/onboarding')
+async def consultar_onboarding(claims=Depends(get_current_user_claims), conn=Depends(get_connection)):
+    """Progresso observado nos cadastros e medição persistente, restritos à empresa."""
+    return await estado_onboarding(conn, claims['tenant_id'])
+
+
+@router.post('/onboarding/iniciar', dependencies=[escrita])
+async def iniciar_onboarding(claims=Depends(get_current_user_claims), conn=Depends(get_connection)):
+    """Inicia a medição pelo relógio do servidor; repetição não reinicia o prazo."""
+    await conn.execute('INSERT INTO painel_onboarding(tenant_id) VALUES($1) ON CONFLICT DO NOTHING', claims['tenant_id'])
+    return await estado_onboarding(conn, claims['tenant_id'])
+
+
+@router.post('/onboarding/primeiro-resultado', dependencies=[escrita])
+async def confirmar_primeiro_resultado(dados: PrimeiroResultado, claims=Depends(get_current_user_claims), conn=Depends(get_connection)):
+    """Confirma uma fotografia da própria empresa com rota original calculada.
+
+    Sem onboarding iniciado: 409. Consulta de outra empresa: 404. Consulta antiga
+    ou sem geometria/distância: 422. A primeira confirmação é preservada.
+    """
+    tenant = claims['tenant_id']
+    async with conn.transaction():
+        estado = await conn.fetchrow('SELECT * FROM painel_onboarding WHERE tenant_id=$1 FOR UPDATE', tenant)
+        if not estado:
+            raise HTTPException(409, 'Inicie a configuração do cliente em Primeiros passos antes de confirmar.')
+        consulta = await conn.fetchrow('SELECT * FROM painel_consultas WHERE id=$1 AND tenant_id=$2', dados.consulta_id, tenant)
+        if not consulta:
+            raise HTTPException(404, 'Consulta nao encontrada nesta empresa.')
+        snapshot = objeto(consulta['snapshot'])
+        distancia = snapshot.get('metricas',{}).get('distancia_original_km')
+        geometrias = snapshot.get('geometrias',{}).get('rota_original_geojson') or {}
+        rota = any(f.get('geometry',{}).get('type') in ('LineString','MultiLineString')
+                   and f.get('geometry',{}).get('coordinates') for f in geometrias.get('features',[]) if isinstance(f,dict))
+        if (consulta['criado_em'] < estado['iniciado_em'] or isinstance(distancia,bool)
+                or not isinstance(distancia,(int,float)) or distancia <= 0 or not rota):
+            raise HTTPException(422, 'Abra uma viagem após iniciar a configuração e confira uma rota calculada antes de confirmar.')
+        if not estado['primeiro_resultado_em']:
+            await conn.execute('''UPDATE painel_onboarding SET primeiro_resultado_em=now(),
+                consulta_id=$2,usuario_id=$3 WHERE tenant_id=$1''',tenant,dados.consulta_id,claims.get('usuario_id'))
+        return await estado_onboarding(conn, tenant)
+
+
 class Corredor(BaseModel):
     model_config = ConfigDict(extra='forbid', allow_inf_nan=False, str_strip_whitespace=True)
     nome: str = Field(min_length=1, max_length=150)

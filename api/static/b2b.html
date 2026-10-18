@@ -134,6 +134,7 @@
     <link rel="stylesheet" href="/static/infraestrutura-caminhoes.css">
     <link rel="stylesheet" href="/static/portal-operacional.css">
     <link rel="stylesheet" href="/static/painel-fluxo.css">
+    <link rel="stylesheet" href="/static/painel-experiencia.css">
 </head>
 <body>
 
@@ -586,6 +587,7 @@
         }
 
         function alternarAba(aba) {
+            window.PainelExperiencia?.aba(aba);
             window.DadosViagem?.limpar();
             document.getElementById('tab-urbano').classList.toggle('active', aba === 'URBANO');
             document.getElementById('tab-frota').classList.toggle('active', aba === 'FROTA');
@@ -877,12 +879,14 @@
         }
 
         function renderizarTabela() {
+            window.PainelExperiencia?.resumo(recomendacoesAtuais,decisoesMap);
             const tbody = document.getElementById('grid-operacoes');
             const busca = valOr(document.getElementById('input-busca').value, '').toLowerCase();
             tbody.innerHTML = '';
 
             const filtradas = recomendacoesAtuais.filter(r => {
                 if (filtroAtivo === 'CRITICO' && r.nivel_risco !== 'CRITICO') return false;
+                if (filtroAtivo === 'PENDENTE' && window.PainelExperiencia?.semDecisao(r.id_operacao)!==true) return false;
                 if (filtroAtivo === 'COM_DESVIO' && r.acao !== 'ALTERAR_ROTA' && r.impacto.km_adicionais <= 0) return false;
                 if (busca) {
                     const matchOp = r.id_operacao.toLowerCase().includes(busca);
@@ -908,7 +912,7 @@
                     : 'Rota mantida';
 
                 const corCusto = rec.impacto.custo_desvio_brl > 0 ? '#fbbf24' : 'var(--text-muted)';
-                tr.innerHTML = '<td class="mono" style="font-weight:700; color:#fff;">' + window.PainelApresentacao.escapar(rec.id_operacao) + tagDecisao + '</td>' +
+                tr.innerHTML = '<td class="mono" style="font-weight:700; color:#fff;">' + window.PainelApresentacao.escapar(rec.id_operacao) + tagDecisao + '<span class="ux-inline-truck">Caminhão: ' + window.PainelApresentacao.escapar(rec.id_veiculo) + '</span></td>' +
                     '<td class="mono" style="color:var(--text-muted);">' + window.PainelApresentacao.escapar(rec.id_veiculo) + '</td>' +
                     '<td><span class="badge badge-' + window.PainelApresentacao.escapar(rec.nivel_risco) + '">' + window.PainelApresentacao.escapar(rec.nivel_risco) + '</span></td>' +
                     '<td class="mono" style="font-size:11px;">' + deltaTxt + '</td>' +
@@ -1085,5 +1089,7 @@
     <script src="/static/painel-interno.js?v=interno35-1"></script>
     <script>window.PainelSessao.instalar();</script>
     <script src="/static/painel-homologacao.js"></script>
+    <script src="/static/painel-onboarding.js"></script>
+    <script src="/static/painel-experiencia.js"></script>
 </body>
 </html>

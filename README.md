@@ -81,6 +81,10 @@ O [complemento de dados e custos automaticos](docs/integracao-dados-viagem.md) d
 
 ## Testes e operação
 
+O [guia de experiência do operador](docs/experiencia-operador.md) descreve o
+menu, a comparação de custos/espera e o onboarding guiado com medição persistente
+do primeiro resultado útil. Essas melhorias usam o painel e os motores existentes.
+
 - [Instalação e suítes API, DOM e Chromium](docs/testes-e-instalacao.md).
 - [Contratos do painel e Swagger](docs/api-painel.md): `/docs` e `/openapi.json`.
 - [Onboarding técnico de um cliente](docs/onboarding-tecnico-cliente.md).

@@ -9,7 +9,7 @@
     function criarCliente({ fetcher, aoEncerrar = () => {}, timeoutMs = 90000 } = {}) {
         let usuario = null, geracao = 0, validade;
         const pendentes = new Set();
-        const consultasPost = new Set(['/api/v1/infraestrutura/rota-caminhao', '/api/v1/infraestrutura/avaliar-mapa',
+        const consultasPost = new Set(['/api/v1/painel/acompanhamento','/api/v1/infraestrutura/rota-caminhao', '/api/v1/infraestrutura/avaliar-mapa',
             '/api/v1/dados-publicos/consultar-rota', '/api/v1/transito/comparar', '/api/v1/painel/consultas','/api/v1/acesso/logout','/api/v1/demonstracao/reproduzir']);
         function encerrar(motivo = '') {
             clearTimeout(validade);geracao++; usuario = null;
@@ -107,7 +107,7 @@
     function permissoes() {
         const autenticado = cliente.perfil() !== null;
         const modalAberto=document.getElementById('modal-despacho')?.style.display==='flex';
-        document.querySelectorAll('header, .workspace').forEach(el => { el.inert = !autenticado||modalAberto; });
+        document.querySelectorAll('header, .workspace, #ux-navegacao').forEach(el => { el.inert = !autenticado||modalAberto; });
         document.getElementById('login-overlay').inert = autenticado;
         document.querySelectorAll('[data-escrita]').forEach(el => {
             const bloqueado = !cliente.podeEscrever();
