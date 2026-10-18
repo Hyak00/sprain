@@ -20,6 +20,10 @@ de outros clientes. OPERATOR e VIEWER conservam a seção Qualidade e serviços.
   `/api/v1/logistica/observabilidade/metricas`. Mostra erros HTTP recentes,
   contagem, latência e a integração CGE explicitamente desativada no código atual.
   Não consulta diretamente provedores externos nem realiza escrita para testá-los.
+- Revisão em execução: `GET /api/v1/operacional/versao` (ADMIN) devolve a versão
+  da API e o commit de 40 caracteres embutido na imagem. Esta consulta está
+  disponível na API; sua apresentação na tela operacional ainda não foi ligada.
+  Uma revisão ausente não deve ser interpretada como confirmação de deploy.
 - Qualidade: consome `/api/v1/indicadores/qualidade`,
   `/api/v1/dados-publicos/qualidade-precos` e `/api/v1/alertas/precisao`.
   Distingue ausência de amostra de resultado zero e informa fonte e consulta.

@@ -34,7 +34,10 @@ o startup com credenciais de exemplo. Nunca contornar essa validação.
 4. Aplicar rollout por serviço após backup e plano de rollback. Executar
    readiness/liveness, login individual, leitura da empresa, consulta de rota,
    decisão de ensaio autorizada e relatório. Conferir dados de outra empresa
-   inacessíveis, geometrias e fontes antigas/indisponíveis.
+   inacessíveis, geometrias e fontes antigas/indisponíveis. Consultar
+   `GET /api/v1/operacional/versao` com sessão ADMIN e comparar a revisão de
+   40 caracteres com o commit da imagem aprovada. Uma revisão ausente indica
+   build sem `SPRAIN_BUILD_COMMIT`; não afirmar qual código está em execução.
 5. Monitorar erros, latência, importações e idade das fontes. Registrar resultado
    e critérios de reversão. Nunca remover volume para corrigir startup.
 
@@ -45,7 +48,8 @@ o startup com credenciais de exemplo. Nunca contornar essa validação.
 2. Conferir compatibilidade da imagem anterior com o esquema atual. Para falha
    só de aplicação, voltar ao digest anterior, mantendo o banco e volume.
 3. Repetir readiness e fluxos críticos, comparar contagens e observar erros.
-   Registrar o digest efetivamente executado. Reverter imagem não desfaz
+   Registrar o digest e a revisão devolvida por `/api/v1/operacional/versao`.
+   Reverter imagem não desfaz
    alterações já gravadas.
 4. Se esquema/dados forem incompatíveis, restaurar backup em banco **novo**,
    validar e planejar troca de conexão com infraestrutura. Definir como
