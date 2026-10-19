@@ -2,6 +2,7 @@
 
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
@@ -9,6 +10,18 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from scripts import worker_dados_publicos as worker
 from scripts.worker_status import check_status, write_status
+
+
+def test_worker_agenda_pesquisa_semanal_anp():
+    with patch.object(
+        worker.subprocess, "run", return_value=SimpleNamespace(returncode=0, stdout="")
+    ) as executar:
+        assert worker.executar_rodada() is True
+
+    fontes_executadas = [chamada.args[0][3] for chamada in executar.call_args_list]
+    assert fontes_executadas == list(worker.FONTES)
+    assert fontes_executadas.count("anp-semanal") == 1
+    assert fontes_executadas.index("anp") < fontes_executadas.index("anp-semanal")
 
 
 def test_healthcheck_detecta_progresso_e_atraso(tmp_path):

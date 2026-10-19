@@ -50,6 +50,26 @@ Para atualizar automaticamente uma vez por dia, ative o servico separado:
 docker compose --profile dados up -d dados-publicos
 ```
 
+O Compose de producao tambem define o servico no perfil `dados`, mas nao o
+inicia junto da API. Depois de conferir as fontes e o banco de destino e de
+validar um backup restaurado, a equipe pode ativa-lo explicitamente com o
+arquivo de ambiente proprio:
+
+```sh
+docker compose --env-file .env.prod -f docker-compose.prod.yml --profile dados up -d --build dados-publicos
+```
+
+Defina `SPRAIN_BUILD_COMMIT` com o SHA completo do commit aprovado antes do
+build; o Compose recusa a configuracao sem ele. O perfil permanece desligado
+ate a ativacao explicita acima.
+
+Ao iniciar, ele grava os dados publicos no banco configurado e depois repete a
+rodada no intervalo definido. `SPRAIN_INFRA_TENANT` fica vazio por padrao; a
+sincronizacao opcional de infraestrutura de uma empresa requer configuracao
+explicita. Consulte `ps` e `logs dados-publicos` com os mesmos argumentos do
+Compose para verificar o estado. O perfil nao automatiza copia de backup nem
+substitui a conferencia de cobertura e atualidade das fontes.
+
 No ambiente Windows local, use as credenciais de desenvolvimento configuradas
 no Compose override; nao use credenciais de producao. O servico inicia com uma
 sincronizacao, repete a cada 24 horas e isola falhas por fonte. Tambem pode ser
@@ -65,9 +85,9 @@ rodada não começar até 15 minutos após o intervalo configurado. O Docker
 apenas sinaliza esse estado: conecte um monitor externo para receber aviso.
 O webhook opcional avisa falhas individuais, quando configurado.
 
-O importador procura os anos recentes no catalogo da ARTESP, o CSV mensal mais
-recente de diesel e gasolina na ANP, o cadastro georreferenciado da ANP e os
-trimestres publicados pela SSP-SP.
+O importador procura os anos recentes no catalogo da ARTESP, o CSV mensal e a
+pesquisa semanal mais recente de diesel e gasolina na ANP, o cadastro
+georreferenciado da ANP e os trimestres publicados pela SSP-SP.
 Repeticoes nao duplicam ocorrencias ou
 precos; correcoes do CSV ARTESP desativam a versao anterior sem apaga-la. A
 carga de cada arquivo ocorre em uma transacao. Um arquivo ARTESP vazio ou com

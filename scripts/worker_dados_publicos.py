@@ -20,7 +20,7 @@ else:
 logger = logging.getLogger(__name__)
 
 IMPORTADOR = Path(__file__).with_name("sincronizar_dados_publicos.py")
-FONTES = ("artesp", "anp", "anp-cadastro", "ssp-roubo")
+FONTES = ("artesp", "anp", "anp-semanal", "anp-cadastro", "ssp-roubo")
 
 def disparar_alerta(fonte: str, erro: str) -> None:
     webhook_url = os.getenv("WEBHOOK_ALERTA_DADOS")

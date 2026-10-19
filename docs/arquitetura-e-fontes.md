@@ -40,7 +40,7 @@ não são probabilidades calibradas de ocorrência.
 | Trânsito/ocorrências | Endpoints/importações e relatos com natureza explícita | Conferir observação, validade e fonte. Relato de usuário não é confirmação |
 | Demonstração | Base CI e exercício sintético reservado | Nenhum dado de exercício deve ser interpretado como condição real; referência histórica pesquisada é identificada separadamente |
 
-`scripts/worker_dados_publicos.py` tenta ARTESP, ANP, cadastro ANP e SSP a cada
+`scripts/worker_dados_publicos.py` tenta ARTESP, ANP mensal e semanal, cadastro ANP e SSP a cada
 24 horas por padrão (`DADOS_PUBLICOS_INTERVALO_HORAS`, permitido 1–168).
 Isso só ocorre **se o worker estiver implantado e ativo**, não por abrir o mapa.
 O período de tentativa não muda a frequência de publicação do fornecedor.
