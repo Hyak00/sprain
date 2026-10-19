@@ -1097,7 +1097,7 @@ async def obter_painel_central_frota(tenant_id: str = Depends(resolve_tenant), p
 from app.services.weather_alert_engine import SevereWeatherEngine
 
 @router.get("/alertas-meteorologicos", dependencies=[Depends(require_role(["ADMIN", "OPERATOR", "VIEWER"])), Depends(aplicar_rate_limit)])
-async def obter_alertas_meteorologicos_regiao(precipitacao_mm: float = 65.0, rajada_vento_kmh: float = 40.0):
+async def obter_alertas_meteorologicos_regiao(precipitacao_mm: float = Query(65.0, ge=0, le=1000), rajada_vento_kmh: float = Query(40.0, ge=0, le=300)):
     alerta = SevereWeatherEngine.parse_alert_severity(precipitacao_mm, rajada_vento_kmh)
     return {
         "fonte": "Motor de Classificacao Parametrizada SPRain",
