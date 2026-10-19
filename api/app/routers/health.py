@@ -1,8 +1,9 @@
 import time
 import logging
 import asyncpg
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Response, status
 from app.config import settings
+from app.services.manutencao import estado_manutencao
 import app.database as db
 
 router = APIRouter(prefix="/api/v1/health", tags=["health"])
@@ -46,6 +47,13 @@ async def check_liveness():
         "timestamp": time.time(),
         "servico": "sprain_api"
     }
+
+
+@router.get("/manutencao")
+async def consultar_manutencao(response: Response):
+    """Aviso público planejado; não mede saúde da API nem bloqueia tráfego."""
+    response.headers["Cache-Control"] = "no-store"
+    return estado_manutencao()
 
 @router.get("/readiness", status_code=status.HTTP_200_OK)
 async def check_readiness():

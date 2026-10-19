@@ -16,6 +16,9 @@ class Settings(BaseSettings):
 
     API_KEYS: str = ""
     CORS_ORIGINS: str = ""
+    MANUTENCAO_INICIO: str = ""
+    MANUTENCAO_FIM: str = ""
+    MANUTENCAO_AVISO: str = ""
 
     @property
     def ambiente_atual(self) -> str:
