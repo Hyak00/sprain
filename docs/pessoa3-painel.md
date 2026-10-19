@@ -46,7 +46,7 @@ O cliente não concede novas permissões. POSTs de consulta já autorizados pelo
 - GET /api/v1/ocorrencias/ativas: eventos com fonte, confiança, status, atualização e expiração. Apresentar natureza da informação e limitações; não substituir por um percentual fixo da interface.
 - POST /api/v1/alertas/feedback e GET /api/v1/alertas/precisao: feedback/indicadores por empresa. O POST exige ID de evento já existente; não resolve sozinho o reporte de um evento que nunca foi cadastrado.
 - GET /api/v1/indicadores/qualidade e /api/v1/dados-publicos/fontes: fontes e informações de atualização. Prazo/cobertura retornados não devem ser apresentados como homologação completa de todas as fontes.
-- POST /api/v1/transito/comparar: trânsito pode devolver indisponibilidade. Não substituir por “trânsito livre”.
+- POST /api/v1/transito/comparar: em desenvolvimento/testes retorna apenas estimativa de percurso do OSRM (`tempo_estimado_min`), sem trânsito observado (`tempo_observado_min: null`); em produção pode devolver 502. Não substituir por “trânsito livre”.
 - POST/GET /api/v1/cliente/operacoes: registro de viagens/atrasos; não equivale ao cadastro roteável de corredor com geometria e recorrência.
 - POST /api/v1/demonstracao/cenario-historico-sp310: protegido para ADMIN e bloqueado em produção. Antes da apresentação como reconstrução histórica, confirmar com a Pessoa 1 a fonte primária do evento, associação dos trechos e ausência de distâncias substitutas quando o roteador não retorna caminho. O endpoint atual contém valores de fallback; a interface ainda não o oferece como demonstração homologada.
 
