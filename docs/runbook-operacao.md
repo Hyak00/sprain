@@ -30,7 +30,11 @@ o startup com credenciais de exemplo. Nunca contornar essa validação.
 3. Construir/testar imagem do commit aprovado. Em homologação isolada:
    `docker compose -f compose.demo.yml up -d --build --wait`.
    Em produção usar a imagem imutável e configuração aprovadas para o ambiente;
-   não copiar senhas/volumes da demonstração.
+   não copiar senhas/volumes da demonstração. Se usar o build do
+   `docker-compose.prod.yml`, definir `SPRAIN_BUILD_COMMIT` com os 40 caracteres
+   do commit aprovado antes de gerar a configuração ou a imagem; o Compose
+   recusa o build sem essa variável. O identificador não prova que a árvore de
+   trabalho está limpa nem substitui a conferência do digest da imagem.
 4. Aplicar rollout por serviço após backup e plano de rollback. Executar
    readiness/liveness, login individual, leitura da empresa, consulta de rota,
    decisão de ensaio autorizada e relatório. Conferir dados de outra empresa
