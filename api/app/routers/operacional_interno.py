@@ -25,7 +25,9 @@ def idade(data, agora):
 async def fontes(response:Response,conn=Depends(get_connection)):
     response.headers['Cache-Control']='no-store'
     agora=datetime.now(timezone.utc)
-    publicas=await conn.fetch('SELECT nome,ultimo_sucesso_em,registros_importados FROM fontes_dados_externos ORDER BY nome')
+    publicas=await conn.fetch('''SELECT nome,ultimo_sucesso_em,registros_importados,
+        resumo_importacao->>'data_registro_mais_recente' AS data_registro_mais_recente
+        FROM fontes_dados_externos ORDER BY nome''')
     meteorologia=await conn.fetch('''SELECT f.id_fonte,f.nome,f.tipo,f.frequencia_minutos,
         count(e.id_estacao)::int AS estacoes,
         count(l.data_referencia)::int AS com_leitura,
@@ -39,7 +41,8 @@ async def fontes(response:Response,conn=Depends(get_connection)):
     for f in publicas:
         minutos=idade(f['ultimo_sucesso_em'],agora)
         itens.append({'id':f['nome'],'nome':f['nome'],'tipo':'DADOS_PUBLICOS','referencia_em':f['ultimo_sucesso_em'],
-            'idade_minutos':minutos,'criterio':'Última importação bem-sucedida; critério agregado de 48 h, não SLA homologado.',
+            'data_registro_mais_recente':f['data_registro_mais_recente'],
+            'idade_minutos':minutos,'criterio':'Última verificação/importação bem-sucedida; a data do registro mais recente é separada. Critério agregado de 48 h, não SLA homologado.',
             'limite_minutos':2880,'status':'SEM_DATA_VALIDA' if minutos is None else 'ATRASADA' if minutos>2880 else 'NO_CRITERIO',
             'registros':f['registros_importados']})
     for f in meteorologia:

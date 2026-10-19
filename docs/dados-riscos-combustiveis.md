@@ -15,9 +15,16 @@ as consultas de rota leem apenas o PostGIS.
 | Roubo de carga | [SSP-SP, estatisticas trimestrais](https://www.ssp.sp.gov.br/estatistica/dados-trimestrais) | Contagens por Capital, Grande SP, 10 DEINTERs e Estado. As 12 regioes policiais nao se sobrepoem; os totais sao conferidos a cada carga. Nao ha localizacao por via nem denominador de viagens/cargas para calcular taxa de risco. |
 
 Nao colocar snapshots desses dados no Git. A API exibe a URL da fonte e a data
-observada; `GET /api/v1/dados-publicos/fontes` informa a ultima importacao.
+observada; `GET /api/v1/dados-publicos/fontes` separa a ultima verificacao
+bem-sucedida (`ultimo_sucesso_em`) da data do registro mais recente
+(`data_registro_mais_recente`). Esta ultima representa a ocorrencia da ARTESP,
+a coleta da ANP ou o fim do periodo estatistico da SSP. Pode ser nula no
+cadastro de postos da ANP e em importacoes anteriores a este campo; uma nova
+verificacao preenche o resumo sem precisar regravar registros inalterados.
 Falha de download/importacao termina com codigo de erro, preservando o ultimo
-conjunto valido. Monitore a saida e a idade de `ultimo_sucesso_em`.
+conjunto valido. Monitore a saida, a idade de `ultimo_sucesso_em` e,
+separadamente, a data do registro mais recente. Uma verificacao recente nao
+transforma dados historicos em dados atuais.
 
 ## Preparar e validar
 
@@ -136,7 +143,7 @@ Todos os endpoints exigem uma API key B2B com perfil `ADMIN`, `OPERATOR` ou
 
 | Endpoint | Uso |
 | --- | --- |
-| `GET /api/v1/dados-publicos/fontes` | Procedencia e ultimo sucesso. |
+| `GET /api/v1/dados-publicos/fontes` | Procedencia, ultima verificacao e data do registro mais recente, quando disponivel. |
 | `GET /api/v1/dados-publicos/tombamentos?bbox=min_lon,min_lat,max_lon,max_lat` | Pontos historicos da ARTESP em GeoJSON. |
 | `GET /api/v1/dados-publicos/tombamentos/por-rodovia` | Contagem por rodovia, sem inferir probabilidade. |
 | `GET /api/v1/dados-publicos/postos?produto=DIESEL%20S10&municipio=CAMPINAS` | Postos cadastrados e ultimo preco coletado, quando houver. Coordenadas ANP sao candidatas e marcadas como nao confirmadas. Use `bbox` e observe `truncado` no mapa. |

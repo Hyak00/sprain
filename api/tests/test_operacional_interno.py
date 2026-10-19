@@ -54,24 +54,38 @@ async def test_importacoes_paginadas_isolam_empresas_e_preservam_logs_publicos()
 async def test_fontes_separam_cobertura_coleta_e_referencia_sem_fingir_atualidade():
     agora=datetime.now(timezone.utc);conn=AsyncMock()
     conn.fetch.side_effect=[[
-        {'nome':'Sem sucesso','ultimo_sucesso_em':None,'registros_importados':0},
-        {'nome':'Antiga','ultimo_sucesso_em':agora-timedelta(days=4),'registros_importados':2}],
+        {'nome':'Sem sucesso','ultimo_sucesso_em':None,'registros_importados':0,'data_registro_mais_recente':None},
+        {'nome':'Antiga','ultimo_sucesso_em':agora-timedelta(days=4),'registros_importados':2,'data_registro_mais_recente':'2025-12-31'}],
         [{'id_fonte':'MET','nome':'Estação','tipo':'OBSERVACAO','frequencia_minutos':30,'estacoes':2,'com_leitura':1,
           'referencia_mais_antiga':agora-timedelta(hours=2),'ultima_coleta':agora,'validade_mais_curta':agora-timedelta(hours=1)}]]
     conn.fetchrow.return_value={'total':6,'com_leitura':0,'mais_antiga':None}
     d=await fontes(Response(),conn);status={f['id']:f['status'] for f in d['fontes']}
     assert status=={'Sem sucesso':'SEM_DATA_VALIDA','Antiga':'ATRASADA','MET':'COBERTURA_INCOMPLETA','OPEN_METEO_CORREDOR':'COBERTURA_INCOMPLETA'}
+    assert d['fontes'][1]['data_registro_mais_recente']=='2025-12-31'
     assert d['fontes'][2]['idade_minutos']>=120 and d['integracoes'][0]['status']=='DESATIVADA'
 
 
 @pytest.mark.asyncio
 async def test_indicador_legado_recusa_data_nula_e_futura():
     conn=AsyncMock();conn.fetchval.return_value=0
-    conn.fetch.return_value=[{'nome':'X','registros_importados':0,'ultimo_sucesso_em':None,'horas_desde_ultima_atualizacao':None},
-        {'nome':'Futuro','registros_importados':1,'ultimo_sucesso_em':datetime.now(timezone.utc)+timedelta(days=1),'horas_desde_ultima_atualizacao':-24}]
+    conn.fetch.return_value=[{'nome':'X','registros_importados':0,'ultimo_sucesso_em':None,'data_registro_mais_recente':None,'horas_desde_ultima_atualizacao':None},
+        {'nome':'Futuro','registros_importados':1,'ultimo_sucesso_em':datetime.now(timezone.utc)+timedelta(days=1),'data_registro_mais_recente':'2025-12-31','horas_desde_ultima_atualizacao':-24}]
     d=await obter_indicadores_qualidade(conn)
     assert d['percentual_fontes_atualizadas_prazo']==0
     assert all(f['status_prazo']=='SEM_DATA_VALIDA' and f['horas_desde_ultima_atualizacao'] is None for f in d['detalhamento_fontes'])
+    assert d['detalhamento_fontes'][1]['data_registro_mais_recente']=='2025-12-31'
+
+
+@pytest.mark.asyncio
+async def test_verificacao_recente_nao_muda_data_do_registro():
+    conn=AsyncMock();conn.fetchval.return_value=0
+    conn.fetch.return_value=[{'nome':'SSP','registros_importados':10,
+        'ultimo_sucesso_em':datetime.now(timezone.utc),'data_registro_mais_recente':'2025-12-31',
+        'horas_desde_ultima_atualizacao':0.1}]
+    d=await obter_indicadores_qualidade(conn)
+    assert d['detalhamento_fontes'][0]['status_prazo']=='ATUALIZADA'
+    assert d['detalhamento_fontes'][0]['data_registro_mais_recente']=='2025-12-31'
+    assert 'verificacao' in d['aviso']
 
 
 def test_auditoria_persiste_sucesso_parcial_falha_e_nao_grava_segredos():

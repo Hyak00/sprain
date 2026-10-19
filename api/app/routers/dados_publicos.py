@@ -34,10 +34,11 @@ def limites_bbox(bbox: str | None) -> tuple[float, float, float, float] | None:
 
 @router.get("/fontes")
 async def listar_fontes(conn=Depends(get_connection)):
-    linhas = await conn.fetch("""SELECT nome,url,hash_sha256,registros_importados,ultimo_sucesso_em
+    linhas = await conn.fetch("""SELECT nome,url,hash_sha256,registros_importados,ultimo_sucesso_em,
+        resumo_importacao->>'data_registro_mais_recente' AS data_registro_mais_recente
         FROM fontes_dados_externos ORDER BY nome""")
     return {"fontes": [dict(linha) for linha in linhas],
-            "aviso": "Ausencia de fonte ou importacao antiga nao equivale a ausencia de risco."}
+            "aviso": "Ultimo sucesso indica verificacao/importacao, nao a data do dado. Data do registro mais recente pode estar ausente em importacoes antigas. Ausencia de fonte nao equivale a ausencia de risco."}
 
 
 @router.get("/tombamentos")

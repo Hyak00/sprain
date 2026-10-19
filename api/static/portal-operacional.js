@@ -108,11 +108,12 @@
         const dados=respostas.map(r=>r.status==='fulfilled'?r.value:null),[q,f,live,ready,precisao,metricas]=dados;
         el(p,'p','Consulta recebida em '+D.data(new Date().toISOString())+'. Uma falha de serviço ou fonte não significa ausência de risco.');
         tabela(p,['Serviço','Situação'],[['API',live?.status||'Indisponível'],['Banco / malha',ready?.status||'Indisponível'],['Latência do banco (ms)',ready?.latencia_db_ms],['Critério agregado da API',q?.status_geral||'Indisponível']]);
-        el(p,'h4','Fontes e idade dos dados');
-        if(Array.isArray(f?.fontes)&&f.fontes.length)tabela(p,['Fonte','Última importação bem-sucedida','Idade','Registros'],f.fontes.map(s=>{
+        el(p,'h4','Fontes e verificações');
+        if(Array.isArray(f?.fontes)&&f.fontes.length)tabela(p,['Fonte','Última verificação bem-sucedida','Idade da verificação','Registro mais recente','Registros'],f.fontes.map(s=>{
             const tempo=Date.parse(s.ultimo_sucesso_em),horas=(Date.now()-tempo)/3600000;
-            return [s.nome,D.data(s.ultimo_sucesso_em),!Number.isFinite(horas)||horas<0?'Data ausente/inconsistente':horas.toFixed(1)+' h',s.registros_importados];
+            return [s.nome,D.data(s.ultimo_sucesso_em),!Number.isFinite(horas)||horas<0?'Data ausente/inconsistente':horas.toFixed(1)+' h',D.dataCalendario(s.data_registro_mais_recente),s.registros_importados];
         }));else mensagem(p,Array.isArray(f?.fontes)?'Nenhuma fonte cadastrada/importada foi retornada.':'Consulta de fontes indisponível.');
+        el(p,'p','A data do registro é a da ocorrência, coleta de preço ou fim do período estatístico. Para cadastro de postos ou importações antigas ela pode não estar disponível.');
         el(p,'p','Último sucesso não comprova ausência de falhas posteriores. O Painel operacional interno apresenta a auditoria instrumentada e os erros recentes para ADMIN.');
         if(q){const detalhes=el(p,'details');el(detalhes,'summary','Classificação de prazo declarada pela API');el(detalhes,'pre',JSON.stringify(q,null,2));}
         el(p,'h4','Qualidade a partir do feedback da empresa');
