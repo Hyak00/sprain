@@ -29,6 +29,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        SPRAIN_BUILD_COMMIT: ${SPRAIN_BUILD_COMMIT:?defina o SHA completo do commit aprovado}
     container_name: sprain_api_prod
     restart: always
     environment:
