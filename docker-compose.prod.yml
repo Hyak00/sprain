@@ -68,6 +68,37 @@ services:
           cpus: '0.5'
           memory: 512M
 
+  dados-publicos:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SPRAIN_BUILD_COMMIT: ${SPRAIN_BUILD_COMMIT:?defina o SHA completo do commit aprovado}
+    profiles: ["dados"]
+    restart: unless-stopped
+    command: ["python", "-B", "/app/scripts/worker_dados_publicos.py"]
+    environment:
+      ENVIRONMENT: production
+      DB_HOST: sprain_db
+      DB_PORT: "5432"
+      DB_USER: ${DB_USER:?defina DB_USER no .env.prod}
+      DB_PASSWORD: ${DB_PASSWORD:?defina DB_PASSWORD no .env.prod}
+      DB_NAME: ${DB_NAME:?defina DB_NAME no .env.prod}
+      SPRAIN_INFRA_TENANT: ${SPRAIN_INFRA_TENANT:-}
+      DADOS_PUBLICOS_INTERVALO_HORAS: ${DADOS_PUBLICOS_INTERVALO_HORAS:-24}
+      WEBHOOK_ALERTA_DADOS: ${WEBHOOK_ALERTA_DADOS:-}
+    depends_on:
+      sprain_db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-B", "/app/scripts/worker_status.py"]
+      interval: 60s
+      timeout: 5s
+      start_period: 2m
+      retries: 2
+    networks:
+      - sprain_prod_net
+
 networks:
   sprain_prod_net:
     driver: bridge
