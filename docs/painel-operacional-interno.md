@@ -13,6 +13,9 @@ de outros clientes. OPERATOR e VIEWER conservam a seção Qualidade e serviços.
   meteorológicas cadastradas e o corredor Open-Meteo. Exibe natureza, referência,
   idade na consulta, prazo, cobertura e critérios. Sem data/fuso válido ou data
   futura não vira zero de idade. Estações sem leitura geram cobertura incompleta.
+  A mesma resposta traz `tentativas_dados_publicos`: a última tentativa auditada
+  por importador público, mesmo se nenhuma fonte daquele grupo foi importada.
+  Uma falha posterior não altera a data do último sucesso.
 - Importações e falhas: `/api/v1/operacional/importacoes`, com filtro por estado
   e paginação de 25 registros; `/api/v1/infraestrutura/malha/importacoes` mostra
   até 100 importações concluídas da empresa, com estado ativo/desativado.

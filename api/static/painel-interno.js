@@ -37,6 +37,14 @@
    const detalhes=el(areas.fontes,'details');el(detalhes,'summary','Critérios, validade e coleta por fonte');
    fontes.fontes.forEach(f=>el(detalhes,'p',f.nome+': '+f.criterio+(f.tipo==='DADOS_PUBLICOS'?' Registro mais recente: '+D.dataCalendario(f.data_registro_mais_recente)+'.':'')+' Coleta: '+data(f.ultima_coleta_em)+'. Validade mais curta: '+data(f.validade_mais_curta)+'.'));
    aviso(areas.fontes,fontes.aviso||'Cobertura não informada.');
+   el(areas.fontes,'h5','Última tentativa por importador público');
+   const tentativas=fontes.tentativas_dados_publicos;
+   if(Array.isArray(tentativas)){
+    if(!tentativas.length)aviso(areas.fontes,'Nenhuma tentativa de importação pública instrumentada foi registrada.');
+    else tabela(areas.fontes,['Importador','Resultado da tentativa','Início','Término','Código de falha'],tentativas.map(t=>[
+     t.fonte,rotulos[t.status]||'Estado desconhecido',data(t.iniciado_em),data(t.encerrado_em),t.motivo_codigo||'Não informado']));
+    el(areas.fontes,'p','Uma tentativa com falha pode ocorrer após uma importação bem-sucedida. Sem término registrado não confirma que o processo ainda esteja em execução.');
+   }else aviso(areas.fontes,'Resumo das tentativas indisponível nesta consulta.');
   }else falha(areas.fontes,0);
   origem(areas.servicos,caminhos[5]+' e '+caminhos[6],recebido);
   tabela(areas.servicos,['Serviço','Situação','Latência / interpretação'],[

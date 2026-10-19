@@ -37,6 +37,11 @@ async def fontes(response:Response,conn=Depends(get_connection)):
         LEFT JOIN LATERAL (SELECT data_referencia,coletado_em,validade_ate FROM leituras_meteorologicas
             WHERE id_estacao=e.id_estacao ORDER BY data_referencia DESC LIMIT 1) l ON true
         GROUP BY f.id_fonte ORDER BY f.nome''')
+    tentativas=await conn.fetch('''SELECT DISTINCT ON (fonte)
+        fonte,status,iniciado_em,encerrado_em,motivo_codigo
+        FROM monitor_importacoes
+        WHERE tenant_id IS NULL AND fonte ~ '^DADOS_PUBLICOS(/|$)'
+        ORDER BY fonte,iniciado_em DESC,id DESC''')
     itens=[]
     for f in publicas:
         minutos=idade(f['ultimo_sucesso_em'],agora)
@@ -65,7 +70,9 @@ async def fontes(response:Response,conn=Depends(get_connection)):
             'SEM_DATA_VALIDA' if minutos is None else 'ATRASADA' if minutos>60 else 'NO_CRITERIO',
         'criterio':'Atualização mais antiga entre os segmentos; critério de 60 min do relatório intermunicipal. Não é observação em campo.',
         'segmentos':corredor['total'],'com_leitura':corredor['com_leitura']})
-    return {'consultado_em':agora,'fontes':itens,'escopo':'METADADOS_DE_FONTES_PUBLICAS',
+    return {'consultado_em':agora,'fontes':itens,
+        'tentativas_dados_publicos':[dict(t) for t in tentativas],
+        'escopo':'METADADOS_DE_FONTES_PUBLICAS',
         'integracoes':[{'nome':'Escrita automática CGE','status':'DESATIVADA','motivo':'Associação geográfica ainda não validada; endpoint de sincronização retorna 503.'}],
         'aviso':'Idade da importação não informa a idade de cada ocorrência. Dentro do critério não comprova cobertura ou segurança.'}
 
