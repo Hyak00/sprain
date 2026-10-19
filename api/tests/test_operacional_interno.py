@@ -57,11 +57,26 @@ async def test_fontes_separam_cobertura_coleta_e_referencia_sem_fingir_atualidad
         {'nome':'Sem sucesso','ultimo_sucesso_em':None,'registros_importados':0},
         {'nome':'Antiga','ultimo_sucesso_em':agora-timedelta(days=4),'registros_importados':2}],
         [{'id_fonte':'MET','nome':'Estação','tipo':'OBSERVACAO','frequencia_minutos':30,'estacoes':2,'com_leitura':1,
-          'referencia_mais_antiga':agora-timedelta(hours=2),'ultima_coleta':agora,'validade_mais_curta':agora-timedelta(hours=1)}]]
+          'referencia_mais_antiga':agora-timedelta(hours=2),'ultima_coleta':agora,'validade_mais_curta':agora-timedelta(hours=1)}],
+        [{'fonte':'DADOS_PUBLICOS/anp','status':'FALHA','iniciado_em':agora,
+          'encerrado_em':agora,'motivo_codigo':'EXECUCAO_INTERROMPIDA'}]]
     conn.fetchrow.return_value={'total':6,'com_leitura':0,'mais_antiga':None}
     d=await fontes(Response(),conn);status={f['id']:f['status'] for f in d['fontes']}
     assert status=={'Sem sucesso':'SEM_DATA_VALIDA','Antiga':'ATRASADA','MET':'COBERTURA_INCOMPLETA','OPEN_METEO_CORREDOR':'COBERTURA_INCOMPLETA'}
     assert d['fontes'][2]['idade_minutos']>=120 and d['integracoes'][0]['status']=='DESATIVADA'
+    assert d['tentativas_dados_publicos'][0]['status']=='FALHA'
+    assert 'tenant_id IS NULL' in conn.fetch.call_args_list[2].args[0]
+
+
+@pytest.mark.asyncio
+async def test_falha_inicial_aparece_mesmo_sem_fonte_importada():
+    agora=datetime.now(timezone.utc);conn=AsyncMock()
+    conn.fetch.side_effect=[[],[],[{'fonte':'DADOS_PUBLICOS/anp','status':'FALHA',
+        'iniciado_em':agora,'encerrado_em':agora,'motivo_codigo':'EXECUCAO_INTERROMPIDA'}]]
+    conn.fetchrow.return_value={'total':0,'com_leitura':0,'mais_antiga':None}
+    d=await fontes(Response(),conn)
+    assert not any(f['tipo']=='DADOS_PUBLICOS' for f in d['fontes'])
+    assert d['tentativas_dados_publicos'][0]['status']=='FALHA'
 
 
 @pytest.mark.asyncio
