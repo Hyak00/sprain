@@ -68,6 +68,21 @@ jobs:
           docker compose -f compose.e2e.yml up -d --build --wait
           docker compose -f compose.e2e.yml exec -T api python /app/scripts/seed_testes_painel.py
 
+      - name: Measure Basic Route and Risk Load
+        env:
+          SPRAIN_API_KEY: key_viewer_demo
+        run: |
+          python3 scripts/medir_carga_api.py --saida test-results/carga-api.json
+
+      - name: Preserve Load Measurement
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: carga-api
+          path: test-results/carga-api.json
+          retention-days: 7
+          if-no-files-found: ignore
+
       - name: Test Main Panel Flows in Chromium
         run: npm run test:e2e
 
