@@ -51,6 +51,8 @@ O CI executa as duas suítes e preserva falhas por sete dias.
 O workflow `.github/workflows/sprain_ci.yml` cria banco exclusivo no runner,
 aplica `db/ci/*.sql`, instala ferramentas de teste e executa `pytest tests/ -v`
 dentro de `/app/api`. Reproduza esse procedimento em ambiente descartável.
+O CI também cria e verifica um dump desse banco descartável e o restaura em um
+banco novo no runner, comparando uma contagem de dados e a extensão PostGIS.
 **Não execute pytest no banco operacional nem no demo que alguém estiver usando:**
 há testes que alteram eventos e cadastros.
 

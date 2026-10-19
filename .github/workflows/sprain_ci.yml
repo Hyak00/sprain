@@ -57,6 +57,23 @@ jobs:
           docker exec sprain_api python -m pip install --user pytest pytest-asyncio httpx
           docker exec -w /app/api sprain_api python -m pytest tests/ -v
 
+      - name: Verify Backup and Restore in a New CI Database
+        run: |
+          set -euo pipefail
+          backup_dir="$(mktemp -d "${RUNNER_TEMP}/sprain-backup-XXXXXX")"
+          python3 scripts/postgres_backup.py backup \
+            --container sprain_db --database enchentes --user enchentes --output-dir "$backup_dir"
+          python3 scripts/postgres_backup.py verify-latest \
+            --database enchentes --output-dir "$backup_dir" --max-age-hours 1
+          backup_file="$(find "$backup_dir" -maxdepth 1 -name '*.dump' -print -quit)"
+          test -n "$backup_file"
+          python3 scripts/postgres_backup.py restore \
+            --container sprain_db --user enchentes --new-database sprain_restore_ci --backup "$backup_file"
+          source_count="$(docker exec sprain_db psql -v ON_ERROR_STOP=1 -U enchentes -d enchentes -tA -c 'SELECT count(*) FROM trechos_osm')"
+          restored_count="$(docker exec sprain_db psql -v ON_ERROR_STOP=1 -U enchentes -d sprain_restore_ci -tA -c 'SELECT count(*) FROM trechos_osm')"
+          test "$source_count" = "$restored_count"
+          docker exec sprain_db psql -v ON_ERROR_STOP=1 -U enchentes -d sprain_restore_ci -tA -c 'SELECT PostGIS_Version()' | grep -q .
+
       - name: Test Panel Session and Request Isolation
         run: |
           npm ci --ignore-scripts --no-audit --no-fund

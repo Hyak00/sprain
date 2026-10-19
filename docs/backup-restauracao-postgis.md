@@ -67,6 +67,12 @@ rotina de produção ainda faltam agendamento, retenção, cópia externa proteg
 destino para os alertas e testes periódicos de restauração. Não considere um
 backup operacional até verificar uma restauração com dados reais do ambiente.
 
+O CI executa `backup`, `verify-latest` e `restore` após os testes de API, em um
+banco novo chamado `sprain_restore_ci` no PostgreSQL descartável do runner.
+Compara a contagem de `trechos_osm` entre origem e cópia e consulta a extensão
+PostGIS restaurada. Esse ensaio verifica o caminho básico a cada PR; não valida
+retenção, cópia externa ou restauração do banco de produção.
+
 `scripts/check_deploy.ps1` faz apenas verificações básicas de Compose e
 readiness. Ele não roda testes contra um banco em uso nem afirma que uma
 implantação está pronta para produção.
