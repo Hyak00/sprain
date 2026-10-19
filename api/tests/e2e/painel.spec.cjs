@@ -107,7 +107,8 @@ test('UX: menu principal e configuração do primeiro cliente persistem o aceite
  await page.locator('#ux-navegacao').getByRole('button',{name:'Configurar primeiro cliente',exact:true}).click();
  await expect(page.getByRole('heading',{name:'Configurar primeiro cliente',exact:true})).toBeVisible();
  const iniciar=page.getByRole('button',{name:'Iniciar configuração do cliente',exact:true});
- if(await iniciar.isVisible())await iniciar.click();
+ await expect(iniciar).toBeVisible();await iniciar.click();
+ await expect(page.getByRole('heading',{name:'Configuração em andamento',exact:true})).toBeVisible();
  await expect(page.getByRole('button',{name:'Consultar viagens',exact:true})).toBeVisible();
  await page.getByRole('button',{name:'Consultar viagens',exact:true}).click();
  await expect(page.getByRole('row',{name:/^Inspecionar/}).first()).toBeVisible({timeout:45000});
