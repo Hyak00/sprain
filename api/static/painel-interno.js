@@ -35,7 +35,7 @@
     f.nome+' · '+f.tipo,data(f.referencia_em),idade(f.idade_minutos),rotulos[f.status]||'Situação desconhecida',
     'Limite: '+valor(f.limite_minutos)+' min; '+(f.estacoes!==undefined?valor(f.com_leitura)+'/'+valor(f.estacoes)+' estações':f.segmentos!==undefined?valor(f.com_leitura)+'/'+valor(f.segmentos)+' segmentos':valor(f.registros)+' registros')]));
    const detalhes=el(areas.fontes,'details');el(detalhes,'summary','Critérios, validade e coleta por fonte');
-   fontes.fontes.forEach(f=>el(detalhes,'p',f.nome+': '+f.criterio+' Coleta: '+data(f.ultima_coleta_em)+'. Validade mais curta: '+data(f.validade_mais_curta)+'.'));
+   fontes.fontes.forEach(f=>el(detalhes,'p',f.nome+': '+f.criterio+(f.tipo==='DADOS_PUBLICOS'?' Registro mais recente: '+D.dataCalendario(f.data_registro_mais_recente)+'.':'')+' Coleta: '+data(f.ultima_coleta_em)+'. Validade mais curta: '+data(f.validade_mais_curta)+'.'));
    aviso(areas.fontes,fontes.aviso||'Cobertura não informada.');
   }else falha(areas.fontes,0);
   origem(areas.servicos,caminhos[5]+' e '+caminhos[6],recebido);
@@ -49,7 +49,7 @@
    else tabela(areas.servicos,['Rota / método','HTTP','Horário'],erros.map(e=>[e.metodo+' '+e.rota,e.status_code,finito(e.timestamp)?data(new Date(e.timestamp*1000).toISOString()):'Não informado']));
   }else falha(areas.servicos,4);
   origem(areas.qualidade,caminhos[1],recebido);
-  if(q){tabela(areas.qualidade,['Indicador agregado','Valor'],[['Status declarado pela API',q.status_geral],['Fontes dentro de 48 h (%)',q.detalhamento_fontes?.length?valor(q.percentual_fontes_atualizadas_prazo):'Sem fontes'],...Object.entries(q.total_registros_base||{})]);el(areas.qualidade,'p','O percentual de prazo usa 48 h apenas para fontes externas cadastradas. Não mede precisão das previsões.');}else falha(areas.qualidade,1);
+  if(q){tabela(areas.qualidade,['Indicador agregado','Valor'],[['Status declarado pela API',q.status_geral],['Verificações dentro de 48 h (%)',q.detalhamento_fontes?.length?valor(q.percentual_fontes_atualizadas_prazo):'Sem fontes'],...Object.entries(q.total_registros_base||{})]);el(areas.qualidade,'p','O percentual de prazo mede a última verificação das fontes externas cadastradas, não a idade de cada registro ou a precisão das previsões.');}else falha(areas.qualidade,1);
   origem(areas.qualidade,caminhos[2],recebido);
   if(precos){tabela(areas.qualidade,['Qualidade de preços','Valor'],[['Registros analisados',valor(precos.total_registros_analisados)],['Preços atípicos',precos.total_registros_analisados>0?valor(precos.alertas?.preco_atipico):'Sem amostra'],['Dados desatualizados',precos.total_registros_analisados>0?valor(precos.alertas?.dado_desatualizado):'Sem amostra']]);el(areas.qualidade,'p',precos.interpretacao||'Indicadores para revisão; não alteram preços originais.');}else falha(areas.qualidade,2);
   origem(areas.qualidade,caminhos[3],recebido);

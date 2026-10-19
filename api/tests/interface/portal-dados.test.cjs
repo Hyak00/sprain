@@ -1,5 +1,5 @@
 const{test}=require('node:test');const assert=require('node:assert/strict');const fs=require('node:fs');
-const{validarImportacao,csv,linhasDecisao,data}=require('../../static/portal-dados.js');const{gerar}=require('../../static/portal-pdf.js');
+const{validarImportacao,csv,linhasDecisao,data,dataCalendario}=require('../../static/portal-dados.js');const{gerar}=require('../../static/portal-pdf.js');
 const viagem=()=>({id_operacao:'NOVA_01',origem_nome:'Origem',origem_lat:-23.54,origem_lon:-46.46,destino_nome:'Destino',destino_lat:-23.55,destino_lon:-46.45,janela_inicio:'2026-10-20T08:00:00-03:00',janela_fim:'2026-10-20T12:00:00-03:00'});
 test('valida lote e preserva somente campos do contrato, sem injetar empresa',()=>{const v=viagem();const r=validarImportacao(JSON.stringify([{...v,tenant_id:'empresa'}]),'empresa');assert.deepEqual(r.erros,[]);assert.deepEqual(r.operacoes,[v]);});
 test('rejeita arquivo incompatível, enorme, vazio ou com excesso de operações',()=>{for(const t of ['<xml>','{}','[]',JSON.stringify(Array(101).fill(viagem())),' '.repeat(1024*1024+1)])assert.throws(()=>validarImportacao(t,'empresa'));});
@@ -10,6 +10,11 @@ test('rejeita empresa diferente, id duplicado, campos desconhecidos e coordenada
 test('janela exige fuso e calendário válido; fim anterior não é corrigido silenciosamente',()=>{
     for(const inicio of ['2026-02-30T08:00:00Z','2026-10-20T08:00:00','2026-10-20T24:00:00Z','ontem'])assert(validarImportacao(JSON.stringify([{...viagem(),janela_inicio:inicio}]),'e').erros.length);
     assert(validarImportacao(JSON.stringify([{...viagem(),janela_fim:'2026-10-19T12:00:00Z'}]),'e').erros.some(e=>e.mensagem.includes('posterior')));
+});
+test('data de registro não desloca dia por fuso nem aceita calendário inválido',()=>{
+    assert.equal(dataCalendario('2026-10-19'),'19/10/2026');
+    assert.equal(dataCalendario('2026-02-30'),'Não informada');
+    assert.equal(dataCalendario(null),'Não informada');
 });
 test('medidas são completas, com eixos inteiros, custos sem negativos e coleta válida',()=>{
     const r=validarImportacao(JSON.stringify([{...viagem(),dimensoes:{altura_m:4,eixos:2.5},custos_operacionais:{consumo_km_l:0,custo_por_km:-1,combustivel_data_coleta:'2026-02-30'}}]),'e');

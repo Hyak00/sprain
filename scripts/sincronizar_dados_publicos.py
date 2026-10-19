@@ -156,6 +156,9 @@ def ler_artesp(dados: bytes, url_fonte: str) -> tuple[list[dict], dict]:
             "visibilidade": _padronizar(linha.get("VISIBILIDADE")) or None,
         }
     resumo["com_caminhao"] = len(registros)
+    resumo["data_registro_mais_recente"] = (
+        max(r["data"] for r in registros.values()).isoformat() if registros else None
+    )
     return list(registros.values()), resumo
 
 def ler_anp(dados: bytes, url_fonte: str, uf: str = "SP") -> tuple[list[dict], dict]:
@@ -194,6 +197,9 @@ def ler_anp(dados: bytes, url_fonte: str, uf: str = "SP") -> tuple[list[dict], d
             "preco": preco, "url_fonte": url_fonte,
         })
     resumo["precos_validos"] = len(registros)
+    resumo["data_registro_mais_recente"] = (
+        max(r["data"] for r in registros).isoformat() if registros else None
+    )
     return registros, resumo
 
 def baixar_cadastro_anp() -> bytes:
@@ -308,7 +314,11 @@ def ler_roubo_agregado(dados: bytes, url_fonte: str) -> tuple[list[dict], dict]:
         registros.append({"id_fonte": _chave(url_fonte, nivel, area, inicio, fim),
                           "nivel": nivel, "area": area, "inicio": inicio, "fim": fim,
                           "ocorrencias": quantidade, "url_fonte": url_fonte})
-    return registros, {"agregados": len(registros), "sem_localizacao_pontual": len(registros)}
+    return registros, {
+        "agregados": len(registros),
+        "sem_localizacao_pontual": len(registros),
+        "data_registro_mais_recente": max(r["fim"] for r in registros).isoformat() if registros else None,
+    }
 
 class _TabelaSSP(HTMLParser):
     def __init__(self):
@@ -367,7 +377,8 @@ def ler_ssp_trimestral(dados: bytes, url_fonte: str) -> tuple[list[dict], dict]:
                           "nivel": nivel, "area": area, "inicio": inicio, "fim": fim,
                           "ocorrencias": valores[nome], "url_fonte": url_fonte})
     return registros, {"trimestre": f"{ano}-Q{trimestre}", "total_estado": valores["Estado"],
-                       "regioes_disjuntas": len(nomes), "agregados": len(registros)}
+                       "regioes_disjuntas": len(nomes), "agregados": len(registros),
+                       "data_registro_mais_recente": fim.isoformat()}
 
 class _Links(HTMLParser):
     def __init__(self):
@@ -470,7 +481,11 @@ def aplicar(fonte: str, url: str, dados: bytes, registros: list[dict], resumo: d
             cursor.execute("SELECT hash_sha256,registros_importados FROM fontes_dados_externos WHERE nome=%s", (fonte,))
             anterior = cursor.fetchone()
             if anterior and anterior[0] == sha and anterior[1] == len(registros):
-                cursor.execute("UPDATE fontes_dados_externos SET ultimo_sucesso_em=now() WHERE nome=%s", (fonte,))
+                cursor.execute(
+                    "UPDATE fontes_dados_externos SET ultimo_sucesso_em=now(), "
+                    "resumo_importacao=%s::jsonb WHERE nome=%s",
+                    (json.dumps(resumo), fonte),
+                )
                 return {"fonte": fonte, "sem_alteracoes": True, "registros": len(registros)}
             if fonte.startswith("ARTESP"):
                 if not registros or (anterior and anterior[1] and len(registros) < anterior[1] / 2):

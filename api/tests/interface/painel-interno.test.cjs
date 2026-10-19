@@ -3,7 +3,7 @@ const {parseHTML}=require('linkedom');
 async function ambiente({perfil='ADMIN',handler}={}){
  const {window}=parseHTML('<html><body><button data-secao="interno"></button><section id="conteudo"></section></body></html>');const {document}=window;let ativo=true;const chamadas=[];
  Object.defineProperty(window.HTMLSelectElement.prototype,'value',{configurable:true,get(){return this.querySelector('option[selected]')?.value||this.querySelector('option')?.value||'';},set(v){this.querySelectorAll('option').forEach(o=>o.toggleAttribute('selected',o.value===v));}});
- window.PainelSessao={perfil:()=>perfil};window.PortalDados={data:v=>v||'Não informado'};window.PortalOperacional={registrarSecao:()=>{}};
+ window.PainelSessao={perfil:()=>perfil};window.PortalDados={data:v=>v||'Não informado',dataCalendario:v=>v||'Não informada'};window.PortalOperacional={registrarSecao:()=>{}};
  vm.runInContext(fs.readFileSync(path.join(__dirname,'../../static/painel-interno.js'),'utf8'),vm.createContext({window,document,console,Date}));
  const ctx={atual:()=>ativo,recarregar:()=>{},obter:async(url,o)=>{chamadas.push({url,o});const h=handler?await handler(url,o):undefined;if(h!==undefined)return h;
   if(url.includes('/operacional/fontes'))return{consultado_em:'2026-10-17T12:00:00Z',fontes:[{nome:'Fonte <script>ruim</script>',tipo:'OBSERVACAO',idade_minutos:null,status:'SEM_DATA_VALIDA',limite_minutos:30,criterio:'Não é SLA',registros:0}],integracoes:[]};

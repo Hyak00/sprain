@@ -57,6 +57,10 @@
     }
     const moeda=v=>finito(v)?v.toLocaleString('pt-BR',{style:'currency',currency:'BRL'}):'Não informado';
     const data=v=>iso(v)?new Date(v).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo'})+' (Brasília)':'Não informado';
+    const dataCalendario=v=>{
+        if(typeof v!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(v)||!Number.isFinite(Date.parse(v))||new Date(v+'T00:00:00Z').toISOString().slice(0,10)!==v)return 'Não informada';
+        return v.slice(8,10)+'/'+v.slice(5,7)+'/'+v.slice(0,4);
+    };
     const dataRelatorio=v=>iso(v)?data(v):typeof v==='string'&&/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?$/.test(v)?v+' (fuso não registrado na fonte)':'Não informado';
     function linhasDecisao(op,historico,empresa,recebido){
         const f=op?.infraestrutura?.financeiro||{},m=op?.metricas||{};
@@ -102,6 +106,6 @@
         }
         return linhas;
     }
-    root.PortalDados={validarImportacao,csv,moeda,data,dataRelatorio,linhasDecisao};
+    root.PortalDados={validarImportacao,csv,moeda,data,dataCalendario,dataRelatorio,linhasDecisao};
     if(typeof module!=='undefined'&&module.exports)module.exports=root.PortalDados;
 })(typeof window!=='undefined'?window:globalThis);

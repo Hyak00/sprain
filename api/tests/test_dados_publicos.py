@@ -1,5 +1,6 @@
 import sys
 import json
+import hashlib
 import unittest
 from unittest.mock import MagicMock, patch
 from pathlib import Path
@@ -31,6 +32,7 @@ class FontesPublicasTest(unittest.TestCase):
         self.assertEqual(resumo["linhas"], 4)
         self.assertEqual(resumo["sem_caminhao"], 1)
         self.assertEqual(resumo["sem_coordenadas"], 1)
+        self.assertEqual(resumo["data_registro_mais_recente"], "2026-08-28")
         self.assertEqual(len(registros), 2)
         self.assertEqual(registros[0]["rodovia"], "SP-304")
         self.assertEqual(registros[0]["km"], 280.0)
@@ -65,6 +67,7 @@ class FontesPublicasTest(unittest.TestCase):
                "01/09/2026;6,99;CENTRO;24000000\n")
         registros, resumo = ler_anp(csv.encode(), "https://www.gov.br/anp/teste.csv")
         self.assertEqual(resumo["precos_validos"], 1)
+        self.assertEqual(resumo["data_registro_mais_recente"], "2026-09-01")
         self.assertEqual(registros[0]["produto"], "DIESEL S10")
         self.assertEqual(str(registros[0]["preco"]), "6.29")
         self.assertEqual(registros[0]["endereco"], "RUA A, 10")
@@ -88,6 +91,7 @@ class FontesPublicasTest(unittest.TestCase):
                "REGIAO,CAMPINAS,2025-01-01,2025-12-31,25\n")
         registros, resumo = ler_roubo_agregado(csv.encode(), "https://www.ssp.sp.gov.br/estatistica/spcarga")
         self.assertEqual(resumo["sem_localizacao_pontual"], 1)
+        self.assertEqual(resumo["data_registro_mais_recente"], "2025-12-31")
         self.assertNotIn("latitude", registros[0])
         with self.assertRaises(ValueError):
             ler_roubo_agregado(csv.replace(",25", ",-1").encode(), "https://www.ssp.sp.gov.br/estatistica/spcarga")
@@ -102,6 +106,7 @@ class FontesPublicasTest(unittest.TestCase):
         url = "https://www.ssp.sp.gov.br/assets/estatistica/trimestral/arquivos/2025-04.htm"
         registros, resumo = ler_ssp_trimestral(html, url)
         self.assertEqual(resumo["total_estado"], 9)
+        self.assertEqual(resumo["data_registro_mais_recente"], "2025-12-31")
         self.assertEqual(sum(r["ocorrencias"] for r in registros if r["nivel"] == "REGIAO"), 9)
         self.assertEqual(len(registros), 13)
         self.assertEqual(str(registros[0]["inicio"]), "2025-10-01")
@@ -204,6 +209,22 @@ class FontesPublicasTest(unittest.TestCase):
         self.assertEqual(len(atualizacoes), 1)
         self.assertIn("localizacao_verificada_em IS NULL OR localizacao_verificada_em <= %s",
                       atualizacoes[0])
+
+    def test_fonte_inalterada_atualiza_resumo_sem_regravar_precos(self):
+        from scripts.sincronizar_dados_publicos import aplicar
+        conn, cursor = MagicMock(), MagicMock()
+        conn.__enter__.return_value = conn
+        conn.cursor.return_value.__enter__.return_value = cursor
+        dados = b"mesma-fonte"
+        resumo = {"data_registro_mais_recente": "2026-10-09"}
+        cursor.fetchone.return_value = (hashlib.sha256(dados).hexdigest(), 1)
+        with patch("scripts.sincronizar_dados_publicos.conectar", return_value=conn):
+            resultado = aplicar("ANP_SEMANAL", "https://www.gov.br/anp/teste", dados, [{}], resumo)
+        self.assertTrue(resultado["sem_alteracoes"])
+        comandos = cursor.execute.call_args_list
+        atualizacao = next(c for c in comandos if "SET ultimo_sucesso_em=now()" in c.args[0])
+        self.assertEqual(json.loads(atualizacao.args[1][0]), resumo)
+        self.assertFalse(any("INSERT INTO precos_combustivel" in c.args[0] for c in comandos))
 
 if __name__ == "__main__":
     unittest.main()

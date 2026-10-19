@@ -10,6 +10,7 @@ router = APIRouter(prefix="/api/v1/indicadores", tags=["Indicadores de Dados"], 
 async def obter_indicadores_qualidade(conn: asyncpg.Connection = Depends(get_connection)):
     fontes = await conn.fetch("""
         SELECT nome, registros_importados, ultimo_sucesso_em,
+               resumo_importacao->>'data_registro_mais_recente' AS data_registro_mais_recente,
                EXTRACT(EPOCH FROM (now() - ultimo_sucesso_em))/3600 AS horas_desde_ultima_atualizacao
         FROM fontes_dados_externos
     """)
@@ -31,6 +32,7 @@ async def obter_indicadores_qualidade(conn: asyncpg.Connection = Depends(get_con
             "fonte": f["nome"],
             "registros_importados": f["registros_importados"],
             "ultimo_sucesso_em": f["ultimo_sucesso_em"].isoformat() if f['ultimo_sucesso_em'] else None,
+            "data_registro_mais_recente": f["data_registro_mais_recente"],
             "horas_desde_ultima_atualizacao": round(horas, 1) if valida else None,
             "status_prazo": "SEM_DATA_VALIDA" if not valida else "ATUALIZADA" if atualizada else "ATRASADA"
         })
@@ -46,5 +48,5 @@ async def obter_indicadores_qualidade(conn: asyncpg.Connection = Depends(get_con
             "trechos_osm": total_trechos
         },
         "detalhamento_fontes": lista_fontes,
-        "aviso": "Indicadores consolidados para auditoria operacional interna e consumo do painel."
+        "aviso": "O criterio de 48 h mede a ultima verificacao bem-sucedida, nao a idade dos registros ou a frequencia de publicacao da fonte."
     }
