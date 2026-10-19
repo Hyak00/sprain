@@ -59,6 +59,7 @@ irrestrita. Preservar atribuição OSM e a origem dos demais conjuntos.
 URLs específicas, datas e limitações dos conjuntos estão nos registros de fonte
 e nestes guias:
 
+- [Verificação das fontes públicas em 19/10/2026](documentacao_fontes.md).
 - [Dados de riscos e combustíveis](dados-riscos-combustiveis.md).
 - [Integração de dados de viagem](integracao-dados-viagem.md).
 - [Integração de caminhões](integracao-caminhoes.md).
