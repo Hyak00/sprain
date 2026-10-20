@@ -40,15 +40,15 @@ class SevereWeatherEngine:
         c = chuva or 0.0
         v = vento or 0.0
 
-        if v >= 75.0:
-            nivel = "VERMELHO_EXTRAORDINARIO"
-        elif v >= 55.0:
-            nivel = "LARANJA_SEVERO"
-        elif chuva is None:
+        if chuva is None:
             nivel = "INDISPONIVEL"
         else:
             nivel_chuva, _ = _classificar(c)
             nivel = nivel_chuva if nivel_chuva in CLASSIFICACAO else "VERDE_ESTAVEL"
+        if v >= 75.0 or nivel == "VERMELHO_EXTRAORDINARIO":
+            nivel = "VERMELHO_EXTRAORDINARIO"
+        elif v >= 55.0 or nivel == "LARANJA_SEVERO":
+            nivel = "LARANJA_SEVERO"
         risco, recomendacao = CLASSIFICACAO[nivel]
         return {
             "nivel_alerta": nivel,

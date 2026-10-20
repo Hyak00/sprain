@@ -13,6 +13,7 @@ def test_limiares_de_fronteira():
     assert avaliar(50.0, 10.0)["nivel_alerta"] == "LARANJA_SEVERO"
     assert avaliar(79.9, 10.0)["nivel_alerta"] == "LARANJA_SEVERO"
     assert avaliar(80.0, 10.0)["nivel_alerta"] == "VERMELHO_EXTRAORDINARIO"
+    assert avaliar(85.0, 60.0)["nivel_alerta"] == "VERMELHO_EXTRAORDINARIO"
     assert avaliar(10.0, 55.0)["nivel_alerta"] == "LARANJA_SEVERO"
     assert avaliar(10.0, 75.0)["nivel_alerta"] == "VERMELHO_EXTRAORDINARIO"
 
