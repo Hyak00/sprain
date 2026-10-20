@@ -1,0 +1,1 @@
+ALTER TABLE condicoes_corredor ADD COLUMN IF NOT EXISTS fonte_coleta VARCHAR(60) DEFAULT 'OPEN_METEO';
