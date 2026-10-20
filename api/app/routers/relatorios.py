@@ -215,7 +215,7 @@ async def obter_backtest_comercial(
     total = int(geral["total_corredor"] or 0)
     chuva = int(geral["chuva_corredor"] or 0)
     tombamentos = int(geral["tombamentos_chuva"] or 0)
-    pct_chuva = round((chuva / total * 100.0), 2) if total > 0 else 0.0
+    pct_chuva = round((chuva / total * 100.0), 2) if total > 0 else None
 
     distribuicao = [
         {
@@ -250,11 +250,15 @@ async def obter_backtest_comercial(
             "tombamentos_caminhao_sob_chuva": tombamentos,
             "percentual_sinistros_sob_chuva": pct_chuva
         },
+        "qualidade_dados": {
+            "status": "SEM_REGISTROS_NO_BANCO" if total == 0 else "COBERTURA_NAO_VERIFICADA",
+            "aviso": "Contagens do banco local para as tres rodovias; nao comprovam cobertura integral da base oficial nem causalidade da chuva."
+        },
         "distribuicao_rodovias": distribuicao,
         "principais_pontos_criticos_chuva": top_pontos,
         "proposta_valor_b2b": {
-            "reducao_esperada_sinistros_pct": 35.0,
-            "argumento_comercial": "Alertas preditivos de chuva critica e recomendacao automatica de desvio reduzem em ate 35% o risco de tombamentos e paradas nao programadas em trechos criticos de serra e convergencia metropolitana."
+            "reducao_esperada_sinistros_pct": None,
+            "argumento_comercial": "A reducao de sinistros ainda nao foi medida. Exige piloto com grupo de comparacao e cobertura historica validada."
         }
     }
 
@@ -263,7 +267,8 @@ async def obter_backtest_comercial(
         escritor = csv.writer(saida, delimiter=';')
         escritor.writerow(["METRICA", "VALOR", "DETALHE"])
         escritor.writerow(["TOTAL_SINISTROS_CAMINHAO", total, "Corredor Araraquara - SP"])
-        escritor.writerow(["SINISTROS_SOB_CHUVA", chuva, f"{pct_chuva}% do total"])
+        escritor.writerow(["SINISTROS_SOB_CHUVA", chuva,
+                          f"{pct_chuva}% do total" if pct_chuva is not None else "Percentual indisponivel: sem registros"])
         escritor.writerow(["TOMBAMENTOS_SOB_CHUVA", tombamentos, "Tombamentos diretos"])
         for d in distribuicao:
             escritor.writerow([f"RODOVIA_{d['rodovia']}", d["sinistros_sob_chuva"], f"{d['percentual_sob_chuva']}% sob chuva"])
@@ -340,9 +345,9 @@ th {{ background: rgb(248, 250, 252); color: rgb(71, 85, 105); font-weight: 600;
             <div class="rotulo">Sinistros Gravissimos</div>
         </div>
         <div class="card">
-            <div class="rotulo">Reducao Projetada</div>
-            <div class="numero">35%</div>
-            <div class="rotulo">Com Desvio Preventivo</div>
+            <div class="rotulo">Reducao de Sinistros</div>
+            <div class="numero">Ainda nao medida</div>
+            <div class="rotulo">Piloto necessario</div>
         </div>
     </div>
 

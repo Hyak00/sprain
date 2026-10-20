@@ -37,20 +37,15 @@ async def test_relatorio_backtest_comercial_json():
         assert resp.status_code == 200
         data = resp.json()
         assert "estatisticas_gerais" in data
-        assert "distribuicao_rodovias" in data
-        assert "principais_pontos_criticos_chuva" in data
+        totais = data["estatisticas_gerais"]
+        assert 0 <= totais["tombamentos_caminhao_sob_chuva"] <= totais["sinistros_sob_chuva_ou_pista_molhada"] <= totais["total_sinistros_caminhao"]
+        assert sum(r["total_sinistros"] for r in data["distribuicao_rodovias"]) == totais["total_sinistros_caminhao"]
+        assert len(data["principais_pontos_criticos_chuva"]) <= 5
+        if totais["total_sinistros_caminhao"] == 0:
+            assert totais["percentual_sinistros_sob_chuva"] is None
+            assert data["qualidade_dados"]["status"] == "SEM_REGISTROS_NO_BANCO"
         assert "proposta_valor_b2b" in data
-        assert data["proposta_valor_b2b"]["reducao_esperada_sinistros_pct"] > 0
-        total = data["estatisticas_gerais"]["total_sinistros_caminhao"]
-        assert total >= 0
-        assert data["estatisticas_gerais"]["sinistros_sob_chuva_ou_pista_molhada"] >= 0
-        assert data["estatisticas_gerais"]["tombamentos_caminhao_sob_chuva"] >= 0
-        if total > 0:
-            assert data["estatisticas_gerais"]["total_sinistros_caminhao"] == 9068
-            assert data["estatisticas_gerais"]["sinistros_sob_chuva_ou_pista_molhada"] == 741
-            assert data["estatisticas_gerais"]["tombamentos_caminhao_sob_chuva"] == 97
-            assert len(data["distribuicao_rodovias"]) == 3
-            assert len(data["principais_pontos_criticos_chuva"]) == 5
+        assert data["proposta_valor_b2b"]["reducao_esperada_sinistros_pct"] is None
 
 @pytest.mark.asyncio
 async def test_relatorio_backtest_comercial_csv():
@@ -75,3 +70,5 @@ async def test_relatorio_backtest_comercial_html():
         assert "SPRain Intelligence" in texto
         assert "Sinistros Sob Chuva" in texto
         assert "Total Sinistros Caminhao" in texto
+        assert "35%" not in texto
+        assert "Ainda nao medida" in texto
