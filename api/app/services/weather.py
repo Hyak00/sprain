@@ -1,9 +1,13 @@
+﻿import json
 import math
-from abc import ABC, abstractmethod
-import urllib.request
-import json
 import re
-from typing import Optional, Dict, Any
+import urllib.request
+from abc import ABC, abstractmethod
+from typing import Any, Dict, Optional
+
+TETO_CHUVA_MM = 1000.0
+FOLGA_RELOGIO_MIN = 5
+
 
 class WeatherService:
     def __init__(self, conn):
@@ -15,7 +19,8 @@ class WeatherService:
                 SELECT ST_Transform(geom, 4326) AS geom FROM trechos_osm WHERE id_trecho = $1
             ),
             estacao_proxima AS (
-                SELECT e.id_estacao, e.id_fonte, e.nome, f.tipo, f.frequencia_minutos,
+                SELECT e.id_estacao, e.id_fonte, e.nome, e.distancia_maxima_cobertura_m,
+                       f.tipo, f.frequencia_minutos,
                        ST_Distance(e.geom::geography, t.geom::geography) AS distancia_m
                 FROM estacoes_meteorologicas e
                 JOIN fontes_meteorologicas f ON e.id_fonte = f.id_fonte
@@ -24,14 +29,16 @@ class WeatherService:
                 ORDER BY e.geom <-> t.geom LIMIT 1
             ),
             leitura AS (
-                SELECT l.precipitacao_mm, l.data_referencia, l.coletado_em, l.validade_ate,
-                       EXTRACT(EPOCH FROM (now() - l.data_referencia))/60 AS idade_minutos
+                SELECT l.precipitacao_mm, l.data_referencia,
+                       EXTRACT(EPOCH FROM (now() - l.data_referencia))/60 AS idade_minutos,
+                       (l.validade_ate IS NOT NULL AND l.validade_ate < now()) AS expirada
                 FROM leituras_meteorologicas l
                 JOIN estacao_proxima ep ON l.id_estacao = ep.id_estacao
                 ORDER BY l.data_referencia DESC LIMIT 1
             )
-            SELECT ep.nome AS estacao, ep.id_fonte AS fonte, ep.tipo, ep.frequencia_minutos, ep.distancia_m,
-                   l.precipitacao_mm, l.data_referencia, l.idade_minutos, l.validade_ate
+            SELECT ep.nome AS estacao, ep.id_fonte AS fonte, ep.tipo, ep.frequencia_minutos,
+                   ep.distancia_m, ep.distancia_maxima_cobertura_m AS cobertura_m,
+                   l.precipitacao_mm, l.data_referencia, l.idade_minutos, l.expirada
             FROM estacao_proxima ep
             LEFT JOIN leitura l ON true;
         """
@@ -39,43 +46,80 @@ class WeatherService:
         if not row:
             return {"status": "DESCONHECIDO", "motivo_indisponivel": "Sem estacao proxima na regiao.", "precipitacao_mm": None}
 
-        if row["precipitacao_mm"] is None:
+        base = {
+            "estacao": row["estacao"],
+            "fonte": row["fonte"],
+            "tipo": row["tipo"],
+            "distancia_m": round(row["distancia_m"], 1),
+        }
+
+        if row["distancia_m"] > row["cobertura_m"]:
             return {
-                "status": "INDISPONIVEL",
-                "motivo_indisponivel": "Estacao ativa, mas sem leituras disponiveis.", "precipitacao_mm": None,
-                "estacao": row["estacao"],
-                "distancia_m": round(row["distancia_m"], 1),
+                **base,
+                "status": "FORA_DE_COBERTURA",
+                "motivo_indisponivel": f"Estacao a {int(row['distancia_m'])} m, alem da cobertura de {row['cobertura_m']} m.",
+                "precipitacao_mm": None,
             }
 
-        idade = row["idade_minutos"]
-        tolerancia = row["frequencia_minutos"] * 2
-
-        if idade > tolerancia:
+        if row["precipitacao_mm"] is None:
             return {
-                "status": "DESATUALIZADO",
-                "motivo_indisponivel": f"Dado antigo ({int(idade)} min). Tolerancia de seguranca: {tolerancia} min.",
-                "idade_minutos": int(idade),
-                "estacao": row["estacao"],
-                "fonte": row["fonte"],
-                "tipo": row["tipo"],
+                **base,
+                "status": "INDISPONIVEL",
+                "motivo_indisponivel": "Estacao ativa, mas sem leituras disponiveis.",
                 "precipitacao_mm": None,
-                "aviso": "Limitacao explicita: dado atual ausente. Nao havera estimativa insegura."
+            }
+
+        try:
+            valor = float(row["precipitacao_mm"])
+        except (TypeError, ValueError):
+            valor = math.nan
+        if not math.isfinite(valor) or valor < 0 or valor > TETO_CHUVA_MM:
+            return {
+                **base,
+                "status": "INDISPONIVEL",
+                "motivo_indisponivel": "Leitura de precipitacao invalida.",
+                "precipitacao_mm": None,
+            }
+
+        idade = float(row["idade_minutos"])
+        if idade < -FOLGA_RELOGIO_MIN:
+            return {
+                **base,
+                "status": "INDISPONIVEL",
+                "motivo_indisponivel": "Data de referencia da leitura esta no futuro.",
+                "precipitacao_mm": None,
+            }
+
+        tolerancia = row["frequencia_minutos"] * 2
+        if row["expirada"]:
+            motivo = "Leitura passou da validade informada pela fonte."
+        elif idade > tolerancia:
+            motivo = f"Dado antigo ({int(idade)} min). Tolerancia de seguranca: {tolerancia} min."
+        else:
+            motivo = None
+
+        if motivo:
+            return {
+                **base,
+                "status": "DESATUALIZADO",
+                "motivo_indisponivel": motivo,
+                "idade_minutos": int(idade),
+                "precipitacao_mm": None,
+                "aviso": "Limitacao explicita: dado atual ausente. Nao havera estimativa insegura.",
             }
 
         return {
+            **base,
             "status": "VALIDO",
             "tipo_dado": "OBSERVADO" if row["tipo"] == "OBSERVACAO" else "ESTIMADO",
-            "estacao": row["estacao"],
-            "fonte": row["fonte"],
-            "idade_minutos": int(idade),
-            "distancia_m": round(row["distancia_m"], 1),
-            "precipitacao_mm": float(row["precipitacao_mm"]),
-            "data_referencia": row["data_referencia"].isoformat()
+            "idade_minutos": max(0, int(idade)),
+            "precipitacao_mm": valor,
+            "data_referencia": row["data_referencia"].isoformat(),
         }
 
-    async def registrar_avaliacao_risco(self, id_trecho: int, precipitacao_mm: float, risco: str, fonte: str, idade_min: int, versao: str = "v1.0"):
+    async def registrar_avaliacao_risco(self, id_trecho: int, precipitacao_mm: Optional[float], risco: str, fonte: str, idade_min: int, versao: str = "v1.0"):
         await self.conn.execute("""
-            INSERT INTO historico_avaliacoes_risco 
+            INSERT INTO historico_avaliacoes_risco
             (id_trecho, regra_versao, precipitacao_aplicada_mm, risco_estimado, id_fonte, idade_dado_minutos)
             VALUES ($1, $2, $3, $4, $5, $6)
         """, id_trecho, versao, precipitacao_mm, risco, fonte, idade_min)

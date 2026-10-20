@@ -1,4 +1,4 @@
-services:
+﻿services:
   db:
     image: pgrouting/pgrouting@sha256:5e6767abbd1fd9ead84c9988aa31bac71ca292ef8a1fc2e4a5ee2b613ac6a7bb
     container_name: sprain_db
@@ -73,6 +73,32 @@ services:
       interval: 60s
       timeout: 5s
       start_period: 2m
+      retries: 2
+
+  chuva:
+    build:
+      context: .
+      args:
+        SPRAIN_BUILD_COMMIT: ${SPRAIN_BUILD_COMMIT:-unknown}
+    profiles: ["chuva"]
+    restart: unless-stopped
+    command: ["python", "-B", "/app/scripts/worker_chuva.py"]
+    environment:
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_USER: ${DB_USER:-enchentes}
+      DB_PASSWORD: ${DB_PASSWORD:-enchentes}
+      DB_NAME: ${DB_NAME:-enchentes}
+      CHUVA_INTERVALO_SEGUNDOS: ${CHUVA_INTERVALO_SEGUNDOS:-600}
+      WEBHOOK_ALERTA_DADOS: ${WEBHOOK_ALERTA_DADOS:-}
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-B", "/app/scripts/worker_chuva_status.py"]
+      interval: 120s
+      timeout: 5s
+      start_period: 3m
       retries: 2
 
 volumes:

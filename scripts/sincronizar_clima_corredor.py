@@ -1,9 +1,14 @@
-import os
+﻿import os
 import json
 import math
+import sys
 import urllib.request
+from pathlib import Path
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import URL
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "api"))
+from app.services.limiares_chuva import impacto_corredor as calcular_impacto
 
 URL_BANCO = os.getenv("URL_BANCO") or URL.create(
     "postgresql+psycopg2",
@@ -58,15 +63,6 @@ def consultar_precipitacao(lat, lon):
         )
         return None
 
-
-def calcular_impacto(precipitacao_mm_h):
-    if precipitacao_mm_h >= 50.0:
-        return "RISCO_CRITICO_ALAGAMENTO", 2.5
-    elif precipitacao_mm_h >= 25.0:
-        return "ALERTA_MODERADO", 1.5
-    elif precipitacao_mm_h >= 5.0:
-        return "PISTA_MOLHADA", 1.15
-    return "LIBERADA", 1.0
 
 def _executar():
     motor = create_engine(URL_BANCO)

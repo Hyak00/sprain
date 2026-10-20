@@ -26,3 +26,12 @@ contexto_ia.txt
 *.bak*
 test-results/
 playwright-report/
+
+*.dump
+*.backup*
+*.conflito-backup
+*.log
+backup_*/
+auditoria_*.txt
+diagnostico_*.txt
+resumo_*.txt
