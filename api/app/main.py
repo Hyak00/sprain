@@ -33,6 +33,7 @@ from app.routers import resultados_viagem
 from app.services.administracao_painel import garantir_schema as garantir_administracao
 from app.services.acesso_painel import garantir_schema as garantir_acesso
 from app.services.resultados_viagem import garantir_schema as garantir_resultados_viagem
+from app.services.planos_empresa import garantir_schema as garantir_planos_empresa
 from app.routers import infraestrutura, malha, dados_publicos, transito, indicadores, demonstracao, feedback_alertas, operacoes_cliente
 from app.routers import (
     estatisticas,
@@ -81,6 +82,7 @@ async def lifespan(app: FastAPI):
     await garantir_resultados_viagem()
     await garantir_acesso()
     await garantir_administracao()
+    await garantir_planos_empresa()
     task_clima = None if demonstracao_habilitada() else asyncio.create_task(agendador_telemetria_corredor())
     try:
         yield

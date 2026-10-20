@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, Query, Response
 from app.database import get_connection
 from app.seguranca import require_role, resolver_tenant_autenticado
 from app.versao import informacao_versao
+from app.services.planos_empresa import resumo as resumo_plano_empresa
 
 router=APIRouter(prefix='/api/v1/operacional',tags=['Painel operacional interno'],
     dependencies=[Depends(require_role(['ADMIN']))])
@@ -13,6 +14,13 @@ router=APIRouter(prefix='/api/v1/operacional',tags=['Painel operacional interno'
 async def versao(response: Response):
     response.headers['Cache-Control']='no-store'
     return informacao_versao()
+
+
+@router.get('/plano')
+async def plano_empresa(response: Response, tenant_id=Depends(resolver_tenant_autenticado), conn=Depends(get_connection)):
+    """Assinatura e consumo persistido da empresa autenticada, para ADMIN."""
+    response.headers['Cache-Control']='no-store'
+    return await resumo_plano_empresa(conn, tenant_id)
 
 
 def idade(data, agora):
