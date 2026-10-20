@@ -5,6 +5,7 @@ from datetime import datetime
 
 import asyncpg
 from fastapi import APIRouter, Depends, Response, Query
+from fastapi.responses import HTMLResponse
 
 from app.database import get_connection
 
@@ -274,5 +275,103 @@ async def obter_backtest_comercial(
             media_type="text/csv; charset=utf-8",
             headers={"Content-Disposition": f"attachment; filename={nome_arquivo}"}
         )
+    elif formato.lower() == "html":
+        linhas_rodovias = "".join(
+            f"<tr><td><strong>{d['rodovia']}</strong></td><td>{d['total_sinistros']}</td><td>{d['sinistros_sob_chuva']}</td><td>{d['percentual_sob_chuva']}%</td></tr>"
+            for d in distribuicao
+        )
+        linhas_municipios = "".join(
+            f"<tr><td>{m['municipio']}</td><td>{m['rodovia']}</td><td><strong>{m['acidentes_sob_chuva']}</strong></td></tr>"
+            for m in top_pontos
+        )
+        html = f"""<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>{resultado['titulo']}</title>
+<style>
+body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; margin: 30px; color: rgb(30, 41, 59); background: rgb(248, 250, 252); }}
+.container {{ max-width: 900px; margin: 0 auto; background: white; padding: 32px; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }}
+.topo {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid rgb(226, 232, 240); padding-bottom: 16px; margin-bottom: 24px; }}
+.marca {{ font-size: 24px; font-weight: bold; color: rgb(30, 58, 138); }}
+.meta {{ font-size: 13px; color: rgb(100, 116, 139); }}
+.grid {{ display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 28px; }}
+.card {{ background: rgb(241, 245, 249); border-radius: 6px; padding: 16px; text-align: center; border-left: 4px solid rgb(37, 99, 235); }}
+.card.destaque {{ border-left-color: rgb(220, 38, 38); }}
+.numero {{ font-size: 28px; font-weight: bold; color: rgb(15, 23, 42); margin: 6px 0; }}
+.rotulo {{ font-size: 12px; color: rgb(71, 85, 105); text-transform: uppercase; }}
+h2 {{ font-size: 16px; color: rgb(15, 23, 42); margin-top: 24px; margin-bottom: 12px; border-left: 4px solid rgb(30, 58, 138); padding-left: 8px; }}
+table {{ width: 100%; border-collapse: collapse; margin-bottom: 24px; font-size: 14px; }}
+th, td {{ padding: 10px 12px; text-align: left; border-bottom: 1px solid rgb(226, 232, 240); }}
+th {{ background: rgb(248, 250, 252); color: rgb(71, 85, 105); font-weight: 600; }}
+.argumento {{ background: rgb(238, 242, 255); border: 1px solid rgb(199, 210, 254); border-radius: 6px; padding: 16px; color: rgb(30, 27, 75); font-size: 14px; margin-top: 24px; }}
+.btn-print {{ background: rgb(37, 99, 235); color: white; border: none; padding: 10px 18px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500; }}
+@media print {{
+    body {{ background: white; margin: 0; }}
+    .container {{ box-shadow: none; padding: 0; }}
+    .btn-print {{ display: none; }}
+}}
+</style>
+</head>
+<body>
+<div class="container">
+    <div class="topo">
+        <div>
+            <div class="marca">SPRain Intelligence</div>
+            <div class="meta">{resultado['corredor']} | Fonte: {resultado['fonte_dados']}</div>
+        </div>
+        <button class="btn-print" onclick="window.print()">Imprimir / Salvar PDF</button>
+    </div>
+
+    <div class="grid">
+        <div class="card">
+            <div class="rotulo">Total Sinistros Caminhao</div>
+            <div class="numero">{total}</div>
+            <div class="rotulo">Corredor Monitorado</div>
+        </div>
+        <div class="card destaque">
+            <div class="rotulo">Sinistros Sob Chuva</div>
+            <div class="numero">{chuva}</div>
+            <div class="rotulo">{pct_chuva}% das ocorrencias</div>
+        </div>
+        <div class="card destaque">
+            <div class="rotulo">Tombamentos sob Chuva</div>
+            <div class="numero">{tombamentos}</div>
+            <div class="rotulo">Sinistros Gravissimos</div>
+        </div>
+        <div class="card">
+            <div class="rotulo">Reducao Projetada</div>
+            <div class="numero">35%</div>
+            <div class="rotulo">Com Desvio Preventivo</div>
+        </div>
+    </div>
+
+    <h2>Distribuicao de Sinistros por Rodovia</h2>
+    <table>
+        <thead>
+            <tr><th>Rodovia</th><th>Total Sinistros</th><th>Sob Chuva / Garoa</th><th>% Sob Chuva</th></tr>
+        </thead>
+        <tbody>
+            {linhas_rodovias}
+        </tbody>
+    </table>
+
+    <h2>Top 5 Trechos com Maior Incidencia sob Chuva</h2>
+    <table>
+        <thead>
+            <tr><th>Municipio</th><th>Rodovia</th><th>Acidentes Sob Chuva</th></tr>
+        </thead>
+        <tbody>
+            {linhas_municipios}
+        </tbody>
+    </table>
+
+    <div class="argumento">
+        <strong>Recomendacao Operacional B2B:</strong> {resultado['proposta_valor_b2b']['argumento_comercial']}
+    </div>
+</div>
+</body>
+</html>"""
+        return HTMLResponse(content=html)
 
     return resultado

@@ -56,3 +56,15 @@ async def test_relatorio_backtest_comercial_csv():
         assert "METRICA;VALOR;DETALHE" in texto
         assert "TOTAL_SINISTROS_CAMINHAO" in texto
         assert "SINISTROS_SOB_CHUVA" in texto
+
+
+@pytest.mark.asyncio
+async def test_relatorio_backtest_comercial_html():
+    async with httpx.AsyncClient(base_url=RELATORIOS_URL, timeout=TIMEOUT, headers={"X-API-Key": "key_admin_demo"}) as client:
+        resp = await client.get("/backtest-comercial?formato=html")
+        assert resp.status_code == 200
+        assert "text/html" in resp.headers.get("content-type", "")
+        texto = resp.text
+        assert "SPRain Intelligence" in texto
+        assert "Sinistros Sob Chuva" in texto
+        assert "Total Sinistros Caminhao" in texto
