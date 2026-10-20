@@ -48,7 +48,8 @@ class SevereWeatherEngine:
             nivel = "INDISPONIVEL"
         else:
             nivel_chuva, _ = _classificar(c)
-            nivel = nivel_chuva if nivel_chuva in CLASSIFICACAO else "VERDE_ESTAVEL"        risco, recomendacao = CLASSIFICACAO[nivel]
+            nivel = nivel_chuva if nivel_chuva in CLASSIFICACAO else "VERDE_ESTAVEL"
+        risco, recomendacao = CLASSIFICACAO[nivel]
         return {
             "nivel_alerta": nivel,
             "classificacao_risco": risco,
