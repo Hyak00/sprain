@@ -8,7 +8,7 @@ import httpx
 import pytest
 
 from app.config import settings
-from app.services.planos_empresa import SCHEMA, periodo_atual, resumo
+from app.services.planos_empresa import SCHEMA, SCHEMA_CHAMADAS, SCHEMA_SEED, periodo_atual, resumo
 
 
 def test_mes_de_consumo_usa_fuso_da_empresa():
@@ -19,7 +19,25 @@ def test_mes_de_consumo_usa_fuso_da_empresa():
 
 
 @pytest.mark.asyncio
-async def test_resumo_isola_empresa_e_nao_inventa_custo_ou_chamadas_externas():
+async def test_seed_nao_sobrescreve_plano_ou_assinatura_editados_manualmente():
+    conn = await asyncpg.connect(settings.database_url)
+    tx = conn.transaction()
+    await tx.start()
+    try:
+        await conn.execute(SCHEMA)
+        await conn.execute(SCHEMA_SEED)
+        await conn.execute("UPDATE planos_servico SET limite_consultas_mes=7 WHERE codigo='PILOTO_POC'")
+        await conn.execute("UPDATE assinaturas_empresa SET status='SUSPENSA' WHERE tenant_id='demo_corp'")
+        await conn.execute(SCHEMA_SEED)
+        assert await conn.fetchval("SELECT limite_consultas_mes FROM planos_servico WHERE codigo='PILOTO_POC'") == 7
+        assert await conn.fetchval("SELECT status FROM assinaturas_empresa WHERE tenant_id='demo_corp'") == 'SUSPENSA'
+    finally:
+        await tx.rollback()
+        await conn.close()
+
+
+@pytest.mark.asyncio
+async def test_resumo_isola_empresa_e_nao_inventa_custo():
     conn = await asyncpg.connect(settings.database_url)
     tx = conn.transaction()
     await tx.start()
@@ -29,6 +47,7 @@ async def test_resumo_isola_empresa_e_nao_inventa_custo_ou_chamadas_externas():
     inicio, fim, periodo = periodo_atual()
     try:
         await conn.execute(SCHEMA)
+        await conn.execute(SCHEMA_CHAMADAS)
         await conn.execute(SCHEMA)
         await conn.execute("""
             INSERT INTO planos_servico(codigo,nome,funcionalidades,limite_usuarios_ativos,
@@ -65,7 +84,7 @@ async def test_resumo_isola_empresa_e_nao_inventa_custo_ou_chamadas_externas():
         assert resposta["uso"]["usuarios_ativos"] == 2
         assert resposta["uso"]["corredores_ativos"] == 2
         assert resposta["uso"]["consultas_mes"] == 2
-        assert resposta["uso"]["chamadas_externas_mes"] is None
+        assert resposta["uso"]["chamadas_externas_mes"] == 0
         assert resposta["uso"]["custo_servir_brl"] is None
         sem_plano = await resumo(conn, outro)
         assert sem_plano["assinatura"] is None
