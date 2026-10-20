@@ -68,6 +68,16 @@ reter a resposta enquanto a rota ainda ocupa uma conexão; portanto, uma parada
 brusca ou fila cheia pode perder medições recentes. O painel ADMIN exibe os
 totais do mês. Tempo de resposta não é uso de CPU nem custo monetário.
 
+`GET /api/v1/operacional/metricas-endpoints` mostra, para o ADMIN da própria
+empresa, até 100 templates de rota do mês, ordenados pelo número de respostas,
+com contagem de erros HTTP 4xx/5xx, tempo médio e maior tempo observado. A
+migração `db/ci/21_metricas_endpoint.sql` preserva esses agregados entre
+reinicializações. Não grava URL concreta, parâmetros ou IP. `truncado=true`
+indica que há mais templates do que os exibidos. A medição é assíncrona e
+pode perder respostas recentes em parada abrupta ou fila cheia. Exceções
+inesperadas de uma rota autenticada entram como erro 500, mesmo que a resposta
+não seja produzida.
+
 **Limite desta etapa:** o status `SUSPENSA` não revoga acesso; isso será tratado
 na etapa final de segurança. O custo de servir continua `null`: não há contrato
 de provedor, tarifa verificável nem custo unitário de processamento para calcular

@@ -12,6 +12,7 @@ SCHEMA_AUDITORIA = (Path(__file__).resolve().parents[3] / "db" / "ci" / "17_audi
 SCHEMA_SEED = (Path(__file__).resolve().parents[3] / "db" / "ci" / "19_seed_planos_servico.sql").read_text(encoding="utf-8")
 SCHEMA_CHAMADAS = (Path(__file__).resolve().parents[3] / "db" / "ci" / "19_chamadas_api_externa.sql").read_text(encoding="utf-8")
 SCHEMA_TEMPO = (Path(__file__).resolve().parents[3] / "db" / "ci" / "20_tempo_api_empresa.sql").read_text(encoding="utf-8")
+SCHEMA_METRICAS_ENDPOINT = (Path(__file__).resolve().parents[3] / "db" / "ci" / "21_metricas_endpoint.sql").read_text(encoding="utf-8")
 FUSO_CONSUMO = ZoneInfo("America/Sao_Paulo")
 
 
@@ -22,6 +23,7 @@ async def garantir_schema():
         await conn.execute(SCHEMA_SEED)
         await conn.execute(SCHEMA_CHAMADAS)
         await conn.execute(SCHEMA_TEMPO)
+        await conn.execute(SCHEMA_METRICAS_ENDPOINT)
 
 
 def periodo_atual(agora: datetime | None = None) -> tuple[datetime, datetime, str]:
