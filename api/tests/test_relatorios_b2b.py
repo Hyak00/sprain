@@ -75,3 +75,38 @@ async def test_relatorio_backtest_comercial_html():
         assert "SPRain Intelligence" in texto
         assert "Sinistros Sob Chuva" in texto
         assert "Total Sinistros Caminhao" in texto
+
+
+@pytest.mark.asyncio
+async def test_relatorio_backtest_comercial_corredores_expandidos():
+    async with httpx.AsyncClient(base_url=RELATORIOS_URL, timeout=TIMEOUT, headers={"X-API-Key": "key_admin_demo"}) as client:
+        resp_cb = await client.get("/backtest-comercial?corredor=castello_branco")
+        assert resp_cb.status_code == 200
+        d_cb = resp_cb.json()
+        assert d_cb["identificador_corredor"] == "castello_branco"
+        assert "Castelo Branco" in d_cb["corredor"]
+        total_cb = d_cb["estatisticas_gerais"]["total_sinistros_caminhao"]
+        assert total_cb >= 0
+        if total_cb > 0:
+            assert total_cb == 3082
+
+        resp_est = await client.get("/backtest-comercial?corredor=estadual")
+        assert resp_est.status_code == 200
+        d_est = resp_est.json()
+        assert d_est["identificador_corredor"] == "estadual"
+        total_est = d_est["estatisticas_gerais"]["total_sinistros_caminhao"]
+        assert total_est >= 0
+        if total_est > 0:
+            assert total_est == 33753
+
+        resp_cust = await client.get("/backtest-comercial?rodovias=SP-280,SP-021")
+        assert resp_cust.status_code == 200
+        d_cust = resp_cust.json()
+        assert "Personalizado" in d_cust["titulo"]
+        total_cust = d_cust["estatisticas_gerais"]["total_sinistros_caminhao"]
+        assert total_cust >= 0
+        if total_cust > 0:
+            assert total_cust == 5456
+
+        resp_inv = await client.get("/backtest-comercial?corredor=corredor_inexistente")
+        assert resp_inv.status_code == 422

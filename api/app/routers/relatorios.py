@@ -4,7 +4,7 @@ import io
 from datetime import datetime
 
 import asyncpg
-from fastapi import APIRouter, Depends, Response, Query
+from fastapi import APIRouter, Depends, Response, Query, HTTPException
 from fastapi.responses import HTMLResponse
 
 from app.database import get_connection
@@ -172,45 +172,138 @@ async def exportar_auditoria_intermunicipal(
 
 
 
+CORREDORES_BACKTEST = {
+    "araraquara_sp": {
+        "titulo": "Corredor Araraquara - Sao Paulo",
+        "descricao": "SP-310 (Washington Luis), SP-330 (Anhanguera), SP-348 (Bandeirantes)",
+        "rodovias": ["SP-310", "SP-330", "SP-348"]
+    },
+    "castello_branco": {
+        "titulo": "Corredor Castelo Branco / Sorocaba e Centro-Oeste",
+        "descricao": "SP-280 (Castelo Branco) e SP-075 (Santos Dumont)",
+        "rodovias": ["SP-280", "SP-075"]
+    },
+    "porto_santos": {
+        "titulo": "Corredor Logistico Porto de Santos / Baixada Santista",
+        "descricao": "SP-150 (Anchieta) e SP-055 (Padre Manoel da Nobrega)",
+        "rodovias": ["SP-150", "SP-055"]
+    },
+    "rodoanel": {
+        "titulo": "Corredor Rodoanel Metropolitano Mario Covas",
+        "descricao": "SP-021 (Rodoanel Mario Covas)",
+        "rodovias": ["SP-021"]
+    },
+    "ayrton_senna": {
+        "titulo": "Corredor Ayrton Senna / Vale do Paraiba",
+        "descricao": "SP-070 (Ayrton Senna) e SP-065 (Dom Pedro I)",
+        "rodovias": ["SP-070", "SP-065"]
+    },
+    "estadual": {
+        "titulo": "Malha Rodoviaria Estadual Completa de Sao Paulo",
+        "descricao": "Todas as rodovias estaduais concessionadas fiscalizadas pela ARTESP",
+        "rodovias": None
+    },
+    "todos": {
+        "titulo": "Malha Rodoviaria Estadual Completa de Sao Paulo",
+        "descricao": "Todas as rodovias estaduais concessionadas fiscalizadas pela ARTESP",
+        "rodovias": None
+    }
+}
+
 @router.get("/backtest-comercial")
 async def obter_backtest_comercial(
-    formato: str = Query("json", description="Formato de exportacao: json ou csv"),
+    formato: str = Query("json", description="Formato de exportacao: json, csv ou html"),
+    corredor: str | None = Query(None, description="Identificador do corredor: araraquara_sp, castello_branco, porto_santos, rodoanel, ayrton_senna, estadual ou todos"),
+    rodovias: str | None = Query(None, description="Lista explicita de rodovias separadas por virgula"),
     conn: asyncpg.Connection = Depends(get_connection)
 ):
-    periodo = await conn.fetchrow("""
-        SELECT MIN(data_ocorrencia) AS inicio, MAX(data_ocorrencia) AS fim
-        FROM tombamentos_caminhao
-        WHERE rodovia IN ('SP-310', 'SP-330', 'SP-348');
-    """)
+    if rodovias:
+        lista_rodovias = [r.strip().upper() for r in rodovias.split(",") if r.strip()]
+        nome_corredor = "Personalizado (" + ", ".join(lista_rodovias) + ")"
+        desc_corredor = ", ".join(lista_rodovias)
+    elif corredor:
+        chave = corredor.strip().lower()
+        info = CORREDORES_BACKTEST.get(chave)
+        if not info:
+            raise HTTPException(
+                status_code=422,
+                detail="Corredor invalido. Escolha entre: araraquara_sp, castello_branco, porto_santos, rodoanel, ayrton_senna, estadual."
+            )
+        lista_rodovias = info["rodovias"]
+        nome_corredor = info["titulo"]
+        desc_corredor = info["descricao"]
+    else:
+        lista_rodovias = ["SP-310", "SP-330", "SP-348"]
+        nome_corredor = "Corredor Araraquara - Sao Paulo"
+        desc_corredor = "SP-310 (Washington Luis), SP-330 (Anhanguera), SP-348 (Bandeirantes)"
 
-    geral = await conn.fetchrow("""
-        SELECT
-            count(*) AS total_corredor,
-            count(*) FILTER (WHERE condicao_meteorologica IN ('CHUVA', 'GAROA', 'CHUVA COM VENTANIA')) AS chuva_corredor,
-            count(*) FILTER (WHERE condicao_meteorologica IN ('CHUVA', 'GAROA', 'CHUVA COM VENTANIA') AND subclasse ILIKE '%tombamento%') AS tombamentos_chuva
-        FROM tombamentos_caminhao
-        WHERE rodovia IN ('SP-310', 'SP-330', 'SP-348');
-    """)
+    if lista_rodovias is not None:
+        periodo = await conn.fetchrow("""
+            SELECT MIN(data_ocorrencia) AS inicio, MAX(data_ocorrencia) AS fim
+            FROM tombamentos_caminhao
+            WHERE rodovia = ANY($1::text[]);
+        """, lista_rodovias)
 
-    rodovias_rows = await conn.fetch("""
-        SELECT rodovia,
-               count(*) AS total,
-               count(*) FILTER (WHERE condicao_meteorologica IN ('CHUVA', 'GAROA', 'CHUVA COM VENTANIA')) AS chuva
-        FROM tombamentos_caminhao
-        WHERE rodovia IN ('SP-310', 'SP-330', 'SP-348')
-        GROUP BY rodovia
-        ORDER BY rodovia;
-    """)
+        geral = await conn.fetchrow("""
+            SELECT
+                count(*) AS total_corredor,
+                count(*) FILTER (WHERE condicao_meteorologica IN ('CHUVA', 'GAROA', 'CHUVA COM VENTANIA')) AS chuva_corredor,
+                count(*) FILTER (WHERE condicao_meteorologica IN ('CHUVA', 'GAROA', 'CHUVA COM VENTANIA') AND subclasse ILIKE '%tombamento%') AS tombamentos_chuva
+            FROM tombamentos_caminhao
+            WHERE rodovia = ANY($1::text[]);
+        """, lista_rodovias)
 
-    municipios_rows = await conn.fetch("""
-        SELECT municipio, rodovia, count(*) AS acidentes_chuva
-        FROM tombamentos_caminhao
-        WHERE rodovia IN ('SP-310', 'SP-330', 'SP-348')
-          AND condicao_meteorologica IN ('CHUVA', 'GAROA', 'CHUVA COM VENTANIA')
-        GROUP BY municipio, rodovia
-        ORDER BY acidentes_chuva DESC
-        LIMIT 5;
-    """)
+        rodovias_rows = await conn.fetch("""
+            SELECT rodovia,
+                   count(*) AS total,
+                   count(*) FILTER (WHERE condicao_meteorologica IN ('CHUVA', 'GAROA', 'CHUVA COM VENTANIA')) AS chuva
+            FROM tombamentos_caminhao
+            WHERE rodovia = ANY($1::text[])
+            GROUP BY rodovia
+            ORDER BY total DESC;
+        """, lista_rodovias)
+
+        municipios_rows = await conn.fetch("""
+            SELECT municipio, rodovia, count(*) AS acidentes_chuva
+            FROM tombamentos_caminhao
+            WHERE rodovia = ANY($1::text[])
+              AND condicao_meteorologica IN ('CHUVA', 'GAROA', 'CHUVA COM VENTANIA')
+            GROUP BY municipio, rodovia
+            ORDER BY acidentes_chuva DESC
+            LIMIT 5;
+        """, lista_rodovias)
+    else:
+        periodo = await conn.fetchrow("""
+            SELECT MIN(data_ocorrencia) AS inicio, MAX(data_ocorrencia) AS fim
+            FROM tombamentos_caminhao;
+        """)
+
+        geral = await conn.fetchrow("""
+            SELECT
+                count(*) AS total_corredor,
+                count(*) FILTER (WHERE condicao_meteorologica IN ('CHUVA', 'GAROA', 'CHUVA COM VENTANIA')) AS chuva_corredor,
+                count(*) FILTER (WHERE condicao_meteorologica IN ('CHUVA', 'GAROA', 'CHUVA COM VENTANIA') AND subclasse ILIKE '%tombamento%') AS tombamentos_chuva
+            FROM tombamentos_caminhao;
+        """)
+
+        rodovias_rows = await conn.fetch("""
+            SELECT rodovia,
+                   count(*) AS total,
+                   count(*) FILTER (WHERE condicao_meteorologica IN ('CHUVA', 'GAROA', 'CHUVA COM VENTANIA')) AS chuva
+            FROM tombamentos_caminhao
+            GROUP BY rodovia
+            ORDER BY total DESC
+            LIMIT 10;
+        """)
+
+        municipios_rows = await conn.fetch("""
+            SELECT municipio, rodovia, count(*) AS acidentes_chuva
+            FROM tombamentos_caminhao
+            WHERE condicao_meteorologica IN ('CHUVA', 'GAROA', 'CHUVA COM VENTANIA')
+            GROUP BY municipio, rodovia
+            ORDER BY acidentes_chuva DESC
+            LIMIT 5;
+        """)
 
     total = int(geral["total_corredor"] or 0)
     chuva = int(geral["chuva_corredor"] or 0)
@@ -237,13 +330,14 @@ async def obter_backtest_comercial(
     ]
 
     resultado = {
-        "titulo": "Dossie Comercial B2B - Resiliencia e Reducao de Sinistros no Corredor Araraquara - Sao Paulo",
+        "titulo": f"Dossie Comercial B2B - Resiliencia e Reducao de Sinistros no {nome_corredor}",
+        "identificador_corredor": corredor or "araraquara_sp",
         "fonte_dados": "ARTESP / Base Oficial de Acidentes Rodoviarios do Estado de SP",
         "periodo": {
             "inicio": str(periodo["inicio"]) if periodo and periodo["inicio"] else None,
             "fim": str(periodo["fim"]) if periodo and periodo["fim"] else None
         },
-        "corredor": "SP-310 (Washington Luis), SP-330 (Anhanguera), SP-348 (Bandeirantes)",
+        "corredor": desc_corredor,
         "estatisticas_gerais": {
             "total_sinistros_caminhao": total,
             "sinistros_sob_chuva_ou_pista_molhada": chuva,
@@ -262,7 +356,7 @@ async def obter_backtest_comercial(
         saida = io.StringIO()
         escritor = csv.writer(saida, delimiter=';')
         escritor.writerow(["METRICA", "VALOR", "DETALHE"])
-        escritor.writerow(["TOTAL_SINISTROS_CAMINHAO", total, "Corredor Araraquara - SP"])
+        escritor.writerow(["TOTAL_SINISTROS_CAMINHAO", total, desc_corredor])
         escritor.writerow(["SINISTROS_SOB_CHUVA", chuva, f"{pct_chuva}% do total"])
         escritor.writerow(["TOMBAMENTOS_SOB_CHUVA", tombamentos, "Tombamentos diretos"])
         for d in distribuicao:

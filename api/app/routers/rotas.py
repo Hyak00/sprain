@@ -145,6 +145,26 @@ async def calcular_rota(dados: RotaRequest, conn: asyncpg.Connection = Depends(g
 
 EIXOS_POR_CATEGORIA = {"VUC": 2, "TRUCK_3_EIXOS": 3, "CARRETA_5_EIXOS": 5}
 CORREDORES_DISPONIVEIS = {("araraquara", "sao paulo"), ("araraquara", "s\u00e3o paulo")}
+CIDADES_CORREDOR = {
+    "araraquara": 0,
+    "sao carlos": 1,
+    "são carlos": 1,
+    "rio claro": 2,
+    "limeira": 3,
+    "campinas": 4,
+    "jundiai": 5,
+    "jundiaí": 5,
+    "sao paulo": 6,
+    "são paulo": 6,
+}
+PRACAS_POR_TRECHO = {
+    1: [],
+    2: [1, 2],
+    3: [],
+    4: [3],
+    5: [4],
+    6: [5],
+}
 MOTIVO_TEMPO = "Tempo por segmento depende de velocidade calibrada por classe de via; ainda nao implementado."
 MOTIVO_METEOROLOGIA = "Chuva observada em pontos de referencia; isso nao confirma pista livre nem substitui validacao de alagamentos e interdiccoes."
 MOTIVO_DESVIO = "Sem risco de alagamento calculado para o corredor, nao ha base para sugerir desvio."
@@ -170,8 +190,24 @@ async def calcular_rota_intermunicipal(
     tenant_id: str = Depends(resolver_tenant_autenticado),
     conn: asyncpg.Connection = Depends(get_connection)
 ):
-    if (origem.strip().casefold(), destino.strip().casefold()) not in CORREDORES_DISPONIVEIS:
-        raise HTTPException(status_code=422, detail="Corredor disponivel apenas entre Araraquara e Sao Paulo.")
+    origem_clean = origem.strip().casefold()
+    destino_clean = destino.strip().casefold()
+    idx_origem = CIDADES_CORREDOR.get(origem_clean)
+    idx_destino = CIDADES_CORREDOR.get(destino_clean)
+
+    if idx_origem is None or idx_destino is None or idx_origem == idx_destino:
+        raise HTTPException(
+            status_code=422,
+            detail="Corredor disponivel entre cidades homologadas: Araraquara, Sao Carlos, Rio Claro, Limeira, Campinas, Jundiai e Sao Paulo."
+        )
+
+    if idx_origem < idx_destino:
+        sentido = "CAPITAL"
+        ids_selecionados = list(range(idx_origem + 1, idx_destino + 1))
+    else:
+        sentido = "INTERIOR"
+        ids_selecionados = list(range(idx_origem, idx_destino, -1))
+
     categoria = tipo_veiculo.strip().upper()
     eixos = EIXOS_POR_CATEGORIA.get(categoria)
     if eixos is None:
@@ -180,14 +216,18 @@ async def calcular_rota_intermunicipal(
     limite_severo = LIMIARES["severo"]["mm"] if isinstance(LIMIARES["severo"], dict) else LIMIARES["severo"]
     limite_atencao = LIMIARES["atencao"]["mm"] if isinstance(LIMIARES["atencao"], dict) else LIMIARES["atencao"]
 
-    segmentos = await conn.fetch("""
+    segmentos_brutos = await conn.fetch("""
         SELECT c.id_trecho, c.name,
                ROUND((c.length / 1000.0)::numeric, 1) AS distancia_km,
-               cc.precipitacao_mm_h, cc.atualizado_em
+               cc.precipitacao_mm_h, cc.atualizado_em,
+               COALESCE(cc.fonte_coleta, 'OPEN_METEO') AS fonte_coleta
         FROM corredor_sp_araraquara c
         LEFT JOIN condicoes_corredor cc ON cc.id_trecho = c.id_trecho
-        ORDER BY c.id_trecho
-    """)
+        WHERE c.id_trecho = ANY($1::int[])
+    """, ids_selecionados)
+
+    mapa_segmentos = {s["id_trecho"]: s for s in segmentos_brutos}
+    segmentos = [mapa_segmentos[tid] for tid in ids_selecionados if tid in mapa_segmentos]
     agora_utc = datetime.now(timezone.utc)
     segmentos_clima = []
     trechos_criticos = []
@@ -231,6 +271,7 @@ async def calcular_rota_intermunicipal(
                 if recente else "SEM_DADO_METEOROLOGICO"
             ),
             "precipitacao_mm_h": precipitacao_valor,
+            "fonte_coleta": s.get("fonte_coleta") if recente else None,
             "coletado_em": coletado.isoformat() if recente else None,
             "idade_dado_min": round(idade_min, 1) if recente else None,
         })
@@ -258,11 +299,21 @@ async def calcular_rota_intermunicipal(
         elif categoria == "CARRETA_5_EIXOS":
             coluna_tarifa = "tarifa_carreta_5eixos"
 
-        pracas_artesp = await conn.fetch(f"""
-            SELECT id, rodovia, km, municipio, concessionaria, {coluna_tarifa} AS tarifa
-            FROM pracas_pedagio
-            ORDER BY id
-        """)
+        pracas_ids_rota = []
+        for tid in ids_selecionados:
+            for pid in PRACAS_POR_TRECHO.get(tid, []):
+                if pid not in pracas_ids_rota:
+                    pracas_ids_rota.append(pid)
+
+        if pracas_ids_rota:
+            pracas_artesp = await conn.fetch(f"""
+                SELECT id, rodovia, km, municipio, concessionaria, {coluna_tarifa} AS tarifa
+                FROM pracas_pedagio
+                WHERE id = ANY($1::int[])
+                ORDER BY id
+            """, pracas_ids_rota)
+        else:
+            pracas_artesp = []
         for p in pracas_artesp:
             t_valor = float(p["tarifa"])
             subtotal += t_valor
@@ -368,6 +419,8 @@ async def calcular_rota_intermunicipal(
         "modalidade": "CONSULTA_CORREDOR_REFERENCIA",
         "origem": origem,
         "destino": destino,
+        "sentido": sentido,
+        "trechos_percorridos": len(segmentos),
         "tipo_veiculo": categoria,
         "resumo": {
             "distancia_total_km": round(total_km, 1),

@@ -1,4 +1,4 @@
-﻿import os
+import os
 import json
 import math
 import sys
@@ -28,52 +28,105 @@ COORDENADAS_SEGMENTOS = {
     6: {"nome": "Jundiai/Sao Paulo", "lat": -23.35, "lon": -46.80}
 }
 
-def consultar_precipitacao(lat, lon):
+
+def _validar_precipitacao(bruto):
+    if bruto is None or isinstance(bruto, bool):
+        return None
+    try:
+        valor = float(bruto)
+        if math.isfinite(valor) and 0.0 <= valor <= 1000.0:
+            return valor
+    except (TypeError, ValueError, OverflowError):
+        pass
+    return None
+
+
+def _consultar_open_meteo_primario(lat, lon):
     url = (
         f"https://api.open-meteo.com/v1/forecast?"
         f"latitude={lat}&longitude={lon}"
         "&current=precipitation,rain&timezone=America%2FSao_Paulo"
     )
-    try:
-        req = urllib.request.Request(
-            url, headers={"User-Agent": "SPRain/1.2.3"}
-        )
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            if resp.status != 200:
-                raise RuntimeError(f"HTTP inesperado: {resp.status}")
+    req = urllib.request.Request(url, headers={"User-Agent": "SPRain/2.0"})
+    with urllib.request.urlopen(req, timeout=5) as resp:
+        if resp.status == 200:
             resposta = json.loads(resp.read().decode("utf-8"))
+            atual = resposta.get("current")
+            if isinstance(atual, dict):
+                return _validar_precipitacao(atual.get("precipitation"))
+    return None
 
-        atual = resposta.get("current")
-        if not isinstance(atual, dict):
-            raise ValueError("Resposta sem bloco current.")
 
-        valor = atual.get("precipitation")
-        if valor is None:
-            raise ValueError("Precipitacao ausente na resposta.")
+def _consultar_open_meteo_gfs(lat, lon):
+    url = (
+        f"https://api.open-meteo.com/v1/forecast?"
+        f"latitude={lat}&longitude={lon}"
+        "&hourly=precipitation&forecast_days=1&models=gfs_seamless"
+    )
+    req = urllib.request.Request(url, headers={"User-Agent": "SPRain/2.0"})
+    with urllib.request.urlopen(req, timeout=5) as resp:
+        if resp.status == 200:
+            resposta = json.loads(resp.read().decode("utf-8"))
+            hourly = resposta.get("hourly")
+            if isinstance(hourly, dict):
+                vals = hourly.get("precipitation")
+                if isinstance(vals, list) and vals:
+                    return _validar_precipitacao(vals[0])
+    return None
 
-        valor = float(valor)
-        if not math.isfinite(valor) or valor < 0:
-            raise ValueError("Valor de precipitacao invalido.")
 
-        return valor
+def _consultar_wttr_in(lat, lon):
+    url = f"https://wttr.in/{lat},{lon}?format=j1"
+    req = urllib.request.Request(url, headers={"User-Agent": "SPRain/2.0"})
+    with urllib.request.urlopen(req, timeout=5) as resp:
+        if resp.status == 200:
+            resposta = json.loads(resp.read().decode("utf-8"))
+            cond = resposta.get("current_condition")
+            if isinstance(cond, list) and cond:
+                return _validar_precipitacao(cond[0].get("precipMM"))
+    return None
+
+
+def consultar_precipitacao_resiliente(lat, lon):
+    try:
+        v = _consultar_open_meteo_primario(lat, lon)
+        if v is not None:
+            return v, "OPEN_METEO_PRIMARIO"
     except Exception as e:
-        print(
-            f"ERRO DE COLETA ({lat}, {lon}): {e}. "
-            "O dado sera marcado como indisponivel."
-        )
-        return None
+        print(f"Aviso de falha na fonte primaria ({lat}, {lon}): {e}")
+
+    try:
+        v = _consultar_open_meteo_gfs(lat, lon)
+        if v is not None:
+            return v, "OPEN_METEO_GFS_REDUNDANCIA"
+    except Exception as e:
+        print(f"Aviso de falha na fonte redundante GFS ({lat}, {lon}): {e}")
+
+    try:
+        v = _consultar_wttr_in(lat, lon)
+        if v is not None:
+            return v, "WTTR_IN_REDUNDANCIA"
+    except Exception as e:
+        print(f"Aviso de falha na fonte redundante WTTR ({lat}, {lon}): {e}")
+
+    return None, "INDISPONIVEL"
+
+
+def consultar_precipitacao(lat, lon):
+    valor, _ = consultar_precipitacao_resiliente(lat, lon)
+    return valor
 
 
 def _executar():
     motor = create_engine(URL_BANCO)
     sucessos = 0
     falhas = 0
-    print("Iniciando coleta meteorologica do corredor.")
+    print("Iniciando coleta meteorologica do corredor com redundancia.")
 
     try:
         with motor.begin() as conn:
             for id_trecho, dados in COORDENADAS_SEGMENTOS.items():
-                chuva = consultar_precipitacao(
+                chuva, fonte = consultar_precipitacao_resiliente(
                     dados["lat"], dados["lon"]
                 )
 
@@ -89,25 +142,27 @@ def _executar():
                 stmt = text("""
                     INSERT INTO condicoes_corredor
                         (id_trecho, status_pista, precipitacao_mm_h,
-                         fator_atraso, atualizado_em)
-                    VALUES (:id, :status, :chuva, :fator, NOW())
+                         fator_atraso, fonte_coleta, atualizado_em)
+                    VALUES (:id, :status, :chuva, :fator, :fonte, NOW())
                     ON CONFLICT (id_trecho) DO UPDATE
                     SET status_pista = EXCLUDED.status_pista,
                         precipitacao_mm_h = EXCLUDED.precipitacao_mm_h,
                         fator_atraso = EXCLUDED.fator_atraso,
+                        fonte_coleta = EXCLUDED.fonte_coleta,
                         atualizado_em = NOW();
                 """)
                 conn.execute(stmt, {
                     "id": id_trecho,
                     "status": status,
                     "chuva": chuva,
-                    "fator": fator
+                    "fator": fator,
+                    "fonte": fonte
                 })
                 sucessos += 1
                 print(
                     f"Trecho {id_trecho} ({dados['nome']}): "
-                    f"valor recebido={chuva:.1f}; "
-                    f"classificacao heuristica={status}."
+                    f"valor={chuva:.1f} mm; "
+                    f"fonte={fonte}; status={status}."
                 )
     finally:
         motor.dispose()
