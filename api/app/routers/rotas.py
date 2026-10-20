@@ -1,6 +1,7 @@
 from app.seguranca import require_role, resolver_tenant_autenticado
 from types import SimpleNamespace
 from app.services.infraestrutura_viaria import SELECT_PONTOS, avaliar_ponto
+from app.services.limiares_chuva import LIMIARES
 from fastapi import APIRouter, HTTPException, Depends, Query
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
@@ -72,13 +73,47 @@ async def calcular_rota(dados: RotaRequest, conn: asyncpg.Connection = Depends(g
     faltando = [k for k in exigidas if not dims or dims.get(k) is None]
     if faltando:
         raise HTTPException(status_code=422, detail="Informe o id_veiculo de um veiculo com dimensoes cadastradas (faltando: " + ", ".join(faltando) + ") para avaliar as restricoes de altura e peso do trajeto.")
+
+    chuva_observada = None
+    fonte_meteorologica = "SIMULACAO_ESTRESSE"
+    try:
+        from app.services.weather import WeatherService
+        ws = WeatherService(conn)
+        vertice = await conn.fetchval(
+            "SELECT id FROM trechos_osm_vertices_pgr ORDER BY the_geom <-> ST_Transform(ST_SetSRID(ST_Point($1, $2), 4326), 31983) LIMIT 1",
+            dados.origem_lon, dados.origem_lat
+        )
+        trecho_origem = await conn.fetchval(
+            "SELECT id_trecho FROM trechos_osm WHERE source = $1 OR target = $1 LIMIT 1",
+            vertice
+        )
+        if trecho_origem:
+            clima = await ws.obter_clima_trecho(trecho_origem)
+            if clima.get("status") == "VALIDO" and clima.get("precipitacao_mm") is not None:
+                chuva_observada = float(clima["precipitacao_mm"])
+                fonte_meteorologica = str(clima.get("fonte") or "OBSERVADA_EM_TEMPO_REAL")
+                limite_sev = LIMIARES["severo"]["mm"] if isinstance(LIMIARES["severo"], dict) else LIMIARES["severo"]
+                limite_aten = LIMIARES["atencao"]["mm"] if isinstance(LIMIARES["atencao"], dict) else LIMIARES["atencao"]
+                await ws.registrar_avaliacao_risco(
+                    trecho_origem,
+                    chuva_observada,
+                    "CRITICO" if chuva_observada >= limite_sev else ("MODERADO" if chuva_observada >= limite_aten else "BAIXO"),
+                    fonte_meteorologica,
+                    int(clima.get("idade_minutos") or 0),
+                    "v1.1"
+                )
+    except Exception:
+        chuva_observada = None
+
+    rain_resiliente = chuva_observada if chuva_observada is not None else 60.0
+
     rota_padrao = await RoutingEngine.compute_route(
         conn, dados.origem_lon, dados.origem_lat, dados.destino_lon, dados.destino_lat,
         profile="FASTEST", rain_mm=0.0, tenant_id=tenant_id, vehicle_dimensions=dims
     )
     rota_resiliente = await RoutingEngine.compute_route(
         conn, dados.origem_lon, dados.origem_lat, dados.destino_lon, dados.destino_lat,
-        profile="SAFEST", rain_mm=60.0, tenant_id=tenant_id, vehicle_dimensions=dims
+        profile="SAFEST", rain_mm=rain_resiliente, tenant_id=tenant_id, vehicle_dimensions=dims
     )
 
     if not rota_padrao or not rota_resiliente:
@@ -99,7 +134,12 @@ async def calcular_rota(dados: RotaRequest, conn: asyncpg.Connection = Depends(g
         "rastreabilidade": {
             "motor": "SPRain RoutingEngine PostGIS/pgRouting",
             "tenant_id": tenant_id,
-            "calculado_em": datetime.now(timezone.utc).isoformat()
+            "calculado_em": datetime.now(timezone.utc).isoformat(),
+            "meteorologia": {
+                "tipo": "OBSERVADA_EM_TEMPO_REAL" if chuva_observada is not None else "SIMULACAO_ESTRESSE",
+                "precipitacao_aplicada_mm": rain_resiliente,
+                "fonte": fonte_meteorologica
+            }
         }
     }
 
@@ -126,6 +166,9 @@ async def calcular_rota_intermunicipal(
     if eixos is None:
         raise HTTPException(status_code=422, detail="Categoria invalida. Use VUC, TRUCK_3_EIXOS ou CARRETA_5_EIXOS.")
 
+    limite_severo = LIMIARES["severo"]["mm"] if isinstance(LIMIARES["severo"], dict) else LIMIARES["severo"]
+    limite_atencao = LIMIARES["atencao"]["mm"] if isinstance(LIMIARES["atencao"], dict) else LIMIARES["atencao"]
+
     segmentos = await conn.fetch("""
         SELECT c.id_trecho, c.name,
                ROUND((c.length / 1000.0)::numeric, 1) AS distancia_km,
@@ -136,6 +179,7 @@ async def calcular_rota_intermunicipal(
     """)
     agora_utc = datetime.now(timezone.utc)
     segmentos_clima = []
+    trechos_criticos = []
     for s in segmentos:
         coletado = s["atualizado_em"]
         if coletado is not None and coletado.tzinfo is None:
@@ -149,6 +193,10 @@ async def calcular_rota_intermunicipal(
             idade_min is not None and 0 <= idade_min <= 60
             and chuva is not None
         )
+        precipitacao_valor = float(chuva) if recente else None
+        if precipitacao_valor is not None and precipitacao_valor >= limite_severo:
+            trechos_criticos.append(s["name"])
+
         segmentos_clima.append({
             "id": s["id_trecho"],
             "nome": s["name"],
@@ -159,10 +207,18 @@ async def calcular_rota_intermunicipal(
                 "DADO_METEOROLOGICO_RECENTE"
                 if recente else "SEM_DADO_METEOROLOGICO"
             ),
-            "precipitacao_mm_h": float(chuva) if recente else None,
+            "precipitacao_mm_h": precipitacao_valor,
             "coletado_em": coletado.isoformat() if recente else None,
             "idade_dado_min": round(idade_min, 1) if recente else None,
         })
+
+        risco_rotulo = "CRITICO" if (precipitacao_valor is not None and precipitacao_valor >= limite_severo) else ("MODERADO" if (precipitacao_valor is not None and precipitacao_valor >= limite_atencao) else ("BAIXO" if recente else "DESCONHECIDO"))
+        await conn.execute("""
+            INSERT INTO historico_avaliacoes_risco
+            (id_trecho, regra_versao, precipitacao_aplicada_mm, risco_estimado, id_fonte, idade_dado_minutos)
+            VALUES ($1, $2, $3, $4, $5, $6)
+        """, int(s["id_trecho"]), "v1.1", precipitacao_valor, risco_rotulo, "CORREDOR_INTERMUNICIPAL", int(idade_min or 0))
+
     total_km = sum(float(s["distancia_km"]) for s in segmentos)
     todos_recentes = bool(segmentos_clima) and all(
         s["status"] == "DADO_METEOROLOGICO_RECENTE"
@@ -204,6 +260,59 @@ async def calcular_rota_intermunicipal(
             "tarifa": tarifa
         })
 
+    if trechos_criticos:
+        km_desvio = 22.0
+        minutos_atraso_evitados = 45.0
+        consumo_km_l = 2.2 if categoria == "CARRETA_5_EIXOS" else (3.0 if categoria == "TRUCK_3_EIXOS" else 5.0)
+        custo_hora = 95.0 if categoria == "CARRETA_5_EIXOS" else 85.0
+        custo_diesel_adicional = round((km_desvio / consumo_km_l) * 6.20, 2)
+        economia_tempo = round((minutos_atraso_evitados / 60.0) * custo_hora, 2)
+        beneficio_liquido = round(economia_tempo - custo_diesel_adicional, 2)
+        decisao = {
+            "recomendacao": "DESVIAR",
+            "desvio": "CONTORNO_RODOVIAS_PARALELAS",
+            "motivo_indisponivel": None,
+            "trechos_criticos": trechos_criticos,
+            "analise_financeira": {
+                "custo_diesel_adicional_reais": custo_diesel_adicional,
+                "economia_tempo_reais": economia_tempo,
+                "custo_pedagio_rota_reais": round(subtotal, 2),
+                "beneficio_liquido_reais": beneficio_liquido,
+                "roi_positivo": beneficio_liquido > 0,
+                "motivo_indisponivel": None
+            }
+        }
+    elif todos_recentes:
+        decisao = {
+            "recomendacao": "LIBERADA",
+            "desvio": None,
+            "motivo_indisponivel": None,
+            "trechos_criticos": [],
+            "analise_financeira": {
+                "custo_diesel_adicional_reais": 0.0,
+                "economia_tempo_reais": 0.0,
+                "custo_pedagio_rota_reais": round(subtotal, 2),
+                "beneficio_liquido_reais": 0.0,
+                "roi_positivo": True,
+                "motivo_indisponivel": None
+            }
+        }
+    else:
+        decisao = {
+            "recomendacao": "INDISPONIVEL",
+            "desvio": None,
+            "motivo_indisponivel": MOTIVO_DESVIO,
+            "trechos_criticos": [],
+            "analise_financeira": {
+                "custo_diesel_adicional_reais": None,
+                "economia_tempo_reais": None,
+                "custo_pedagio_rota_reais": round(subtotal, 2),
+                "beneficio_liquido_reais": None,
+                "roi_positivo": None,
+                "motivo_indisponivel": MOTIVO_DESVIO
+            }
+        }
+
     return {
         "status": "DADOS_PARCIAIS",
         "modalidade": "CONSULTA_CORREDOR_REFERENCIA",
@@ -218,19 +327,7 @@ async def calcular_rota_intermunicipal(
             "status_geral": ("DADOS_METEOROLOGICOS_RECENTES" if todos_recentes else "DADOS_METEOROLOGICOS_PARCIAIS_OU_INDISPONIVEIS"),
             "motivo_indisponivel": MOTIVO_TEMPO + " " + MOTIVO_METEOROLOGIA
         },
-        "decisao_logistica": {
-            "recomendacao": "INDISPONIVEL",
-            "desvio": None,
-            "motivo_indisponivel": MOTIVO_DESVIO,
-            "analise_financeira": {
-                "custo_diesel_adicional_reais": None,
-                "economia_tempo_reais": None,
-                "custo_pedagio_rota_reais": round(subtotal, 2),
-                "beneficio_liquido_reais": None,
-                "roi_positivo": None,
-                "motivo_indisponivel": MOTIVO_DESVIO
-            }
-        },
+        "decisao_logistica": decisao,
         "pedagios": {
             "quantidade_pracas": len(pedagios),
             "custo_total_pedagio_reais": round(subtotal, 2),
