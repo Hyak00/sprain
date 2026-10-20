@@ -177,3 +177,40 @@ async def test_corredor_com_calibracao_de_tempo_retorna_eta_e_atraso():
     finally:
         await tx.rollback()
         await conn.close()
+
+
+@pytest.mark.asyncio
+async def test_corredor_com_tarifas_artesp_calcula_pedagios_por_eixo():
+    conn = await asyncpg.connect(settings.database_url)
+    tx = conn.transaction()
+    await tx.start()
+    try:
+        app = FastAPI()
+        app.include_router(router)
+
+        async def conexao():
+            yield conn
+
+        app.dependency_overrides[get_connection] = conexao
+
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test", headers={"X-API-Key": "key_admin_demo"}) as cliente:
+            resp_truck = await cliente.get("/api/v1/rotas/intermunicipal", params={"origem": "Araraquara", "destino": "Sao Paulo", "tipo_veiculo": "TRUCK_3_EIXOS", "incluir_tarifas_artesp": "true"})
+            assert resp_truck.status_code == 200
+            corpo_truck = resp_truck.json()
+            pedagios_truck = corpo_truck["pedagios"]
+            assert pedagios_truck["quantidade_pracas"] == 5
+            assert pedagios_truck["custo_total_pedagio_reais"] == 141.30
+            assert pedagios_truck["cobertura_completa"] is False
+
+            resp_vuc = await cliente.get("/api/v1/rotas/intermunicipal", params={"origem": "Araraquara", "destino": "Sao Paulo", "tipo_veiculo": "VUC", "incluir_tarifas_artesp": "true"})
+            assert resp_vuc.status_code == 200
+            corpo_vuc = resp_vuc.json()
+            assert corpo_vuc["pedagios"]["custo_total_pedagio_reais"] == 47.10
+
+            resp_carreta = await cliente.get("/api/v1/rotas/intermunicipal", params={"origem": "Araraquara", "destino": "Sao Paulo", "tipo_veiculo": "CARRETA_5_EIXOS", "incluir_tarifas_artesp": "true"})
+            assert resp_carreta.status_code == 200
+            corpo_carreta = resp_carreta.json()
+            assert corpo_carreta["pedagios"]["custo_total_pedagio_reais"] == 235.50
+    finally:
+        await tx.rollback()
+        await conn.close()
