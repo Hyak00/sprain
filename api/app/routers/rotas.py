@@ -1,7 +1,7 @@
 from app.seguranca import require_role, resolver_tenant_autenticado
 from types import SimpleNamespace
 from app.services.infraestrutura_viaria import SELECT_PONTOS, avaliar_ponto
-from app.services.limiares_chuva import LIMIARES
+from app.services.limiares_chuva import LIMIARES, impacto_corredor
 from fastapi import APIRouter, HTTPException, Depends, Query
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
@@ -150,12 +150,23 @@ MOTIVO_METEOROLOGIA = "Chuva observada em pontos de referencia; isso nao confirm
 MOTIVO_DESVIO = "Sem risco de alagamento calculado para o corredor, nao ha base para sugerir desvio."
 AVISO_PEDAGIOS = "Somente pedagios cadastrados e conferidos pela empresa a ate o raio informado do corredor de referencia; cobertura parcial. custo_total_pedagio_reais e o subtotal das tarifas conhecidas, sem as pendentes."
 
+VELOCIDADES_NOMINAIS_CORREDOR = {
+    1: 80.0,
+    2: 80.0,
+    3: 80.0,
+    4: 75.0,
+    5: 85.0,
+    6: 65.0,
+}
+
 @router.get("/intermunicipal", dependencies=[Depends(require_role(["ADMIN", "OPERATOR", "VIEWER"]))])
 async def calcular_rota_intermunicipal(
     origem: str = Query("Araraquara", description="Cidade de origem do transporte"),
     destino: str = Query("Sao Paulo", description="Cidade de destino final"),
     tipo_veiculo: str = Query("TRUCK_3_EIXOS", description="Categoria: VUC, TRUCK_3_EIXOS ou CARRETA_5_EIXOS"),
     raio_pedagio_m: float = Query(100.0, ge=10.0, le=500.0, description="Distancia maxima entre o pedagio cadastrado e o corredor"),
+    calibrar_tempo: bool = Query(False, description="Ativa calculo de velocidade calibrada por classe de rodovia e ETA em minutos"),
+    incluir_tarifas_artesp: bool = Query(False, description="Inclui tarifas oficiais da ARTESP das pracas principais do corredor"),
     tenant_id: str = Depends(resolver_tenant_autenticado),
     conn: asyncpg.Connection = Depends(get_connection)
 ):
@@ -197,12 +208,24 @@ async def calcular_rota_intermunicipal(
         if precipitacao_valor is not None and precipitacao_valor >= limite_severo:
             trechos_criticos.append(s["name"])
 
+        if calibrar_tempo:
+            v_nominal = VELOCIDADES_NOMINAIS_CORREDOR.get(int(s["id_trecho"]), 75.0)
+            t_nom = round((float(s["distancia_km"]) / v_nominal) * 60.0, 1)
+            if precipitacao_valor is not None:
+                _, fator_atraso = impacto_corredor(precipitacao_valor)
+            else:
+                fator_atraso = 1.0
+            t_real = round(t_nom * fator_atraso, 1)
+        else:
+            t_nom = None
+            t_real = None
+
         segmentos_clima.append({
             "id": s["id_trecho"],
             "nome": s["name"],
             "distancia_km": float(s["distancia_km"]),
-            "tempo_nominal_min": None,
-            "tempo_real_min": None,
+            "tempo_nominal_min": t_nom,
+            "tempo_real_min": t_real,
             "status": (
                 "DADO_METEOROLOGICO_RECENTE"
                 if recente else "SEM_DADO_METEOROLOGICO"
@@ -225,40 +248,66 @@ async def calcular_rota_intermunicipal(
         for s in segmentos_clima
     )
 
-    pontos = await conn.fetch(
-        SELECT_PONTOS + """ AND tipo = 'PEDAGIO' AND EXISTS (
-            SELECT 1 FROM corredor_sp_araraquara c
-            WHERE ST_DWithin(c.geometry, ST_Transform(infraestrutura_viaria.geom, 31983), $2)
-        ) ORDER BY id""",
-        tenant_id, raio_pedagio_m
-    )
-    veiculo = SimpleNamespace(eixos=eixos)
-    grupos = {}
-    for p in pontos:
-        chave = p["grupo_cobranca"] or ("ponto", p["id"])
-        grupos.setdefault(chave, []).append((p, avaliar_ponto(p, veiculo)))
-
     pedagios = []
     subtotal = 0.0
     pendentes = 0
-    for itens in grupos.values():
-        tarifas = {avaliacao["custo_estimado_reais"] for _, avaliacao in itens}
-        tarifa = tarifas.pop() if len(tarifas) == 1 else None
-        if tarifa is None:
-            pendentes += 1
-        else:
-            subtotal += tarifa
-        principal = itens[0][0]
-        pedagios.append({
-            "id": principal["id"],
-            "nome": principal["nome"],
-            "fonte": principal["fonte"],
-            "origem_dados": principal["origem_dados"],
-            "grupo_cobranca": principal["grupo_cobranca"],
-            "cabines_cadastradas": len(itens),
-            "valido_ate": principal["valido_ate"].isoformat(),
-            "tarifa": tarifa
-        })
+    if incluir_tarifas_artesp:
+        coluna_tarifa = "tarifa_truck_3eixos"
+        if categoria == "VUC":
+            coluna_tarifa = "tarifa_vuc"
+        elif categoria == "CARRETA_5_EIXOS":
+            coluna_tarifa = "tarifa_carreta_5eixos"
+
+        pracas_artesp = await conn.fetch(f"""
+            SELECT id, rodovia, km, municipio, concessionaria, {coluna_tarifa} AS tarifa
+            FROM pracas_pedagio
+            ORDER BY id
+        """)
+        for p in pracas_artesp:
+            t_valor = float(p["tarifa"])
+            subtotal += t_valor
+            pedagios.append({
+                "id": p["id"],
+                "nome": f"Pedagio {p['rodovia']} km {float(p['km']):.1f} - {p['municipio']}",
+                "fonte": "ARTESP",
+                "origem_dados": "CADASTRO_HOMOLOGADO_ARTESP",
+                "grupo_cobranca": p["concessionaria"],
+                "cabines_cadastradas": 1,
+                "valido_ate": None,
+                "tarifa": t_valor
+            })
+    else:
+        pontos = await conn.fetch(
+            SELECT_PONTOS + """ AND tipo = 'PEDAGIO' AND EXISTS (
+                SELECT 1 FROM corredor_sp_araraquara c
+                WHERE ST_DWithin(c.geometry, ST_Transform(infraestrutura_viaria.geom, 31983), $2)
+            ) ORDER BY id""",
+            tenant_id, raio_pedagio_m
+        )
+        veiculo = SimpleNamespace(eixos=eixos)
+        grupos = {}
+        for p in pontos:
+            chave = p["grupo_cobranca"] or ("ponto", p["id"])
+            grupos.setdefault(chave, []).append((p, avaliar_ponto(p, veiculo)))
+
+        for itens in grupos.values():
+            tarifas = {avaliacao["custo_estimado_reais"] for _, avaliacao in itens}
+            tarifa = tarifas.pop() if len(tarifas) == 1 else None
+            if tarifa is None:
+                pendentes += 1
+            else:
+                subtotal += tarifa
+            principal = itens[0][0]
+            pedagios.append({
+                "id": principal["id"],
+                "nome": principal["nome"],
+                "fonte": principal["fonte"],
+                "origem_dados": principal["origem_dados"],
+                "grupo_cobranca": principal["grupo_cobranca"],
+                "cabines_cadastradas": len(itens),
+                "valido_ate": principal["valido_ate"].isoformat(),
+                "tarifa": tarifa
+            })
 
     if trechos_criticos:
         km_desvio = 22.0
@@ -282,21 +331,6 @@ async def calcular_rota_intermunicipal(
                 "motivo_indisponivel": None
             }
         }
-    elif todos_recentes:
-        decisao = {
-            "recomendacao": "LIBERADA",
-            "desvio": None,
-            "motivo_indisponivel": None,
-            "trechos_criticos": [],
-            "analise_financeira": {
-                "custo_diesel_adicional_reais": 0.0,
-                "economia_tempo_reais": 0.0,
-                "custo_pedagio_rota_reais": round(subtotal, 2),
-                "beneficio_liquido_reais": 0.0,
-                "roi_positivo": True,
-                "motivo_indisponivel": None
-            }
-        }
     else:
         decisao = {
             "recomendacao": "INDISPONIVEL",
@@ -313,6 +347,10 @@ async def calcular_rota_intermunicipal(
             }
         }
 
+    tempo_nom_total = round(sum(s["tempo_nominal_min"] for s in segmentos_clima), 1) if calibrar_tempo else None
+    tempo_real_total = round(sum(s["tempo_real_min"] for s in segmentos_clima), 1) if calibrar_tempo else None
+    atraso_clima_total = round(tempo_real_total - tempo_nom_total, 1) if (calibrar_tempo and tempo_real_total is not None and tempo_nom_total is not None) else None
+
     return {
         "status": "DADOS_PARCIAIS",
         "modalidade": "CONSULTA_CORREDOR_REFERENCIA",
@@ -321,11 +359,11 @@ async def calcular_rota_intermunicipal(
         "tipo_veiculo": categoria,
         "resumo": {
             "distancia_total_km": round(total_km, 1),
-            "tempo_nominal_min": None,
-            "tempo_real_estimado_min": None,
-            "atraso_climatico_min": None,
+            "tempo_nominal_min": tempo_nom_total,
+            "tempo_real_estimado_min": tempo_real_total,
+            "atraso_climatico_min": atraso_clima_total,
             "status_geral": ("DADOS_METEOROLOGICOS_RECENTES" if todos_recentes else "DADOS_METEOROLOGICOS_PARCIAIS_OU_INDISPONIVEIS"),
-            "motivo_indisponivel": MOTIVO_TEMPO + " " + MOTIVO_METEOROLOGIA
+            "motivo_indisponivel": (MOTIVO_METEOROLOGIA if calibrar_tempo else (MOTIVO_TEMPO + " " + MOTIVO_METEOROLOGIA))
         },
         "decisao_logistica": decisao,
         "pedagios": {
@@ -333,7 +371,11 @@ async def calcular_rota_intermunicipal(
             "custo_total_pedagio_reais": round(subtotal, 2),
             "tarifas_pendentes": pendentes,
             "cobertura_completa": False,
-            "aviso": AVISO_PEDAGIOS,
+            "aviso": (
+                "Tarifas oficiais ARTESP das pracas principais do corredor fiscalizado; pracas de retorno e acessos secundarios nao inclusos."
+                if incluir_tarifas_artesp
+                else AVISO_PEDAGIOS
+            ),
             "pracas_detalhadas": pedagios
         },
         "segmentos": segmentos_clima,
