@@ -61,9 +61,17 @@ não consomem cota. Em produção, o OSRM de demonstração permanece desativado
 O painel informa quantas reservas houve, mesmo sem assinatura. Importações
 globais e entregas de webhook não são atribuídas a clientes nessa contagem.
 
+O agregado `tempo_api_empresa_diario` registra, por dia local e empresa, número
+de respostas, respostas HTTP 4xx/5xx e tempo de resposta acumulado. Não grava
+URL, IP ou conteúdo da requisição. A gravação ocorre em segundo plano para não
+reter a resposta enquanto a rota ainda ocupa uma conexão; portanto, uma parada
+brusca ou fila cheia pode perder medições recentes. O painel ADMIN exibe os
+totais do mês. Tempo de resposta não é uso de CPU nem custo monetário.
+
 **Limite desta etapa:** o status `SUSPENSA` não revoga acesso; isso será tratado
 na etapa final de segurança. O custo de servir continua `null`: não há contrato
-de provedor nem tarifa verificável para calcular valor por chamada. `null` não
+de provedor, tarifa verificável nem custo unitário de processamento para calcular
+valor por chamada. `null` não
 representa custo zero. A reserva pode ficar com status `RESERVADA` se o processo
 parar antes de registrar o resultado; ela continua contando de forma conservadora
 na cota até uma reconciliação operacional.

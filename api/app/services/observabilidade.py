@@ -1,8 +1,34 @@
 import time
+import logging
+import asyncio
 from typing import Any, Dict
 
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
+from app import database
+from app.services.medicao_processamento import registrar_atendimento
+
+logger = logging.getLogger(__name__)
+_medicoes_pendentes: set[asyncio.Task] = set()
+MAX_MEDICOES_PENDENTES = 1000
+
+
+async def _persistir_medicao(tenant_id: str, status_code: int, duracao_ms: float):
+    try:
+        if database.db_pool is not None:
+            async with database.db_pool.acquire() as conn:
+                await registrar_atendimento(conn, tenant_id, status_code, duracao_ms)
+    except Exception as erro:
+        logger.warning("Metrica de processamento nao persistida: %s", type(erro).__name__)
+
+
+def _agendar_medicao(tenant_id: str, status_code: int, duracao_ms: float):
+    # A escrita nao pode bloquear a resposta enquanto a rota ainda detem uma conexao.
+    if len(_medicoes_pendentes) >= MAX_MEDICOES_PENDENTES:
+        return
+    tarefa = asyncio.create_task(_persistir_medicao(tenant_id, status_code, duracao_ms))
+    _medicoes_pendentes.add(tarefa)
+    tarefa.add_done_callback(_medicoes_pendentes.discard)
 
 
 class MetricsCollector:
@@ -114,6 +140,7 @@ class ObservabilidadeMiddleware(BaseHTTPMiddleware):
                 status_code=response.status_code,
                 duracao_ms=duracao_ms,
             )
+            _agendar_medicao(tenant_id, response.status_code, duracao_ms)
 
         response.headers["X-Process-Time-Ms"] = str(round(duracao_ms, 2))
         return response

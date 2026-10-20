@@ -11,6 +11,7 @@ SCHEMA = (Path(__file__).resolve().parents[3] / "db" / "ci" / "16_planos_empresa
 SCHEMA_AUDITORIA = (Path(__file__).resolve().parents[3] / "db" / "ci" / "17_auditoria_planos.sql").read_text(encoding="utf-8")
 SCHEMA_SEED = (Path(__file__).resolve().parents[3] / "db" / "ci" / "19_seed_planos_servico.sql").read_text(encoding="utf-8")
 SCHEMA_CHAMADAS = (Path(__file__).resolve().parents[3] / "db" / "ci" / "19_chamadas_api_externa.sql").read_text(encoding="utf-8")
+SCHEMA_TEMPO = (Path(__file__).resolve().parents[3] / "db" / "ci" / "20_tempo_api_empresa.sql").read_text(encoding="utf-8")
 FUSO_CONSUMO = ZoneInfo("America/Sao_Paulo")
 
 
@@ -20,6 +21,7 @@ async def garantir_schema():
         await conn.execute(SCHEMA_AUDITORIA)
         await conn.execute(SCHEMA_SEED)
         await conn.execute(SCHEMA_CHAMADAS)
+        await conn.execute(SCHEMA_TEMPO)
 
 
 def periodo_atual(agora: datetime | None = None) -> tuple[datetime, datetime, str]:
@@ -47,6 +49,13 @@ async def resumo(conn, tenant_id: str, agora: datetime | None = None) -> dict:
             (SELECT count(*)::integer FROM chamadas_api_externa WHERE tenant_id=$1
                 AND criado_em >= $2 AND criado_em < $3) AS chamadas_externas_mes
     """, tenant_id, inicio, fim)
+    tempo = await conn.fetchrow("""
+        SELECT COALESCE(sum(requisicoes),0)::bigint AS requisicoes_mes,
+            COALESCE(sum(erros),0)::bigint AS erros_mes,
+            COALESCE(sum(tempo_resposta_total_ms),0)::double precision AS tempo_resposta_total_ms
+        FROM tempo_api_empresa_diario
+        WHERE tenant_id=$1 AND dia_local >= $2 AND dia_local < $3
+    """, tenant_id, inicio.astimezone(FUSO_CONSUMO).date(), fim.astimezone(FUSO_CONSUMO).date())
     assinatura = None
     if plano:
         assinatura = {
@@ -62,9 +71,10 @@ async def resumo(conn, tenant_id: str, agora: datetime | None = None) -> dict:
         "fuso_periodo": "America/Sao_Paulo",
         "assinatura": assinatura,
         "situacao": "REGISTRADA" if assinatura else "SEM_ASSINATURA_CONFIGURADA",
-        "uso": {**dict(uso), "custo_servir_brl": None},
+        "uso": {**dict(uso), **dict(tempo), "custo_servir_brl": None},
         "aviso": "Contagens de usuarios, corredores e consultas persistidas nesta empresa. "
                  "Limites numericos configurados bloqueiam novos cadastros/consultas; status da assinatura ainda e informativo. "
                  "Chamadas externas incluem reservas ao OSRM demo deste endpoint, nao importacoes globais nem webhooks. "
-                 "Custo de servir nao e medido; nulo nao significa zero.",
+                 "Tempo de resposta e medido por empresa, mas nao equivale a CPU ou custo. "
+                 "Custo de servir nao e calculado; nulo nao significa zero.",
     }
