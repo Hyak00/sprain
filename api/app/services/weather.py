@@ -1,4 +1,4 @@
-import json
+﻿import json
 import math
 import re
 import urllib.request
@@ -117,7 +117,7 @@ class WeatherService:
             "data_referencia": row["data_referencia"].isoformat(),
         }
 
-    async def registrar_avaliacao_risco(self, id_trecho: int, precipitacao_mm: float, risco: str, fonte: str, idade_min: int, versao: str = "v1.0"):
+    async def registrar_avaliacao_risco(self, id_trecho: int, precipitacao_mm: Optional[float], risco: str, fonte: str, idade_min: int, versao: str = "v1.0"):
         await self.conn.execute("""
             INSERT INTO historico_avaliacoes_risco
             (id_trecho, regra_versao, precipitacao_aplicada_mm, risco_estimado, id_fonte, idade_dado_minutos)
