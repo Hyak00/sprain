@@ -23,6 +23,8 @@ def ler_configuracao(tipo: str, arquivo: Path) -> dict:
     if tipo == "assinatura":
         for campo in ("inicio_em", "fim_em"):
             if dados.get(campo) is not None:
+                if not isinstance(dados[campo], str):
+                    raise ValueError(f"{campo} deve ser uma data ISO 8601 em texto.")
                 dados[campo] = datetime.fromisoformat(dados[campo].replace("Z", "+00:00"))
     return dados
 

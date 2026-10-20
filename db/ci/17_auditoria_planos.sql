@@ -1,4 +1,4 @@
--- Historico imutavel de alteracoes manuais de planos e assinaturas.
+-- Historico de alteracoes manuais de planos e assinaturas.
 CREATE TABLE IF NOT EXISTS planos_auditoria (
     id BIGSERIAL PRIMARY KEY,
     tipo TEXT NOT NULL CHECK (tipo IN ('PLANO', 'ASSINATURA')),
