@@ -9,6 +9,7 @@ LIMITES = {
     "usuarios": ("limite_usuarios_ativos", "usuarios ativos"),
     "corredores": ("limite_corredores_ativos", "corredores ativos"),
     "consultas": ("limite_consultas_mes", "consultas no mes"),
+    "externas": ("limite_chamadas_externas_mes", "chamadas externas no mes"),
 }
 
 
@@ -43,11 +44,12 @@ async def verificar_cota(conn, tenant: str, recurso: str) -> dict:
         atual = await conn.fetchval("SELECT count(*) FROM painel_usuarios WHERE tenant_id=$1 AND ativo", tenant)
     elif recurso == "corredores":
         atual = await conn.fetchval("SELECT count(*) FROM painel_corredores WHERE tenant_id=$1 AND dados->>'ativo'='true'", tenant)
-    else:
+    elif recurso in ("consultas", "externas"):
         # Usa o mesmo relogio da coluna criado_em (DEFAULT now()) da transacao.
         inicio, fim, _ = periodo_atual(await conn.fetchval("SELECT now()"))
-        atual = await conn.fetchval("""
-            SELECT count(*) FROM painel_consultas
+        tabela = "painel_consultas" if recurso == "consultas" else "chamadas_api_externa"
+        atual = await conn.fetchval(f"""
+            SELECT count(*) FROM {tabela}
             WHERE tenant_id=$1 AND criado_em >= $2 AND criado_em < $3
         """, tenant, inicio, fim)
     if atual >= limite:

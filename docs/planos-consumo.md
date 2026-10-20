@@ -1,10 +1,13 @@
-# Planos e consumo por empresa — primeira etapa
+# Planos e consumo por empresa
 
 O esquema `db/ci/16_planos_empresa.sql` cria um catálogo de planos e o registro
-da assinatura atual de cada empresa. A migração é aditiva e repetível. Ela não
-cria planos, assinaturas, preços ou limites por conta própria e não altera
-contas existentes. A configuração comercial deve ser definida pela equipe e
-registrada por um operador autorizado do banco, fora da API pública.
+da assinatura atual de cada empresa. A migração é aditiva e repetível. O
+catálogo inicial `db/ci/19_seed_planos_servico.sql` cadastra três planos
+ilustrativos e uma assinatura da empresa de demonstração se não existirem.
+Reiniciar a API não sobrescreve alterações manuais nesses registros. Valores,
+funcionalidades e limites comerciais devem ser aprovados pela equipe e
+registrados por um operador autorizado do banco, fora da API pública. O seed
+não cria preços nem representa uma oferta comercial aprovada.
 
 ## Cadastro manual com prévia e histórico
 
@@ -35,8 +38,8 @@ no repositório. A migração de auditoria é `db/ci/17_auditoria_planos.sql`.
 
 `GET /api/v1/operacional/plano` exige ADMIN e usa a empresa da credencial.
 Mostra plano, status registrado, início/fim, funcionalidades declaradas,
-limites configurados e três contagens persistidas: usuários ativos, corredores
-ativos e consultas do mês em `America/Sao_Paulo`. Sem assinatura, informa
+limites configurados e quatro contagens persistidas: usuários ativos, corredores
+ativos, consultas e reservas de chamadas externas do mês em `America/Sao_Paulo`. Sem assinatura, informa
 `SEM_ASSINATURA_CONFIGURADA` e continua mostrando o uso observado. O endpoint
 não aceita uma empresa escolhida pelo cliente para consultar outra conta.
 
@@ -50,12 +53,21 @@ o mês civil em `America/Sao_Paulo`. Um cadastro inativo não consome cota de
 corredores. Operações diretas no banco, fora da API, devem ser coordenadas pelo
 operador para respeitar as cotas.
 
+As consultas ao OSRM de demonstração são a chamada externa por empresa
+atualmente identificada na API. Antes de sair para o provedor, a API grava
+uma reserva no banco e verifica a cota mensal configurada. Falhas de envio ou
+resposta também contam como tentativa; acertos de cache não fazem chamada e
+não consomem cota. Em produção, o OSRM de demonstração permanece desativado.
+O painel informa quantas reservas houve, mesmo sem assinatura. Importações
+globais e entregas de webhook não são atribuídas a clientes nessa contagem.
+
 **Limite desta etapa:** o status `SUSPENSA` não revoga acesso; isso será tratado
-na etapa final de segurança. Chamadas a provedores externos e custo de servir
-retornam `null`, pois não há medição confiável de custo contratado. `null` não
-representa custo zero. O limite de chamadas externas ainda não é aplicado.
+na etapa final de segurança. O custo de servir continua `null`: não há contrato
+de provedor nem tarifa verificável para calcular valor por chamada. `null` não
+representa custo zero. A reserva pode ficar com status `RESERVADA` se o processo
+parar antes de registrar o resultado; ela continua contando de forma conservadora
+na cota até uma reconciliação operacional.
 
 Para concluir o item 2.6 da lista técnica, faltam: definir os planos e valores
-com a equipe; medir chamadas externas por empresa sem
-inventar preço; e aplicar suspensão/reativação de forma controlada. Esta última
+com a equipe; medir custos contratados e processamento por empresa; e aplicar suspensão/reativação de forma controlada. Esta última
 parte será tratada na etapa final de segurança, com aviso prévio ao usuário.
