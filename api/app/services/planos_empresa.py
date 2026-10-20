@@ -8,12 +8,14 @@ from app.database import get_connection
 
 
 SCHEMA = (Path(__file__).resolve().parents[3] / "db" / "ci" / "16_planos_empresa.sql").read_text(encoding="utf-8")
+SCHEMA_AUDITORIA = (Path(__file__).resolve().parents[3] / "db" / "ci" / "17_auditoria_planos.sql").read_text(encoding="utf-8")
 FUSO_CONSUMO = ZoneInfo("America/Sao_Paulo")
 
 
 async def garantir_schema():
     async for conn in get_connection():
         await conn.execute(SCHEMA)
+        await conn.execute(SCHEMA_AUDITORIA)
 
 
 def periodo_atual(agora: datetime | None = None) -> tuple[datetime, datetime, str]:
