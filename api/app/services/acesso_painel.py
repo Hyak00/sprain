@@ -7,6 +7,7 @@ from uuid import uuid4
 
 from fastapi import HTTPException
 from app.database import get_connection
+from app.services.cotas_plano import verificar_cota
 
 PREFIXO = 'sprain_session_'
 _SCHEMAS = Path(__file__).resolve().parents[3] / 'db/ci'
@@ -89,5 +90,7 @@ async def cadastrar(conn,email,senha,empresa,tenant,papel):
         raise ValueError('Informe e-mail valido e senha de 15 a 256 caracteres.')
     protegido=await asyncio.to_thread(proteger,senha)
     # Criacao administrativa explicita. Conta existente nao e sobrescrita silenciosamente.
-    return await conn.fetchval('''INSERT INTO painel_usuarios(id,email,empresa,tenant_id,papel,senha_hash)
-        VALUES($1,$2,$3,$4,$5,$6) RETURNING id''',uuid4(),email.strip().lower(),empresa.strip(),tenant.strip(),papel,protegido)
+    async with conn.transaction():
+        await verificar_cota(conn, tenant.strip(), 'usuarios')
+        return await conn.fetchval('''INSERT INTO painel_usuarios(id,email,empresa,tenant_id,papel,senha_hash)
+            VALUES($1,$2,$3,$4,$5,$6) RETURNING id''',uuid4(),email.strip().lower(),empresa.strip(),tenant.strip(),papel,protegido)

@@ -13,6 +13,7 @@ from app.schemas import CustosCaminhao, OperacaoCreate
 from app.schemas_infraestrutura import VeiculoDimensoes
 from app.seguranca import get_current_user_claims, require_role
 from app.services.painel import objeto, registrar_consulta, selo, serializar
+from app.services.cotas_plano import verificar_cota
 from app.services.routing_engine import RoutingEngine
 
 router = APIRouter(prefix='/api/v1/painel', tags=['Fluxo persistente do painel'],
@@ -216,8 +217,11 @@ async def listar_corredores(offset: int = Query(0, ge=0), limite: int = Query(20
 async def criar_corredor(dados: Corredor, claims=Depends(get_current_user_claims), conn=Depends(get_connection)):
     config = dados.model_dump(exclude={'versao'})
     rota = await validar_rota(conn, claims['tenant_id'], config)
-    row = await conn.fetchrow('''INSERT INTO painel_corredores(id,tenant_id,dados,geometria)
-        VALUES($1,$2,$3::jsonb,$4::jsonb) RETURNING *''', uuid4(), claims['tenant_id'], json.dumps(config), json.dumps(rota['geojson']))
+    async with conn.transaction():
+        if dados.ativo:
+            await verificar_cota(conn, claims['tenant_id'], 'corredores')
+        row = await conn.fetchrow('''INSERT INTO painel_corredores(id,tenant_id,dados,geometria)
+            VALUES($1,$2,$3::jsonb,$4::jsonb) RETURNING *''', uuid4(), claims['tenant_id'], json.dumps(config), json.dumps(rota['geojson']))
     return serializar(row)
 
 
@@ -226,9 +230,20 @@ async def editar_corredor(identificador: UUID, dados: Corredor, claims=Depends(g
     await corredor(conn, claims['tenant_id'], identificador)
     config = dados.model_dump(exclude={'versao'})
     rota = await validar_rota(conn, claims['tenant_id'], config)
-    row = await conn.fetchrow('''UPDATE painel_corredores SET dados=$3::jsonb,geometria=$4::jsonb,
-        versao=versao+1,atualizado_em=now() WHERE id=$1 AND tenant_id=$2 AND versao=$5 RETURNING *''',
-        identificador, claims['tenant_id'], json.dumps(config), json.dumps(rota['geojson']), dados.versao)
+    async with conn.transaction():
+        # Serializa ativacoes e criacoes pelo mesmo recurso do tenant.
+        if dados.ativo:
+            await conn.execute('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',
+                               'cota:' + claims['tenant_id'] + ':corredores')
+        atual = await conn.fetchrow('SELECT dados FROM painel_corredores WHERE id=$1 AND tenant_id=$2 FOR UPDATE',
+                                   identificador, claims['tenant_id'])
+        if not atual:
+            raise HTTPException(404, 'Corredor nao encontrado.')
+        if dados.ativo and not objeto(atual['dados']).get('ativo'):
+            await verificar_cota(conn, claims['tenant_id'], 'corredores')
+        row = await conn.fetchrow('''UPDATE painel_corredores SET dados=$3::jsonb,geometria=$4::jsonb,
+            versao=versao+1,atualizado_em=now() WHERE id=$1 AND tenant_id=$2 AND versao=$5 RETURNING *''',
+            identificador, claims['tenant_id'], json.dumps(config), json.dumps(rota['geojson']), dados.versao)
     if not row:
         raise HTTPException(409, 'Cadastro mudou. Atualize antes de salvar.')
     return serializar(row)
@@ -296,7 +311,7 @@ async def despachar(identificador: UUID, dados: Despacho, claims=Depends(get_cur
 
 @router.post('/consultas')
 async def consultar(dados: Consulta, claims=Depends(get_current_user_claims), conn=Depends(get_connection)):
-    async with conn.transaction(isolation='repeatable_read'):
+    async with conn.transaction():
         return await registrar_consulta(conn, claims['tenant_id'], claims['role'], dados.id_operacao,claims.get('usuario_id'))
 
 

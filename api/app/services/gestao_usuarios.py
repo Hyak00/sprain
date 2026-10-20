@@ -7,6 +7,7 @@ import asyncpg
 from fastapi import HTTPException
 
 from app.services.acesso_painel import proteger
+from app.services.cotas_plano import verificar_cota
 
 
 async def _travar_empresa_e_validar_admin(conn, claims):
@@ -55,6 +56,7 @@ async def criar(conn, claims, email, senha, papel):
     try:
         async with conn.transaction():
             ator = await _travar_empresa_e_validar_admin(conn, claims)
+            await verificar_cota(conn, claims['tenant_id'], 'usuarios')
             await conn.execute(
                 '''INSERT INTO painel_usuarios
                    (id, email, empresa, tenant_id, papel, senha_hash)
