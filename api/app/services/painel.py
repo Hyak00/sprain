@@ -5,6 +5,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from app.database import get_connection
+from app.services.cotas_plano import verificar_cota
 
 SCHEMA = (Path(__file__).resolve().parents[3] / 'db' / 'ci' / '10_fluxo_painel.sql').read_text(encoding='utf-8')
 
@@ -69,6 +70,7 @@ async def registrar_consulta(conn, tenant, perfil, id_operacao, usuario_id=None)
         'aviso_autoria': 'Usuario individual autenticado.' if usuario_id else 'Credencial compartilhada por empresa/papel; identidade individual nao fornecida.'
     }
     identificador = uuid4()
+    await verificar_cota(conn, tenant, 'consultas')
     criado = await conn.fetchval('''INSERT INTO painel_consultas(id,tenant_id,id_operacao,perfil,snapshot)
         VALUES($1,$2,$3,$4,$5::jsonb) RETURNING criado_em''', identificador, tenant, id_operacao, perfil,
         json.dumps(explicacao, default=str))
