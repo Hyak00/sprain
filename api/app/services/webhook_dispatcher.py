@@ -106,3 +106,18 @@ class WebhookDispatcher:
     async def enviar_resultado(cls, resultado: Dict[str, Any]) -> Dict[str, Any]:
         corpo = json.dumps(resultado["payload_enviado"], sort_keys=True).encode("utf-8")
         return await asyncio.to_thread(cls._enviar_http, resultado["url_destino"], resultado["headers"], corpo)
+
+
+    @classmethod
+    async def notificar_alerta_corredor(cls, conn, evento: str, dados: dict) -> list:
+        linhas = await conn.fetch("""
+            SELECT tenant_id FROM webhooks_tenant
+            WHERE $1 = ANY(eventos) OR 'TODOS' = ANY(eventos) OR array_length(eventos, 1) = 0
+        """, evento)
+        resultados = []
+        for linha in linhas:
+            res = await cls.disparar_evento_sincrono(conn, linha["tenant_id"], evento, dados)
+            if res.get("sucesso"):
+                res["envio"] = await cls.enviar_resultado(res)
+            resultados.append(res)
+        return resultados

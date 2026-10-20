@@ -317,6 +317,18 @@ async def calcular_rota_intermunicipal(
         custo_diesel_adicional = round((km_desvio / consumo_km_l) * 6.20, 2)
         economia_tempo = round((minutos_atraso_evitados / 60.0) * custo_hora, 2)
         beneficio_liquido = round(economia_tempo - custo_diesel_adicional, 2)
+        try:
+            from app.services.webhook_dispatcher import WebhookDispatcher
+            await WebhookDispatcher.notificar_alerta_corredor(
+                conn, "CORREDOR_ALERTA_CLIMATICO", {
+                    "origem": origem,
+                    "destino": destino,
+                    "trechos_criticos": trechos_criticos,
+                    "recomendacao": "DESVIAR"
+                }
+            )
+        except Exception:
+            pass
         decisao = {
             "recomendacao": "DESVIAR",
             "desvio": "CONTORNO_RODOVIAS_PARALELAS",
