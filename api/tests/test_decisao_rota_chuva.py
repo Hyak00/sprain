@@ -58,7 +58,7 @@ async def test_corredor_com_chuva_critica_recomenda_desvio_e_roi_positivo():
 
 
 @pytest.mark.asyncio
-async def test_corredor_com_tempo_limpo_recomenda_liberada():
+async def test_corredor_com_tempo_limpo_mantem_rota_sem_desvio():
     conn = await asyncpg.connect(settings.database_url)
     tx = conn.transaction()
     await tx.start()
@@ -91,10 +91,11 @@ async def test_corredor_com_tempo_limpo_recomenda_liberada():
             assert resp.status_code == 200
             corpo = resp.json()
             decisao = corpo["decisao_logistica"]
-            assert decisao["recomendacao"] == "LIBERADA"
+            assert decisao["recomendacao"] == "INDISPONIVEL"
             assert decisao["desvio"] is None
-            assert decisao["analise_financeira"]["beneficio_liquido_reais"] == 0.0
-            assert decisao["analise_financeira"]["roi_positivo"] is True
+            assert decisao["motivo_indisponivel"] == "Sem risco de alagamento calculado para o corredor, nao ha base para sugerir desvio."
+            assert decisao["analise_financeira"]["beneficio_liquido_reais"] is None
+            assert decisao["analise_financeira"]["roi_positivo"] is None
     finally:
         await tx.rollback()
         await conn.close()
@@ -124,6 +125,55 @@ async def test_corredor_sem_dados_recentes_permanece_indisponivel():
             assert decisao["recomendacao"] == "INDISPONIVEL"
             assert decisao["desvio"] is None
             assert decisao["analise_financeira"]["beneficio_liquido_reais"] is None
+    finally:
+        await tx.rollback()
+        await conn.close()
+
+
+@pytest.mark.asyncio
+async def test_corredor_com_calibracao_de_tempo_retorna_eta_e_atraso():
+    conn = await asyncpg.connect(settings.database_url)
+    tx = conn.transaction()
+    await tx.start()
+    try:
+        await conn.execute("""
+            INSERT INTO condicoes_corredor (id_trecho, status_pista, precipitacao_mm_h, fator_atraso, atualizado_em)
+            VALUES (1, 'LIBERADA', 0.0, 1.0, now()),
+                   (2, 'LIBERADA', 10.0, 1.15, now()),
+                   (3, 'LIBERADA', 0.0, 1.0, now()),
+                   (4, 'LIBERADA', 0.0, 1.0, now()),
+                   (5, 'LIBERADA', 0.0, 1.0, now()),
+                   (6, 'LIBERADA', 0.0, 1.0, now())
+            ON CONFLICT (id_trecho) DO UPDATE
+            SET status_pista = EXCLUDED.status_pista,
+                precipitacao_mm_h = EXCLUDED.precipitacao_mm_h,
+                fator_atraso = EXCLUDED.fator_atraso,
+                atualizado_em = EXCLUDED.atualizado_em;
+        """)
+
+        app = FastAPI()
+        app.include_router(router)
+
+        async def conexao():
+            yield conn
+
+        app.dependency_overrides[get_connection] = conexao
+
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test", headers={"X-API-Key": "key_admin_demo"}) as cliente:
+            resp = await cliente.get("/api/v1/rotas/intermunicipal", params={"origem": "Araraquara", "destino": "Sao Paulo", "tipo_veiculo": "TRUCK_3_EIXOS", "calibrar_tempo": "true"})
+            assert resp.status_code == 200
+            corpo = resp.json()
+            resumo = corpo["resumo"]
+            assert resumo["tempo_nominal_min"] is not None
+            assert resumo["tempo_nominal_min"] > 180.0
+            assert resumo["tempo_real_estimado_min"] is not None
+            assert resumo["tempo_real_estimado_min"] >= resumo["tempo_nominal_min"]
+            assert resumo["atraso_climatico_min"] is not None
+            assert resumo["atraso_climatico_min"] >= 0.0
+            for seg in corpo["segmentos"]:
+                assert seg["tempo_nominal_min"] is not None
+                assert seg["tempo_nominal_min"] > 0
+                assert seg["tempo_real_min"] is not None
     finally:
         await tx.rollback()
         await conn.close()

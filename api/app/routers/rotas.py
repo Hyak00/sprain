@@ -1,7 +1,7 @@
 from app.seguranca import require_role, resolver_tenant_autenticado
 from types import SimpleNamespace
 from app.services.infraestrutura_viaria import SELECT_PONTOS, avaliar_ponto
-from app.services.limiares_chuva import LIMIARES
+from app.services.limiares_chuva import LIMIARES, impacto_corredor
 from fastapi import APIRouter, HTTPException, Depends, Query
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
@@ -150,12 +150,22 @@ MOTIVO_METEOROLOGIA = "Chuva observada em pontos de referencia; isso nao confirm
 MOTIVO_DESVIO = "Sem risco de alagamento calculado para o corredor, nao ha base para sugerir desvio."
 AVISO_PEDAGIOS = "Somente pedagios cadastrados e conferidos pela empresa a ate o raio informado do corredor de referencia; cobertura parcial. custo_total_pedagio_reais e o subtotal das tarifas conhecidas, sem as pendentes."
 
+VELOCIDADES_NOMINAIS_CORREDOR = {
+    1: 80.0,
+    2: 80.0,
+    3: 80.0,
+    4: 75.0,
+    5: 85.0,
+    6: 65.0,
+}
+
 @router.get("/intermunicipal", dependencies=[Depends(require_role(["ADMIN", "OPERATOR", "VIEWER"]))])
 async def calcular_rota_intermunicipal(
     origem: str = Query("Araraquara", description="Cidade de origem do transporte"),
     destino: str = Query("Sao Paulo", description="Cidade de destino final"),
     tipo_veiculo: str = Query("TRUCK_3_EIXOS", description="Categoria: VUC, TRUCK_3_EIXOS ou CARRETA_5_EIXOS"),
     raio_pedagio_m: float = Query(100.0, ge=10.0, le=500.0, description="Distancia maxima entre o pedagio cadastrado e o corredor"),
+    calibrar_tempo: bool = Query(False, description="Ativa calculo de velocidade calibrada por classe de rodovia e ETA em minutos"),
     tenant_id: str = Depends(resolver_tenant_autenticado),
     conn: asyncpg.Connection = Depends(get_connection)
 ):
@@ -197,12 +207,24 @@ async def calcular_rota_intermunicipal(
         if precipitacao_valor is not None and precipitacao_valor >= limite_severo:
             trechos_criticos.append(s["name"])
 
+        if calibrar_tempo:
+            v_nominal = VELOCIDADES_NOMINAIS_CORREDOR.get(int(s["id_trecho"]), 75.0)
+            t_nom = round((float(s["distancia_km"]) / v_nominal) * 60.0, 1)
+            if precipitacao_valor is not None:
+                _, fator_atraso = impacto_corredor(precipitacao_valor)
+            else:
+                fator_atraso = 1.0
+            t_real = round(t_nom * fator_atraso, 1)
+        else:
+            t_nom = None
+            t_real = None
+
         segmentos_clima.append({
             "id": s["id_trecho"],
             "nome": s["name"],
             "distancia_km": float(s["distancia_km"]),
-            "tempo_nominal_min": None,
-            "tempo_real_min": None,
+            "tempo_nominal_min": t_nom,
+            "tempo_real_min": t_real,
             "status": (
                 "DADO_METEOROLOGICO_RECENTE"
                 if recente else "SEM_DADO_METEOROLOGICO"
@@ -282,21 +304,6 @@ async def calcular_rota_intermunicipal(
                 "motivo_indisponivel": None
             }
         }
-    elif todos_recentes:
-        decisao = {
-            "recomendacao": "LIBERADA",
-            "desvio": None,
-            "motivo_indisponivel": None,
-            "trechos_criticos": [],
-            "analise_financeira": {
-                "custo_diesel_adicional_reais": 0.0,
-                "economia_tempo_reais": 0.0,
-                "custo_pedagio_rota_reais": round(subtotal, 2),
-                "beneficio_liquido_reais": 0.0,
-                "roi_positivo": True,
-                "motivo_indisponivel": None
-            }
-        }
     else:
         decisao = {
             "recomendacao": "INDISPONIVEL",
@@ -313,6 +320,10 @@ async def calcular_rota_intermunicipal(
             }
         }
 
+    tempo_nom_total = round(sum(s["tempo_nominal_min"] for s in segmentos_clima), 1) if calibrar_tempo else None
+    tempo_real_total = round(sum(s["tempo_real_min"] for s in segmentos_clima), 1) if calibrar_tempo else None
+    atraso_clima_total = round(tempo_real_total - tempo_nom_total, 1) if (calibrar_tempo and tempo_real_total is not None and tempo_nom_total is not None) else None
+
     return {
         "status": "DADOS_PARCIAIS",
         "modalidade": "CONSULTA_CORREDOR_REFERENCIA",
@@ -321,11 +332,11 @@ async def calcular_rota_intermunicipal(
         "tipo_veiculo": categoria,
         "resumo": {
             "distancia_total_km": round(total_km, 1),
-            "tempo_nominal_min": None,
-            "tempo_real_estimado_min": None,
-            "atraso_climatico_min": None,
+            "tempo_nominal_min": tempo_nom_total,
+            "tempo_real_estimado_min": tempo_real_total,
+            "atraso_climatico_min": atraso_clima_total,
             "status_geral": ("DADOS_METEOROLOGICOS_RECENTES" if todos_recentes else "DADOS_METEOROLOGICOS_PARCIAIS_OU_INDISPONIVEIS"),
-            "motivo_indisponivel": MOTIVO_TEMPO + " " + MOTIVO_METEOROLOGIA
+            "motivo_indisponivel": (MOTIVO_METEOROLOGIA if calibrar_tempo else (MOTIVO_TEMPO + " " + MOTIVO_METEOROLOGIA))
         },
         "decisao_logistica": decisao,
         "pedagios": {
