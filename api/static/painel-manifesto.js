@@ -7,6 +7,22 @@
         resetar();
         const m = document.getElementById("modal-manifesto");
         if (m) m.style.display = "flex";
+        atualizarVisibilidadeDemo();
+    }
+
+    function atualizarVisibilidadeDemo() {
+        const btnDemo = document.getElementById("btn-demo-araraquara");
+        if (!btnDemo) return;
+        let tenant = "";
+        if (window.PainelSessao && typeof window.PainelSessao.empresa === "function") {
+            tenant = window.PainelSessao.empresa() || "";
+        }
+        if (!tenant) {
+            const el = document.getElementById("lbl-user-tenant");
+            if (el) tenant = el.innerText || "";
+        }
+        const ehDemo = tenant.toLowerCase().indexOf("demo") >= 0;
+        btnDemo.style.display = ehDemo ? "inline-block" : "none";
     }
 
     function fechar() {
@@ -284,7 +300,7 @@
             const file = new File([blob], "manifesto_araraquara_demo.csv", { type: "text/csv" });
             await processarArquivo(file);
         } catch (e) {
-            exibirErro("Nao foi possivel carregar o exemplo de Araraquara.");
+            exibirErro("Nao foi possivel carregar as viagens de exemplo de Araraquara.");
         }
     }
 
