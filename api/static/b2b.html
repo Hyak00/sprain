@@ -226,6 +226,131 @@
         </div>
     </div>
 
+    <div id="modal-manifesto" style="position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:50000; display:none; align-items:center; justify-content:center;">
+        <div class="despacho-card" style="width:680px; max-width:92vw; max-height:90vh; overflow-y:auto;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; border-bottom:1px solid var(--border); padding-bottom:10px;">
+                <div>
+                    <div style="font-size:10px; font-weight:700; color:var(--accent); text-transform:uppercase;">Central do Despachante • Importação de Viagens</div>
+                    <h3 style="font-size:16px; color:white;">Importar Viagens do Dia (Manifesto CSV)</h3>
+                </div>
+                <button onclick="window.PainelManifesto.fechar()" style="background:transparent; border:none; color:var(--text-muted); font-size:24px; cursor:pointer;">&times;</button>
+            </div>
+
+            <div id="manifesto-estado-inicial">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                    <span style="font-size:11.5px; color:var(--text-muted);">Envie a planilha do dia para conferência e monitoramento automático.</span>
+                    <button onclick="window.PainelManifesto.baixarModelo()" style="background:none; border:none; color:var(--accent); font-size:11.5px; font-weight:700; cursor:pointer; text-decoration:underline;">
+                        📄 Baixar modelo CSV
+                    </button>
+                </div>
+
+                <div id="drop-zone-manifesto"
+                     onclick="document.getElementById('manifesto-file-input').click()"
+                     ondragover="event.preventDefault(); this.style.borderColor='var(--accent)'; this.style.background='rgba(56, 189, 248, 0.08)';"
+                     ondragleave="this.style.borderColor='var(--border)'; this.style.background='var(--bg-base)';"
+                     ondrop="event.preventDefault(); this.style.borderColor='var(--border)'; this.style.background='var(--bg-base)'; const f = event.dataTransfer.files[0]; if(f) window.PainelManifesto.processarArquivo(f);"
+                     style="border:2px dashed var(--border); border-radius:10px; padding:32px 20px; text-align:center; cursor:pointer; background:var(--bg-base); transition:all 0.2s;">
+                    <div style="font-size:32px; margin-bottom:8px;">📥</div>
+                    <div style="font-weight:700; color:white; font-size:14px;">Arraste e solte o manifesto.csv aqui</div>
+                    <div style="font-size:11.5px; color:var(--text-muted); margin-top:4px;">ou clique para selecionar do computador (.csv até 5 MB e 2.000 linhas)</div>
+                    <input type="file" id="manifesto-file-input" accept=".csv" style="display:none;" onchange="if(this.files[0]) window.PainelManifesto.processarArquivo(this.files[0]);">
+                </div>
+
+                <div style="margin-top:14px; font-size:11px; color:var(--text-muted); line-height:1.4;">
+                    <strong>Colunas aceitas:</strong> placa, data_saida, hora_saida, origem, destino, motorista, telefone_motorista, observacao.<br>
+                    Compatível com planilhas salvas no Excel (separador ponto-e-vírgula ou vírgula, encoding Latin-1 ou UTF-8).
+                </div>
+            </div>
+
+            <div id="manifesto-estado-carregando" style="display:none; text-align:center; padding:36px 20px;">
+                <div style="font-size:32px; margin-bottom:12px;">⏳</div>
+                <div id="manifesto-msg-carregando" style="font-size:13px; font-weight:700; color:rgb(56, 189, 248);">Processando manifesto...</div>
+                <div style="font-size:11px; color:var(--text-muted); margin-top:6px;">Calculando consistência e identificando veículos na frota.</div>
+            </div>
+
+            <div id="manifesto-estado-erro" style="display:none; padding:16px 0;">
+                <div style="background:rgba(239,68,68,0.15); border:1px solid rgb(239, 68, 68); border-radius:8px; padding:14px; margin-bottom:16px;">
+                    <div style="font-size:12px; font-weight:700; color:rgb(252, 165, 165); margin-bottom:4px;">Não foi possível validar o arquivo</div>
+                    <div id="manifesto-msg-erro" style="font-size:12px; color:white; line-height:1.4;"></div>
+                </div>
+                <div style="display:flex; justify-content:flex-end; gap:8px;">
+                    <button onclick="window.PainelManifesto.resetar()" class="btn-primary" style="margin-top:0;">Tentar Novamente</button>
+                    <button onclick="window.PainelManifesto.fechar()" class="btn-top" style="padding:6px 14px;">Fechar</button>
+                </div>
+            </div>
+
+            <div id="manifesto-estado-previa" style="display:none;">
+                <div style="display:grid; grid-template-columns:repeat(5, 1fr); gap:8px; margin-bottom:14px;">
+                    <div class="kpi-box">
+                        <div class="kpi-value mono" id="prev-total">0</div>
+                        <div class="kpi-label">Linhas</div>
+                    </div>
+                    <div class="kpi-box">
+                        <div class="kpi-value mono" id="prev-validas" style="color:rgb(52, 211, 153);">0</div>
+                        <div class="kpi-label">Válidas</div>
+                    </div>
+                    <div class="kpi-box">
+                        <div class="kpi-value mono" id="prev-cadastradas" style="color:rgb(56, 189, 248);">0</div>
+                        <div class="kpi-label">Já no Banco</div>
+                    </div>
+                    <div class="kpi-box">
+                        <div class="kpi-value mono" id="prev-duplicadas" style="color:rgb(251, 191, 36);">0</div>
+                        <div class="kpi-label">Duplicadas</div>
+                    </div>
+                    <div class="kpi-box">
+                        <div class="kpi-value mono" id="prev-rejeitadas" style="color:rgb(248, 113, 113);">0</div>
+                        <div class="kpi-label">Rejeitadas</div>
+                    </div>
+                </div>
+
+                <div id="container-avisos-manifesto" style="display:none; background:rgba(245,158,11,0.1); border:1px solid rgba(245,158,11,0.3); border-radius:6px; padding:10px; margin-bottom:12px; font-size:11px; color:rgb(253, 230, 138);">
+                    <strong style="display:block; margin-bottom:4px;">Avisos da Importação:</strong>
+                    <ul id="lista-avisos-manifesto" style="margin:0; padding-left:16px;"></ul>
+                </div>
+
+                <div id="container-erros-manifesto" style="display:none; margin-bottom:14px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                        <span style="font-size:11px; font-weight:700; color:rgb(252, 165, 165); text-transform:uppercase;">Linhas Rejeitadas (Não serão importadas):</span>
+                        <button id="btn-baixar-rejeitadas" onclick="window.PainelManifesto.baixarLinhasRejeitadas()" style="background:rgb(30, 41, 59); border:1px solid var(--border); color:rgb(56, 189, 248); padding:4px 8px; border-radius:4px; font-size:10.5px; cursor:pointer; font-weight:600;">
+                            📥 Baixar linhas rejeitadas (.csv)
+                        </button>
+                    </div>
+                    <div style="max-height:160px; overflow-y:auto; border:1px solid var(--border); border-radius:6px; background:var(--bg-base);">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Linha</th>
+                                    <th>Campo</th>
+                                    <th>Valor</th>
+                                    <th>Motivo do Erro</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabela-erros-manifesto"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid var(--border); padding-top:12px; margin-top:8px;">
+                    <button onclick="window.PainelManifesto.resetar()" class="btn-top" style="padding:8px 14px;">← Outro Arquivo</button>
+                    <button id="btn-confirmar-manifesto" onclick="window.PainelManifesto.confirmarImportacao()" class="btn-login" style="width:auto; padding:10px 22px; font-size:12.5px;">
+                        Confirmar Importação
+                    </button>
+                </div>
+            </div>
+
+            <div id="manifesto-estado-sucesso" style="display:none; text-align:center; padding:24px 10px;">
+                <div style="font-size:44px; margin-bottom:10px; color:rgb(52, 211, 153);">✓</div>
+                <h3 style="font-size:18px; color:white; margin-bottom:6px;">Importação Concluída com Sucesso!</h3>
+                <div style="font-size:13px; color:var(--text-muted); margin-bottom:16px;">
+                    <span id="manifesto-sucesso-qtd" style="color:rgb(52, 211, 153); font-weight:700; font-size:16px;">0</span> viagens gravadas no banco e o monitoramento em tempo real já foi iniciado.
+                </div>
+                <button onclick="window.PainelManifesto.fechar()" class="btn-primary" style="margin-top:0; padding:10px 24px;">
+                    Conferir Viagens no Painel
+                </button>
+            </div>
+        </div>
+    </div>
+
     <header class="topbar">
         <div class="brand-group">
             <div class="brand-logo">SP</div>
@@ -242,14 +367,15 @@
         </div>
 
         <div class="top-controls">
+            <button class="btn-action-top" style="background:rgb(2, 132, 199);" data-escrita data-acao="abrirModalManifesto" onclick="window.PainelManifesto.abrir()">📋 Importar Viagens (CSV)</button>
             <button class="btn-action-top" data-escrita data-acao="abrirModalDespacho" onclick="abrirModalDespacho()">+ Despachar Nova Rota</button>
             <button class="btn-top" data-escrita data-acao="exportarCsv" onclick="exportarCsv()">↓ Exportar CSV</button>
             <div class="corp-badge">
                 <div>
-                    <div style="font-weight:700; color:#38bdf8;" id="lbl-user-tenant">demo_corp</div>
+                    <div style="font-weight:700; color:rgb(56, 189, 248);" id="lbl-user-tenant">demo_corp</div>
                     <div style="font-size:9.5px; color:var(--text-muted);" id="lbl-user-role">OPERATOR</div>
                 </div>
-                <button onclick="sairSessao()" style="background:#1e293b; border:1px solid var(--border); color:#fca5a5; padding:4px 8px; border-radius:4px; font-size:10.5px; cursor:pointer; font-weight:600;">Trocar Conta</button>
+                <button onclick="sairSessao()" style="background:rgb(30, 41, 59); border:1px solid var(--border); color:rgb(252, 165, 165); padding:4px 8px; border-radius:4px; font-size:10.5px; cursor:pointer; font-weight:600;">Trocar Conta</button>
             </div>
         </div>
     </header>
@@ -430,6 +556,7 @@
 
         <div id="painel-status" role="status" aria-live="polite" aria-atomic="true" hidden></div>
         <script src="/static/painel-sessao.js?v=layout-2"></script>
+        <script src="/static/painel-manifesto.js"></script>
         <script>
         window.API_KEY = '';
         let operacaoSelecionadaId = null;
