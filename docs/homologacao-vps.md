@@ -60,6 +60,42 @@ loopback 8000 para diagnóstico local; PostgreSQL não publica porta no host.
 Os volumes `sprain_db_prod_data`, `sprain_caddy_data` e `sprain_caddy_config`
 devem sobreviver a atualizações. Nunca use `down -v` em ambiente com dados.
 
+## Troca de versão e retorno da API
+
+Após o primeiro deploy, faça atualizações com uma imagem já construída e
+identificada por digest. `compose.release.yml` altera **somente** a imagem da
+API; o banco, o proxy e seus volumes não entram no comando de troca. Antes de
+alterar a API, registre o digest e o commit da imagem em execução, confira a
+compatibilidade das migrações com a versão anterior e faça um backup validado.
+O script abaixo recusa imagem sem o label de revisão correspondente:
+
+```sh
+export SPRAIN_API_IMAGE='sha256:DIGEST_DA_NOVA_IMAGEM'
+export SPRAIN_BUILD_COMMIT='SHA_COMPLETO_DO_NOVO_COMMIT'
+python3 scripts/validar_imagem_release.py \
+  --image "$SPRAIN_API_IMAGE" --commit "$SPRAIN_BUILD_COMMIT"
+docker compose --env-file .env.prod -p sprain-prod \
+  -f docker-compose.prod.yml -f compose.vps.yml -f compose.release.yml \
+  config --quiet
+docker compose --env-file .env.prod -p sprain-prod \
+  -f docker-compose.prod.yml -f compose.vps.yml -f compose.release.yml \
+  up -d --no-deps --no-build --wait sprain_api
+curl -fsS "https://SEU_DOMINIO/api/v1/health/readiness"
+```
+
+Confira também `/api/v1/operacional/versao` com ADMIN e uma consulta de rota
+autorizada. Se a API falhar e o esquema ainda for compatível com a imagem
+anterior, repita a validação e o `up` acima com o **digest anterior** e o SHA
+anterior em `SPRAIN_API_IMAGE` e `SPRAIN_BUILD_COMMIT`. Isso recria apenas o
+contêiner da API. `--no-build` e `pull_policy: never` exigem que ambas as imagens
+estejam carregadas previamente no host; não há download inesperado durante o
+retorno. Nunca use `down -v`, `DROP DATABASE` ou downgrade SQL improvisado.
+Um retorno de imagem não desfaz escritas feitas pela versão nova.
+
+Esse procedimento ainda precisa de ensaio em uma VPS de homologação com banco
+isolado, versões conhecidas e um fluxo de viagem antes e depois da troca. A
+validação estática e o script de imagem não constituem prova de rollback real.
+
 ## Coleta meteorológica
 
 O serviço `sprain_chuva` fica em perfil separado, com healthcheck próprio.
