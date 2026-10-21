@@ -70,10 +70,17 @@ test('OPERADOR: corredor persistente, recorrência e despacho idempotente',async
  await page.getByRole('button',{name:'Criar viagem desta recorrência',exact:true}).click();await expect(page.getByText(/nenhum despacho duplicado/)).toBeVisible();
 });
 
-test('ADMIN: premissas versionadas, fontes e falhas internas reais',async({page})=>{
+test('ADMIN: premissas versionadas, fontes e falhas internas reais',async({page,request})=>{
  await entrar(page,'admin');await central(page,'Premissas financeiras');await expect(page.locator('#portal-operacional').getByLabel('Custo total por km (R$/km)',{exact:true})).toBeVisible();await conferirCampos(page,'#portal-conteudo form details > label');
  await page.locator('#portal-operacional').getByLabel('Custo total por km (R$/km)',{exact:true}).fill('4.5');await page.getByRole('button',{name:'Salvar padrões financeiros',exact:true}).click();await expect(page.getByText(/Versão: [1-9]/)).toBeVisible();
- await ferramenta(page,'Plano e consumo');await expect(page.getByRole('table',{name:'Uso e limites retornados pelo servidor'})).toBeVisible();await expect(page.getByRole('rowheader',{name:'Chamadas externas no mês'})).toBeVisible();await expect(page.getByRole('cell',{name:'Não medido',exact:true})).toBeVisible();
+ await ferramenta(page,'Plano e consumo');
+ const tabelaPlano=page.getByRole('table',{name:'Uso e limites retornados pelo servidor'});
+ await expect(tabelaPlano).toBeVisible();
+ const linhaChamadas=tabelaPlano.getByRole('row',{name:/Chamadas externas no mês/});
+ const respostaPlano=await request.get('/api/v1/operacional/plano',{headers:{'X-API-Key':'key_admin_demo'}});
+ expect(respostaPlano.ok()).toBeTruthy();
+ const usoExterno=(await respostaPlano.json()).uso.chamadas_externas_mes;
+ await expect(linhaChamadas.getByRole('cell').first()).toHaveText(typeof usoExterno==='number'?String(usoExterno):'Não medido');
  await ferramenta(page,'Painel operacional interno');await expect(page.getByRole('heading',{name:'Fontes e atualização',exact:true})).toBeVisible();
  await expect(page.getByRole('heading',{name:'Métricas de qualidade',exact:true})).toBeVisible();await page.getByRole('combobox',{name:'Situação da importação',exact:true}).selectOption('FALHA');await expect(page.getByText(/offset=0&status=FALHA/)).toBeVisible();
 });
