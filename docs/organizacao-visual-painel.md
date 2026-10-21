@@ -28,7 +28,7 @@ O resumo no mapa tem três ações: comparar, conferir pedágios/pontes e regist
 | Postos e histórico | Postos e preços próximos, referências da ANP, sinistros, roubos, cobertura, fontes e atualização |
 | Custos e recálculo | Comparação financeira, premissas editáveis, recálculo, espera, detalhes financeiros e dados de referência |
 | Alertas e fontes | Eventos, sua natureza/validade/relação com trechos, atualização explícita e lista de vulnerabilidades |
-| Decisão | Motivo, aprovar desvio/manter/aguardar, confirmação do servidor e histórico da decisão |
+| Decisão | Motivo, aprovar desvio/manter/aguardar, confirmação do servidor e histórico da decisão; resultado informado da viagem e correções |
 
 Os blocos de conteúdo dos componentes anteriores são movidos, não copiados. Os mesmos IDs, formulários, funções e closures continuam ativos. As seções da aba selecionada são abertas; não exigem abrir um acordeão dentro de outro. JSON integral de consultas históricas permanece opcional por conter dados brutos extensos. As abas têm associação ARIA, estado selecionado e navegação por setas/Home/End.
 
@@ -54,3 +54,5 @@ O parser, as regras de validação, as cotas e os endpoints de gravação não f
 Não foram inseridos dados de teste na base operacional ou alterados arquivos de dados oficiais. Dados e exemplos comerciais recebidos do Git foram preservados, com suas limitações existentes. Esta revisão de interface não equivale à homologação das fontes em um corredor de cliente.
 
 Validação desta revisão (20/10/2026): 436 testes de API e 3 subtestes, 93 testes de interface e 20 testes de navegador aprovados. A suíte de navegador foi executada uma vez em um banco novo exclusivo de teste, com as cotas e proteções reais ativas.
+
+Em 21/10/2026, a aba Decisão passou a incluir o registro pós-viagem, com correções aditivas e histórico paginado. Veja [Resultados de viagem](resultados-viagem-piloto.md). Relatórios passou a expor os indicadores autodeclarados já existentes na API, separados de custos observados e economia comprovada.

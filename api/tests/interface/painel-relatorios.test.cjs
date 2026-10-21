@@ -60,3 +60,8 @@ test('filtros invalidos nao alteram escopo e datas validas chegam aos tres relat
 test('falha parcial do piloto preserva acesso ao historico e nao declara economia',async()=>{
     const a=await ambiente(url=>{if(url.includes('/relatorios/piloto'))throw Error('Offline');});await a.app.render(a.p,a.ctx);assert(a.p.textContent.includes('Indicadores indisponíveis'));assert(a.botao('Abrir relatório da decisão #7'));assert(!a.botao('Baixar PDF do piloto'));
 });
+
+test('piloto inclui custos e desvios informados sem convertê-los em economia comprovada',async()=>{
+ const a=await ambiente(),d=structuredClone(piloto);d.amostra.viagens_com_resultado=1;d.amostra.viagens_com_custo_informado=1;d.indicadores.custo_informado={valor_brl:0,natureza:'AUTODECLARADO_NAO_VERIFICADO',viagens_com_valor:1,viagens_sem_valor:1,fonte:'Resultado declarado'};d.indicadores.desvios_informados={quantidade:1};
+ const linhas=a.app.linhasPiloto(d).join('\n');for(const s of ['Custo informado (não verificado): R$','Autodeclarado; não verificado','1 sem custo','Viagens com resultado informado: 1','Desvios informados (não verificados): 1','Economia comprovada: Não informado'])assert(linhas.includes(s),s);
+});

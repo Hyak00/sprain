@@ -429,6 +429,8 @@
       botoes[k].tabIndex = k === id ? 0 : -1;
     });
     expandir(painels[id]);
+    if (id === "decisao" && operacaoAtual)
+      root.ResultadosViagem.exibir(painels.decisao, operacaoAtual.id_operacao);
   }
   function abrirComparacao(id = "resumo") {
     if (comparar.disabled || !operacaoAtual) return;
@@ -474,6 +476,7 @@
 
   const anteriorSelecionar = E.selecionar;
   E.selecionar = (op) => {
+    root.ResultadosViagem.limpar();
     operacaoAtual = op;
     anteriorSelecionar(op);
     inspector.hidden = false;
@@ -510,6 +513,7 @@
     escolherAba(abaDetalhe);
   };
   function limparSelecao() {
+    root.ResultadosViagem.limpar();
     operacaoAtual = null;
     comparar.disabled = true;
     resumo.hidden = true;

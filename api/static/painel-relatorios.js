@@ -4,8 +4,8 @@
     const D=root.PortalDados,PDF=root.PortalPDF;
     const el=(p,t,s)=>{const e=document.createElement(t);if(s!==undefined)e.textContent=s;p.appendChild(e);return e;};
     const aviso=(p,s)=>{const e=el(p,'p',s);e.setAttribute('role','status');return e;};
-    const labels={economia_comprovada:'Economia comprovada',custo_observado:'Custo observado',custo_estimado:'Custo estimado da rota original',impacto_potencial:'Impacto potencial'};
-    const natureza=v=>({NAO_DISPONIVEL:'Não disponível',ESTIMATIVA_PARCIAL:'Estimativa de planejamento; cobertura parcial',POTENCIAL_NAO_COMPROVADO:'Potencial; não comprovado'})[v]||'Não informada';
+    const labels={economia_comprovada:'Economia comprovada',custo_observado:'Custo observado',custo_informado:'Custo informado (não verificado)',custo_estimado:'Custo estimado da rota original',impacto_potencial:'Impacto potencial'};
+    const natureza=v=>({NAO_DISPONIVEL:'Não disponível',AUTODECLARADO_NAO_VERIFICADO:'Autodeclarado; não verificado',ESTIMATIVA_PARCIAL:'Estimativa de planejamento; cobertura parcial',POTENCIAL_NAO_COMPROVADO:'Potencial; não comprovado'})[v]||'Não informada';
     function linhasPiloto(d){
         const linhas=['SPRain | Relatório do piloto','Uso interno - dados privados da empresa','Empresa: '+d.empresa,
             'Ambiente: '+(d.ambiente||'Não informado')+' - simulações não comprovam viagens reais.',
@@ -14,10 +14,13 @@
             'Consultas no período: '+d.amostra.consultas+' | Decisões no período: '+d.amostra.decisoes,
             'Último cálculo incluído: '+D.dataRelatorio(d.amostra.ultimo_calculo),''];
         for(const [k,label]of Object.entries(labels)){
-            const v=d.indicadores[k];linhas.push(label+': '+D.moeda(v.valor_brl),'Natureza: '+natureza(v.natureza));
+            const v=d.indicadores[k];if(!v)continue;linhas.push(label+': '+D.moeda(v.valor_brl),'Natureza: '+natureza(v.natureza));
+            if(v.viagens_com_valor!==undefined)linhas.push('Cobertura: '+v.viagens_com_valor+' viagem(ns) com custo; '+v.viagens_sem_valor+' sem custo.');
             if(v.operacoes_com_valor!==undefined)linhas.push('Cobertura: '+v.operacoes_com_valor+' operação(ões) com valor; '+v.operacoes_sem_valor+' sem valor.');
             if(v.motivo)linhas.push('Ausência: '+v.motivo);if(v.fonte)linhas.push('Fonte: '+v.fonte);linhas.push('');
         }
+        if(d.amostra.viagens_com_resultado!==undefined)linhas.push('Viagens com resultado informado: '+d.amostra.viagens_com_resultado,'Viagens com custo informado: '+d.amostra.viagens_com_custo_informado);
+        if(d.indicadores.desvios_informados)linhas.push('Desvios informados (não verificados): '+(d.indicadores.desvios_informados.quantidade??'Não informado'));
         linhas.push('Limitações:',...d.limitacoes.map(s=>'- '+s),'Fontes:',...d.fontes.map(s=>'- '+s));return linhas;
     }
     function linhasIndividual(d){
@@ -77,7 +80,9 @@
             try{
                 const d=await ctx.obter(url('piloto'));if(!atual()||n!==ciclo)return;
                 const linhas=linhasPiloto(d);
-                ctx.tabela(piloto,['Indicador','Valor','Natureza / cobertura'],Object.entries(labels).map(([k,l])=>{const i=d.indicadores[k];return[l,D.moeda(i.valor_brl),natureza(i.natureza)+(i.operacoes_com_valor!==undefined?' · '+i.operacoes_com_valor+' com valor / '+i.operacoes_sem_valor+' sem valor':'')];}));
+                ctx.tabela(piloto,['Indicador','Valor','Natureza / cobertura'],Object.entries(labels).filter(([k])=>d.indicadores[k]).map(([k,l])=>{const i=d.indicadores[k];return[l,D.moeda(i.valor_brl),natureza(i.natureza)+(i.viagens_com_valor!==undefined?' · '+i.viagens_com_valor+' com custo / '+i.viagens_sem_valor+' sem custo':'')+(i.operacoes_com_valor!==undefined?' · '+i.operacoes_com_valor+' com valor / '+i.operacoes_sem_valor+' sem valor':'')];}));
+                if(d.amostra.viagens_com_resultado!==undefined)el(piloto,'p','Viagens com resultado informado: '+d.amostra.viagens_com_resultado+' · Com custo informado: '+d.amostra.viagens_com_custo_informado+'.');
+                if(d.indicadores.desvios_informados)el(piloto,'p','Desvios informados (não verificados): '+(d.indicadores.desvios_informados.quantidade??'Não informado')+'.');
                 const det=el(piloto,'details');el(det,'summary','Amostra, critérios, limitações e fontes');el(det,'pre',linhas.join('\n'));
                 arquivos(piloto,'sprain-piloto',linhas,d,{pdf:'Baixar PDF do piloto',json:'Baixar dados do resumo (JSON)',html:'Baixar HTML do piloto'});
                 st.remove();

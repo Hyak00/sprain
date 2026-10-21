@@ -10,7 +10,7 @@ dados e homologação. A interface não usa memória local como substituto do ba
 |---|---|---|
 | Recuperação e extensão de acesso | Recuperação assistida implementada em administração; não há envio automático de e-mail | Identidade conferida por ADMIN, código de uso único, resposta pública genérica |
 | Usuários no painel | Gestão e auditoria integradas à tela de administração | ADMIN individual da própria empresa; não permitir ação com chave compartilhada; consultar [gestão de usuários](gestao-usuarios.md) |
-| Resultado financeiro observado | Custos observados, evidência de execução, contrafactual/metodologia e período | Distinguir observado, estimado, potencial e economia comprovada; não inferir comprovação da perda potencial |
+| Resultado financeiro observado | Registro/correção da execução autodeclarada e histórico integrados à aba Decisão; custo informado e cobertura incluídos nos relatórios. Auditoria de despesas e contrafactual ainda dependem de evidência | Distinguir observado, estimado, potencial e economia comprovada; não inferir comprovação da perda potencial |
 | Espera | Exercício financeiro integrado ao motor existente, com tempo, chuva e premissas visíveis | Não substitui a fotografia da decisão nem reavalia risco futuro após espera |
 | Qualidade completa | Monitor interno integrado; histórico começa na instrumentação | Cobertura e qualidade precisam de evidência; não reconstrói falhas antigas |
 | Exportação integral | ZIP privado com manifesto/limites e dados autorizados da empresa, incluindo onboarding | Sem dados de outra empresa ou credenciais; não é parecer de conformidade legal |

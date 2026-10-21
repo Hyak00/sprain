@@ -257,3 +257,19 @@ test('Manifesto CSV: resposta atrasada não reaparece na outra empresa e VIEWER 
  await page.getByRole('button',{name:'Trocar Conta',exact:true}).click();await entrar(page,'leitor');await ferramenta(page,'Importar viagens (CSV)');
  await expect(page.locator('#manifesto-file-input')).toBeDisabled();await expect(page.locator('#btn-confirmar-manifesto')).toBeDisabled();
 });
+
+test('Resultado de viagem: registra e corrige no servidor, preserva histórico e VIEWER apenas consulta',async({page})=>{
+ await entrar(page,'operador');const linha=page.getByRole('row',{name:/^Inspecionar/}).first();await expect(linha).toBeVisible({timeout:45000});await linha.click();await comparar(page);
+ const id=(await page.locator('.ux-cabecalho-pagina p').innerText()).split(' · ')[0];await page.getByRole('tab',{name:'Decisão',exact:true}).click();
+ const area=page.getByRole('region',{name:'Resultado informado da viagem'});
+ await expect(area.getByText('Nenhum resultado informado para esta viagem.',{exact:true})).toBeVisible();
+ await area.getByLabel('Conclusão da viagem (horário do seu navegador)',{exact:true}).fill('2026-10-18T09:00');await area.getByLabel('Rota efetivamente percorrida',{exact:true}).selectOption('DESVIO');await area.getByLabel('Custo informado (R$)',{exact:true}).fill('0');
+ await area.getByRole('button',{name:'Salvar resultado da viagem',exact:true}).click();await expect(area.getByText('Resultado salvo no servidor. Registro autodeclarado, não verificado.',{exact:true})).toBeVisible();
+ await area.getByRole('button',{name:'Corrigir este resultado',exact:true}).click();await area.getByLabel('Custo informado (R$)',{exact:true}).fill('123.45');await area.getByRole('button',{name:'Salvar correção do resultado',exact:true}).click();
+ await expect(area.getByRole('article')).toHaveCount(2);await expect(area).toContainText('123,45');await expect(area).toContainText('0,00');
+ await ferramenta(page,'Relatórios e exportações');await expect(page.getByRole('cell',{name:'Custo informado (não verificado)',exact:true})).toBeVisible();await expect(page.getByText(/Viagens com resultado informado: 1/)).toBeVisible();
+ const pdf=await baixar(page,'Baixar PDF do piloto');expect(pdf.subarray(0,8).toString()).toContain('%PDF-1.4');
+ await page.getByRole('button',{name:'Trocar Conta',exact:true}).click();await entrar(page,'leitor');await page.getByLabel('Buscar operação ou caminhão',{exact:true}).fill(id);await page.getByRole('row',{name:/^Inspecionar/}).first().click();await comparar(page);await page.getByRole('tab',{name:'Decisão',exact:true}).click();
+ await expect(area.getByRole('article')).toHaveCount(2);await expect(area.locator('input')).toHaveCount(0);await expect(area.getByRole('button',{name:'Corrigir este resultado',exact:true})).toHaveCount(0);
+ await page.setViewportSize({width:360,height:900});await expect(area).toBeVisible();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+});

@@ -56,3 +56,37 @@ O esquema `db/ci/14_resultados_viagem.sql` é aditivo e aplicado na inicializaç
 após as tabelas de operações e decisões. O teste de integração usa transação
 revertida, cobre correção, vínculo com decisão, separação entre empresas e os
 valores exibidos no piloto.
+
+## Fluxo no painel
+
+Na lista de Viagens, selecione uma operação, abra Comparar rotas e entre na aba
+Decisão. O bloco Resultado da viagem fica aberto após o formulário de decisão.
+Decidir e informar a execução são ações distintas: uma decisão aprovada não
+preenche duração, distância, custo nem data de conclusão automaticamente.
+
+ADMIN e OPERATOR podem informar a conclusão no horário do navegador, a rota
+percorrida e ao menos uma medida. O transporte converte a conclusão para uma
+data com fuso explícito. Campos vazios permanecem desconhecidos; zero é mantido.
+Para fonte Documento, a referência é obrigatória; a interface não envia arquivos
+nem acessa a referência externa. A decisão vinculada é opcional e seu número é
+validado pelo servidor contra a operação e a empresa.
+
+Após salvar, a tela mostra a confirmação do servidor e permite corrigir o
+resultado atual. A correção envia o ID atual em `substitui_id`, preenche os dados
+anteriores para conferência e preserva os registros anteriores no histórico
+paginado. VIEWER consulta, sem formulário de edição. Datas, fontes, referências,
+autoria e vínculo de correção ficam visíveis. O texto dos registros não é
+interpretado como HTML.
+
+Falha de leitura impede edição sem conhecer o estado atual. Conflito ou falha de
+confirmação bloqueia novo envio até Atualizar resultados da viagem: um timeout
+não prova que a gravação falhou. Respostas atrasadas não preenchem outra viagem
+ou sessão. Não há repetição automática nem armazenamento local dos registros.
+Uma gravação já enviada pode terminar no servidor após sair da tela; consulte o
+histórico antes de reenviar.
+
+Relatórios mostra custo informado, cobertura de viagens, desvios informados e
+natureza autodeclarada, conforme a API. Esses campos também integram os arquivos
+PDF, HTML e JSON do piloto. Custo observado e economia comprovada permanecem
+separados e indisponíveis quando a API não possui evidência. A tela não subtrai
+custo declarado da estimativa para inventar economia.
