@@ -1,0 +1,81 @@
+# Homologação em uma VPS Linux
+
+Este roteiro prepara o acesso externo à API pelo Caddy e o serviço de coleta de
+chuva. Ele ainda precisa ser executado em uma VPS com domínio real antes de ser
+considerado homologado. Não use um banco ou credenciais de produção para ensaios.
+
+## Pré-requisitos
+
+1. VPS Linux com Docker Engine e plugin Compose instalados conforme a
+   [documentação oficial](https://docs.docker.com/engine/install/). Reserve
+   espaço para o banco, backups e imagens; mantenha as portas 80 e 443 abertas.
+2. Um domínio sob controle da equipe com registro A/AAAA apontando para a VPS.
+   O Caddy usa esse nome e as portas 80/443 para obter e renovar o certificado.
+3. Um commit aprovado do SPRain e um arquivo `.env.prod` **fora do Git**, com
+   `SPRAIN_BUILD_COMMIT`, `SPRAIN_DOMAIN`, `ACME_EMAIL`, `DB_NAME`, `DB_USER`,
+   `DB_PASSWORD`, `API_KEYS`, `TENANT_API_KEYS` e `WEBHOOK_SECRET_KEY`. Use
+   `CORS_ORIGINS` somente para frontends servidos de outra origem; o painel
+   entregue pela própria API não precisa dela.
+4. Um banco inicial aprovado para o piloto, com esquema, PostGIS/pgRouting e
+   malha conferida pela equipe responsável pelas rotas. O arquivo
+   `db/ci/01_dump_nuclear.sql` contém também operações e veículos de ensaio;
+   **não é uma carga automática adequada para transportadoras reais**. O
+   `docker-compose.prod.yml` preserva o volume e não monta esse dump. A equipe
+   precisa fornecer um procedimento de provisionamento sanitizado antes da
+   primeira subida em uma VPS vazia.
+
+## Configuração e subida
+
+No checkout do commit aprovado, crie `.env.prod` com permissões restritas. Não
+copie o `.env` do desenvolvimento. Confira a composição antes de subir:
+
+```sh
+docker compose --env-file .env.prod -p sprain-prod \
+  -f docker-compose.prod.yml -f compose.vps.yml config --quiet
+```
+
+Provisione e valide o banco inicial aprovado antes de iniciar a API. Depois:
+
+```sh
+docker compose --env-file .env.prod -p sprain-prod \
+  -f docker-compose.prod.yml -f compose.vps.yml up -d --build --wait \
+  sprain_db sprain_api caddy
+
+docker compose --env-file .env.prod -p sprain-prod \
+  -f docker-compose.prod.yml -f compose.vps.yml ps
+
+curl -fsS "https://SEU_DOMINIO/api/v1/health/readiness"
+curl -I "https://SEU_DOMINIO/static/b2b.html"
+```
+
+Substitua `SEU_DOMINIO` pelo nome configurado; confira `READY`, PostGIS
+operacional, certificado válido, redirecionamento HTTP para HTTPS e os
+cabeçalhos `Strict-Transport-Security`, `X-Content-Type-Options` e
+`Referrer-Policy`. Execute essas consultas também de **outra rede**, não só da
+VPS. Se o frontend estiver em outra origem, teste o preflight CORS dessa origem
+e permita somente seu endereço HTTPS em `CORS_ORIGINS`.
+
+O Caddy é o único serviço com portas públicas. A API continua na porta de
+loopback 8000 para diagnóstico local; PostgreSQL não publica porta no host.
+Os volumes `sprain_db_prod_data`, `sprain_caddy_data` e `sprain_caddy_config`
+devem sobreviver a atualizações. Nunca use `down -v` em ambiente com dados.
+
+## Coleta meteorológica
+
+O serviço `sprain_chuva` fica em perfil separado, com healthcheck próprio.
+**Não o ative para o piloto comercial enquanto o provedor e a licença de uso
+não estiverem aprovados.** O código atual usa o endpoint gratuito da Open-Meteo,
+que é [restrito a uso não comercial](https://open-meteo.com/en/terms).
+Depois de configurar uma fonte permitida e conferir as estações ativas, inicie
+o perfil com `--profile chuva` e verifique o estado do contêiner. A API também
+possui um agendador interno de telemetria; revise sobreposição de consultas
+antes de ativar ambos.
+
+## Evidência necessária para concluir esta etapa
+
+- URL HTTPS externa, certificado válido e preflight CORS verificados de fora.
+- `readiness` com PostGIS ativo e contagem da malha aprovada, sem dados de ensaio.
+- API e coletor com healthchecks saudáveis por um período de observação.
+- Versão retornada por `/api/v1/operacional/versao` igual ao commit implantado.
+- Backup externo, restauração, alertas e isolamento entre empresas validados nas
+  etapas operacionais posteriores.
