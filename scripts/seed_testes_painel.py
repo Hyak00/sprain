@@ -26,7 +26,7 @@ async def main():
                     if existente:
                         if existente['tenant_id']!=tenant or existente['papel']!=papel:
                             raise RuntimeError('Conta de teste existente incompatível; nenhum acesso sobrescrito.')
-                    else:await cadastrar(conn,email,SENHA_TESTE,'EMPRESA SINTETICA E2E',tenant,papel)
+                    else:await cadastrar(conn,email,SENHA_TESTE,'TRANSPORTADORA SINTÉTICA E2E DE CARGAS E DISTRIBUIÇÃO REGIONAL',tenant,papel)
                 await preparar(conn,'demo_corp')
                 # Reinicia apenas a medição sintética reservada para o teste de onboarding.
                 await conn.execute("DELETE FROM painel_onboarding WHERE tenant_id='demo_corp'")

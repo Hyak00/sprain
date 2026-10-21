@@ -18,7 +18,9 @@
     operacaoAtual = null,
     ultimaAba = "URBANO",
     abaDetalhe = "resumo";
-  let secundarios = [];
+  let secundarios = [],
+    recalculo = null,
+    sequenciaRecalculo = 0;
   antigo.hidden = true;
   antigo.removeAttribute("aria-label");
   antigo.id = "ux-atalhos-anteriores";
@@ -298,6 +300,7 @@
   }
   function modo(nome) {
     document.body.dataset.area = nome;
+    root.scrollTo({ top: 0, behavior: "instant" });
     root.dispatchEvent(new root.Event("resize"));
   }
   function voltarOperacoes() {
@@ -392,8 +395,8 @@
     (n) => n.tagName === "DETAILS" && n.classList.contains("infra-complemento"),
   );
   move(postos, "postos");
-  move(inspector.querySelector(".mvp-complemento"), "custos");
   move(inspector.querySelector(".ux-comparacao"), "custos");
+  move(inspector.querySelector(".mvp-complemento"), "custos");
   move(dono($("#modal-trechos-lista")), "alertas");
   const detalhesFinanceiros = inspector.querySelector(".ac-painel");
   if (detalhesFinanceiros) apoio.appendChild(detalhesFinanceiros);
@@ -420,6 +423,22 @@
         };
       }
     });
+  }
+  function iniciarRecalculo() {
+    const token = ++sequenciaRecalculo;
+    recalculo = token;
+    Object.values(botoes).forEach((b) => (b.disabled = true));
+    comparacao.setAttribute("aria-busy", "true");
+    status.textContent =
+      "Salvando premissas e recalculando a viagem. Aguarde para comparar e decidir.";
+    return token;
+  }
+  function finalizarRecalculo(token) {
+    if (token !== recalculo) return;
+    recalculo = null;
+    Object.values(botoes).forEach((b) => (b.disabled = false));
+    comparacao.removeAttribute("aria-busy");
+    status.textContent = "";
   }
   function escolherAba(id) {
     abaDetalhe = id;
@@ -614,6 +633,7 @@
     ajustar();
   };
   E.limpar = () => {
+    finalizarRecalculo(recalculo);
     usuario = null;
     comparacao.close();
     if (portal.open) portal.close();
@@ -639,6 +659,8 @@
     root.dispatchEvent(new root.Event("resize"));
   }
   root.PainelLayout = {
+    iniciarRecalculo,
+    finalizarRecalculo,
     carregando,
     erro,
     limparSelecao,
@@ -651,6 +673,25 @@
     },
     concluirMapa,
   };
+  // Os campos originais continuam com os mesmos IDs e handlers.
+  const cadastro = $("#frota-panel .panel-card");
+  for (const [id, texto] of [
+    ["veic-id", "Identificação do caminhão"],
+    ["veic-placa", "Placa"],
+    ["veic-modelo", "Modelo"],
+    ["veic-tipo", "Tipo de caminhão"],
+  ]) {
+    const campo = document.getElementById(id),
+      label = document.createElement("label");
+    label.className = "ux-campo-frota";
+    label.textContent = texto;
+    campo.before(label);
+    label.appendChild(campo);
+  }
+  const salvarFrota = cadastro.querySelector(
+    '[data-acao="cadastrarNovoCaminhao"]',
+  );
+  $("#infra-veic").after(salvarFrota, $("#veic-feedback"));
   const legenda = $(".map-legend>details");
   if (legenda) {
     legenda.open = true;
