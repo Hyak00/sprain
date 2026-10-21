@@ -134,8 +134,7 @@
     <link rel="stylesheet" href="/static/infraestrutura-caminhoes.css">
     <link rel="stylesheet" href="/static/portal-operacional.css">
     <link rel="stylesheet" href="/static/painel-fluxo.css">
-    <link rel="stylesheet" href="/static/painel-experiencia.css?v=layout-2">
-    <link rel="stylesheet" href="/static/painel-layout.css?v=layout-2">
+    <link rel="stylesheet" href="/static/painel-layout.css?v=paginas-1">
 </head>
 <body>
 
@@ -349,6 +348,8 @@
                 <div style="font-size:13px; color:var(--text-muted); margin-bottom:16px;">
                     <span id="manifesto-sucesso-qtd" style="color:rgb(52, 211, 153); font-weight:700; font-size:16px;">0</span> viagens gravadas no banco e o monitoramento em tempo real já foi iniciado.
                 </div>
+                <p id="manifesto-resultado-aviso" role="status"></p>
+                <button id="manifesto-rejeitadas-final" hidden onclick="window.PainelManifesto.baixarLinhasRejeitadas()" class="btn-top">Baixar linhas rejeitadas da importação</button>
                 <button onclick="window.PainelManifesto.fechar()" class="btn-primary" style="margin-top:0; padding:10px 24px;">
                     Conferir Viagens no Painel
                 </button>
@@ -560,8 +561,8 @@
     </div>
 
         <div id="painel-status" role="status" aria-live="polite" aria-atomic="true" hidden></div>
-        <script src="/static/painel-sessao.js?v=layout-2"></script>
-        <script src="/static/painel-manifesto.js"></script>
+        <script src="/static/painel-sessao.js?v=paginas-1"></script>
+        <script src="/static/painel-manifesto.js?v=paginas-1"></script>
         <script>
         window.API_KEY = '';
         let operacaoSelecionadaId = null;
@@ -1211,14 +1212,14 @@
     </script>
     <script src="/static/infraestrutura-caminhoes.js"></script>
     <script src="/static/dados-viagem.js?v=fontes-1"></script>
-    <script src="/static/infraestrutura-cadastro.js?v=layout-2"></script>
+    <script src="/static/infraestrutura-cadastro.js?v=paginas-1"></script>
     <script src="/static/alertas-comparacao.js"></script>
     <script src="/static/portal-dados.js?v=relatorios-2"></script>
     <script src="/static/portal-pdf.js?v=relatorios-1"></script>
-    <script src="/static/portal-operacional.js?v=layout-3"></script>
+    <script src="/static/portal-operacional.js?v=paginas-1"></script>
     <script src="/static/painel-relatorios.js?v=relatorios-1"></script>
-    <script src="/static/painel-acessibilidade.js?v=layout-2"></script>
-    <script src="/static/painel-fluxo.js?v=layout-2"></script>
+    <script src="/static/painel-acessibilidade.js?v=paginas-1"></script>
+    <script src="/static/painel-fluxo.js?v=paginas-1"></script>
     <script src="/static/painel-corredores.js"></script>
     <script src="/static/painel-eventos.js"></script>
     <script src="/static/painel-administracao.js"></script>
@@ -1226,8 +1227,9 @@
     <script src="/static/painel-interno.js?v=interno35-3"></script>
     <script>window.PainelSessao.instalar();</script>
     <script src="/static/painel-homologacao.js"></script>
-    <script src="/static/painel-onboarding.js?v=layout-2"></script>
-    <script src="/static/painel-experiencia.js?v=layout-2"></script>
-    <script src="/static/painel-layout.js?v=layout-2"></script>
+    <script src="/static/painel-onboarding.js?v=paginas-1"></script>
+    <script src="/static/painel-experiencia.js?v=paginas-1"></script>
+    <script src="/static/painel-plano.js?v=paginas-1"></script>
+    <script src="/static/painel-layout.js?v=paginas-1"></script>
 </body>
 </html>

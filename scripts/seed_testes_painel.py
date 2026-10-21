@@ -28,6 +28,8 @@ async def main():
                             raise RuntimeError('Conta de teste existente incompatível; nenhum acesso sobrescrito.')
                     else:await cadastrar(conn,email,SENHA_TESTE,'EMPRESA SINTETICA E2E',tenant,papel)
                 await preparar(conn,'demo_corp')
+                # Reinicia apenas a medição sintética reservada para o teste de onboarding.
+                await conn.execute("DELETE FROM painel_onboarding WHERE tenant_id='demo_corp'")
                 # Fixture reservada: permite repetir a suíte local sem esgotar o
                 # limite de login das quatro contas sintéticas. Regra da API intacta.
                 await conn.execute('DELETE FROM painel_login_tentativas WHERE conta_hash=ANY($1::text[])',

@@ -72,7 +72,7 @@
                         409: 'A ação está em conflito com os dados atuais. Recarregue a lista ou operação antes de confirmar.',
                         413: 'A exportação excede o limite. Solicite uma extração administrativa assistida.',
                         422: 'Confira os campos e as unidades informadas.',
-                        429: 'Limite de consultas atingido. Aguarde antes de tentar novamente.',
+                        429: res.headers.has('Retry-After') ? 'Limite de consultas por minuto atingido. Aguarde antes de tentar novamente.' : 'Limite do plano atingido. Peça ao administrador para conferir o plano e o consumo da empresa.',
                         503: publico ? 'Acesso corporativo ainda não configurado neste ambiente.' : 'Serviço temporariamente indisponível. Tente novamente.' };
                     throw new ErroPainel(mensagens[res.status] || 'Não foi possível concluir a consulta. Tente novamente.', res.status);
                 }

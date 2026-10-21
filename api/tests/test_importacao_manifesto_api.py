@@ -367,8 +367,12 @@ async def test_frontend_manifesto_estatico_e_elementos_ui():
         assert 'id="tabela-erros-manifesto"' in html
         assert "window.PainelManifesto.baixarModelo()" in html
 
-        assert 'src="/static/painel-manifesto.js"' in html
-        resp_js = await client.get("/static/painel-manifesto.js")
+        import re
+        from urllib.parse import urlsplit
+        scripts = re.findall(r'<script[^>]+src="([^"]+)"', html)
+        recurso = next((url for url in scripts if urlsplit(url).path == "/static/painel-manifesto.js"), None)
+        assert recurso is not None
+        resp_js = await client.get(recurso)
         assert resp_js.status_code == 200
         assert "window.PainelManifesto" in resp_js.text
         assert "baixarLinhasRejeitadas" in resp_js.text
