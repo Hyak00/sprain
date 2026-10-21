@@ -57,9 +57,11 @@ test('ADMIN: premissas versionadas, fontes e falhas internas reais',async({page}
 });
 
 test('DEMO: bloqueio, custo, liberação e mapa pelo motor real',async({page})=>{
+ let liberar,iniciou;const pendente=new Promise(r=>liberar=r),chegou=new Promise(r=>iniciou=r);let primeira=true;
+ await page.route('**/api/v1/painel/consultas',async route=>{if(!primeira)return route.continue();primeira=false;const response=await route.fetch();iniciou();await pendente;await route.fulfill({response});});
  await entrar(page,'leitor');await central(page,'Demonstração');await expect(page.getByText(/evento originalmente pretendido pela equipe não foi identificado/)).toBeVisible();
  await page.getByRole('button',{name:'2. Simular bloqueio ilustrativo',exact:true}).click();await expect(page.getByRole('cell',{name:'3.03',exact:true})).toBeVisible();await expect(page.getByText(/Economia comprovada: indisponível/)).toBeVisible();
- await page.getByRole('button',{name:'Ver exercício sintético no mapa',exact:true}).click();await expect(page.getByText(/Exercício sintético: linha roxa original/)).toBeVisible();
+ await chegou;await page.getByRole('button',{name:'Ver exercício sintético no mapa',exact:true}).click();const respondeu=page.waitForResponse(r=>r.url().endsWith('/api/v1/painel/consultas'));liberar();await respondeu;await page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));await expect(page.getByText(/Exercício sintético: linha roxa original/)).toBeVisible();
  await central(page,'Demonstração');await page.getByRole('button',{name:'3. Simular liberação',exact:true}).click();await expect(page.getByRole('cell',{name:'2.06',exact:true})).toHaveCount(2);
 });
 

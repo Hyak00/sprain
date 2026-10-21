@@ -1009,7 +1009,7 @@
             if(semPrejuizo)document.getElementById('kpi-evitado').title+=' Soma parcial: '+semPrejuizo+' operação(ões) sem comparação disponível.';
 
             renderizarTabela();
-            if (recomendacoesAtuais.length > 0 && !operacaoSelecionadaId) {
+            if (recomendacoesAtuais.length > 0 && !operacaoSelecionadaId && !window.PainelDemonstracao?.emExibicao()) {
                 selecionarOperacao(recomendacoesAtuais[0].id_operacao);
             }
         }
@@ -1060,6 +1060,7 @@
         }
 
         async function selecionarOperacao(idOp) {
+            window.PainelDemonstracao?.limparMapa();
             operacaoSelecionadaId = idOp;
             document.getElementById('inspector').style.display = 'none';
             limparRotasExibidas();
@@ -1075,12 +1076,13 @@
         let leituraExplicacao=0;
         async function abrirExplicacaoDecisao(idOperacao) {
             const leitura=++leituraExplicacao;
+            const marcaDemo=window.PainelDemonstracao?.marcaMapa();
             const sessao=window.SESSION_EPOCH;
             const res = await window.PainelSessao.request('/api/v1/painel/consultas', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id_operacao:idOperacao})});
             if (!res.ok) return;
             const respostaConsulta = await res.json();
             const data = respostaConsulta.explicacao;
-            if(sessao!==window.SESSION_EPOCH || idOperacao!==operacaoSelecionadaId || leitura!==leituraExplicacao) return;
+            if(sessao!==window.SESSION_EPOCH || idOperacao!==operacaoSelecionadaId || leitura!==leituraExplicacao || marcaDemo!==window.PainelDemonstracao?.marcaMapa()) return;
             consultaSelecionadaId=respostaConsulta.consulta.id;
             const indice=recomendacoesAtuais.findIndex(r=>r.id_operacao===data.id_operacao);
             const linha={id_operacao:data.id_operacao,id_veiculo:data.id_veiculo,nivel_risco:data.nivel_risco,acao:data.acao_recomendada,
@@ -1223,7 +1225,7 @@
     <script src="/static/painel-corredores.js"></script>
     <script src="/static/painel-eventos.js"></script>
     <script src="/static/painel-administracao.js"></script>
-    <script src="/static/painel-demonstracao.js"></script>
+    <script src="/static/painel-demonstracao.js?v=mapa-2"></script>
     <script src="/static/painel-interno.js?v=interno35-3"></script>
     <script>window.PainelSessao.instalar();</script>
     <script src="/static/painel-homologacao.js"></script>
