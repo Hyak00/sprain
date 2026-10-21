@@ -2,20 +2,28 @@
     let arquivoSelecionado = null;
     let relatorioAtual = null;
     let conteudoTextoOriginal = "";
+    let geracao = 0, gravando = false;
+    const atual = (n, sessao) => n === geracao && sessao === window.SESSION_EPOCH;
 
     function abrir() {
+        if(window.PainelLayout) return window.PainelLayout.abrirManifesto();
         resetar();
         const m = document.getElementById("modal-manifesto");
         if (m) m.style.display = "flex";
     }
 
     function fechar() {
+        if(window.PainelLayout) return window.PainelLayout.fecharManifesto();
         const m = document.getElementById("modal-manifesto");
         if (m) m.style.display = "none";
         resetar();
     }
 
     function resetar() {
+        geracao++;
+        ["tabela-erros-manifesto","lista-avisos-manifesto","manifesto-msg-erro","manifesto-sucesso-qtd","manifesto-resultado-aviso"].forEach(id=>document.getElementById(id)?.replaceChildren());
+        for(const id of ["prev-total","prev-validas","prev-cadastradas","prev-duplicadas","prev-rejeitadas"]){const el=document.getElementById(id);if(el)el.textContent="0";}
+        const confirmar=document.getElementById("btn-confirmar-manifesto");if(confirmar)confirmar.disabled=true;
         arquivoSelecionado = null;
         relatorioAtual = null;
         conteudoTextoOriginal = "";
@@ -53,6 +61,9 @@
 
     async function processarArquivo(file) {
         if (!file) return;
+        if(!window.PainelSessao.podeEscrever()) { exibirErro("Seu perfil permite apenas consultas."); return; }
+        const n=++geracao, sessao=window.SESSION_EPOCH;
+        arquivoSelecionado=null;relatorioAtual=null;conteudoTextoOriginal="";
         const nome = (file.name || "").toLowerCase();
         if (!nome.endsWith(".csv")) {
             exibirErro("Extensao de arquivo invalida. Apenas arquivos .csv sao permitidos.");
@@ -65,11 +76,14 @@
 
         arquivoSelecionado = file;
         try {
-            conteudoTextoOriginal = await file.text();
+            const texto=await file.text();
+            if(!atual(n,sessao))return;
+            conteudoTextoOriginal = texto;
         } catch (e) {
             conteudoTextoOriginal = "";
         }
 
+        if(!atual(n,sessao))return;
         mostrarEstado("carregando");
         const msgEl = document.getElementById("manifesto-msg-carregando");
         if (msgEl) msgEl.textContent = "Validando dados, fuso horario e consistencia das viagens...";
@@ -80,7 +94,7 @@
         try {
             const headers = {};
             if (window.API_KEY) headers["X-API-Key"] = window.API_KEY;
-            const res = await fetch("/api/v1/logistica/operacoes/importar-manifesto?dry_run=true", {
+            const res = await window.PainelSessao.request("/api/v1/logistica/operacoes/importar-manifesto?dry_run=true", {
                 method: "POST",
                 headers: headers,
                 body: formData
@@ -93,6 +107,7 @@
             }
 
             const dados = await res.json();
+            if(!atual(n,sessao))return;
             relatorioAtual = dados;
 
             if (dados.erros && dados.erros.length === 1 && dados.erros[0].campo === "arquivo") {
@@ -102,7 +117,7 @@
 
             exibirPrevia(dados);
         } catch (e) {
-            exibirErro("Falha de conexao ao enviar a planilha para analise.");
+            if(atual(n,sessao)&&!e?.silencioso)exibirErro(e?.message||"Falha de conexao ao enviar a planilha para analise.");
         }
     }
 
@@ -200,7 +215,9 @@
     }
 
     async function confirmarImportacao() {
-        if (!arquivoSelecionado) return;
+        if (!arquivoSelecionado || gravando || !window.PainelSessao.podeEscrever()) return;
+        const n=geracao, sessao=window.SESSION_EPOCH;gravando=true;
+        if(!atual(n,sessao))return;
         mostrarEstado("carregando");
         const msgEl = document.getElementById("manifesto-msg-carregando");
         if (msgEl) msgEl.textContent = "Gravando viagens no banco e iniciando monitoramento...";
@@ -211,7 +228,7 @@
         try {
             const headers = {};
             if (window.API_KEY) headers["X-API-Key"] = window.API_KEY;
-            const res = await fetch("/api/v1/logistica/operacoes/importar-manifesto?dry_run=false", {
+            const res = await window.PainelSessao.request("/api/v1/logistica/operacoes/importar-manifesto?dry_run=false", {
                 method: "POST",
                 headers: headers,
                 body: formData
@@ -224,9 +241,14 @@
             }
 
             const resultado = await res.json();
+            if(!atual(n,sessao))return;
+            relatorioAtual=resultado;
             mostrarEstado("sucesso");
             const elQtd = document.getElementById("manifesto-sucesso-qtd");
             if (elQtd) elQtd.textContent = resultado.importadas || 0;
+            const aviso=document.getElementById("manifesto-resultado-aviso");
+            if(aviso)aviso.textContent=resultado.erros?.length ? "Importação parcial. Algumas linhas não foram gravadas; confira e baixe as rejeitadas antes de reenviar." : "Confira as viagens importadas no painel. Nenhuma economia ou viagem executada é comprovada pela importação.";
+            const rejeitadas=document.getElementById("manifesto-rejeitadas-final");if(rejeitadas)rejeitadas.hidden=!resultado.erros?.length;
 
             if (typeof carregarOperacoesDoBackend === "function") {
                 carregarOperacoesDoBackend();
@@ -235,8 +257,8 @@
                 executarSimulacao();
             }
         } catch (e) {
-            exibirErro("Nao foi possivel confirmar a gravacao das viagens.");
-        }
+            if(atual(n,sessao)&&!e?.silencioso)exibirErro("Nao foi possivel confirmar o resultado da importacao. Confira as viagens antes de reenviar.");
+        } finally { gravando=false; }
     }
 
     function baixarLinhasRejeitadas() {
@@ -289,6 +311,7 @@
     }
 
     window.PainelManifesto = {
+        emAndamento: ()=>gravando,
         abrir: abrir,
         fechar: fechar,
         baixarModelo: baixarModelo,

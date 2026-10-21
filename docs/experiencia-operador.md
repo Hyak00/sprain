@@ -92,3 +92,5 @@ foi repetida no ambiente separado equivalente ao CI, sem alterar essas regras.
 
 A reorganização azul escuro e o mapa dos caminhos de todos os recursos estão em
 [Organização visual do painel](organizacao-visual-painel.md).
+
+Em 20/10/2026, a navegação passou a usar páginas diretas e seis abas na viagem. O mapa atual dos recursos está em [Organização visual do painel](organizacao-visual-painel.md); os resultados datados acima descrevem a revisão anterior.

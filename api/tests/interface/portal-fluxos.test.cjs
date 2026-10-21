@@ -14,7 +14,7 @@ const tick=()=>new Promise(r=>setImmediate(r));
 async function ambiente(role='OPERATOR',handler){
     const{window}=parseHTML('<html><head></head><body><div class="top-controls"></div></body></html>');const{document}=window;const chamadas=[],downloads=[];let perfil=role;
     const criar=document.createElement.bind(document);document.createElement=tag=>{const el=criar(tag);if(tag==='dialog'){
-        el.showModal=()=>{el.open=true;};el.close=()=>{if(!el.open)return;el.open=false;el.dispatchEvent(new window.Event('close'));};
+        el.show=()=>{el.open=true;};el.showModal=el.show;el.close=()=>{if(!el.open)return;el.open=false;el.dispatchEvent(new window.Event('close'));};
     }return el;};
     Object.defineProperty(window.HTMLSelectElement.prototype,'value',{configurable:true,get(){return this.querySelector('option[selected]')?.value||this.querySelector('option')?.value||'';},set(v){this.querySelectorAll('option').forEach(o=>{if(o.value===v)o.setAttribute('selected','');else o.removeAttribute('selected');});}});
     window.PainelSessao={perfil:()=>perfil,podeEscrever:()=>['ADMIN','OPERATOR'].includes(perfil),request:async(url,options={})=>{chamadas.push({url,options});const d=handler?await handler(url,options):resposta[url];if(d instanceof Error)throw d;if(d===undefined)throw Error('Indisponível');return {json:async()=>d};}};

@@ -29,7 +29,7 @@
     }
     function nome(s){return String(s||'consulta').replace(/[^a-zA-Z0-9_.-]/g,'_').slice(0,100);}
     function encerrar(){dialog.close();abrir.focus();}
-    fechar.onclick=encerrar;abrir.onclick=()=>{if(!usuario)return;dialog.showModal();render(secao);};
+    fechar.onclick=encerrar;abrir.onclick=()=>{if(!usuario)return;dialog.show();render(secao);};
     dialog.addEventListener('close',()=>{if(dialog.open)return;versao++;controle?.abort();conteudo.replaceChildren();});
     async function render(aba){
         if(!usuario)return;root.PainelExperiencia?.secao?.(aba);secao=aba;const v=++versao;controle?.abort();controle=new AbortController();conteudo.replaceChildren();dialog.scrollTop=0;
@@ -203,6 +203,6 @@
         telas[id]=(p,v)=>fn(p,{atual:()=>atual(v),obter:(path,options)=>obter(path,v,options),recarregar:()=>render(id)});
         const b=botao(nav,label,()=>render(id));b.dataset.secao=id;
     }
-    function navegar(id){if(!usuario)return;if(!dialog.open)dialog.showModal();render(id);}
+    function navegar(id){if(!usuario)return;if(!dialog.open)dialog.show();render(id);}
     root.PortalOperacional={sessao,limpar,selecionar,abrir:abrir.onclick,registrarSecao,navegar};
 })(window);

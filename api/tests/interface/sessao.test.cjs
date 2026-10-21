@@ -116,3 +116,8 @@ test('sessao incompleta nao e aceita', () => {
     const c = criarCliente({ fetcher: async () => resposta() });
     assert.throws(() => c.entrar({ role: 'ADMIN', api_key: 'sem-empresa' }), /incompleta/);
 });
+
+for (const temporario of [false, true]) test('429 distingue cota do plano de limite temporario: '+temporario, async()=>{
+ const c=criarCliente({fetcher:async()=>new Response('{}',{status:429,headers:temporario?{'Retry-After':'60'}:{}})});c.entrar(operador);
+ await assert.rejects(c.request('/api/v1/painel/corredores'),e=>e.status===429&&(temporario?/por minuto/:/Limite do plano/).test(e.message));
+});

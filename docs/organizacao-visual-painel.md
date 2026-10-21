@@ -1,53 +1,56 @@
-# Organização visual do painel
+# Painel com páginas diretas e detalhes por abas
 
-A reorganização usa a paleta azul escuro aprovada e os componentes do painel real. A proposta isolada não substitui o produto e seus dados ilustrativos não são importados para a operação.
+Atualização de 20/10/2026, sobre `252f75c`. A revisão considera as mudanças de meteorologia, custos, resultados, planos e importação de manifesto incorporadas pela equipe. Não altera o motor de rotas, os contratos de dados nem as permissões do backend.
 
-## Onde encontrar cada recurso
+## Organização
 
-| Recurso anterior | Caminho atual |
+A navegação lateral permanece disponível enquanto uma página está aberta. Em celular, um único botão Menu mostra as mesmas páginas, agrupadas por assunto. Não existe mais o caminho Central de trabalho → Navegar entre ferramentas para chegar a uma função.
+
+| Área | Acessos diretos |
 | --- | --- |
-| Lista, busca, críticos, desvios e viagens sem decisão | Operações; todos os filtros foram mantidos |
-| Total monitorado, desvio, custo e perda potencial | Cenário e indicadores → Indicadores e impacto potencial |
-| Chuva e custo de retenção | Cenário e indicadores → Simular cenário de chuva |
-| Exportação de contingência CSV | Cenário e indicadores → Exportar CSV; mantém a permissão anterior |
-| Cadastro e despacho por endereço | Despachar Nova Rota; mesmos campos, autocomplete, medidas e premissas |
-| Caminhões, medidas, combustível e custos | Frota; mesmos cadastros e formulários |
-| Administração de pedágios e pontes | Frota → Administrar pedágios e pontes, para ADMIN |
-| Escolha da localização de estrutura | Escolher localização no mapa; o mapa reaparece na frota, recebe a coordenada e retorna ao cadastro |
-| Corredores e recorrências da empresa | Corredores |
-| Corredor regional de referência | Configurações → Consultar corredor existente |
-| Mapa, fontes, legenda e camadas | Operações → Legenda e camadas do mapa |
-| Comparação, justificativa, confiança e limitações | Selecionar viagem → Comparar rotas |
-| Pedágios, dimensões, pontes e restrições | Comparar rotas → Pedágios, caminhão e restrições |
-| Postos, preços, histórico e cobertura | Comparar rotas → Postos, historico e atualizacao dos dados |
-| Fontes, validade, natureza e consequências dos alertas | Comparar rotas → Alertas: fonte, validade e relação com a rota |
-| Custos conhecidos, estimativas e tarifas pendentes | Comparar rotas; resumo financeiro e comparação detalhada mantidos |
-| Recálculo por premissas | Comparar rotas → Editar premissas e recalcular esta operação |
-| Espera e motor econômico | Comparar rotas → Comparar um cenário de espera |
-| Aprovar desvio, manter, aguardar e histórico da decisão | Comparar rotas → Supervisão do Gestor |
-| PDF, CSV, JSON e relatório individual compartilhável | Relatórios |
-| Usuários, recuperação e padrões financeiros | Configurações e Central de trabalho → Navegar entre ferramentas |
-| Primeiro cliente e medição persistente | Configurar primeiro cliente, no rodapé da navegação |
-| Importação JSON, consultas, relatos e demonstração | Central de trabalho → Navegar entre ferramentas |
-| Qualidade, importações, fontes e serviços internos | Central de trabalho → Navegar entre ferramentas; painel interno mantém acesso ADMIN |
-| Troca de conta e logout | Cabeçalho → Trocar Conta |
+| Operação | Viagens, Importar viagens, Corredores, Frota, Corredor de referência |
+| Análise | Relatórios, Histórico, Reportar ocorrência, Fontes e serviços, Simulação de chuva |
+| Empresa | Custos da empresa, Plano e consumo (ADMIN), Equipe e acesso, Primeiro cliente, Minha empresa |
+| Apoio | Demonstração, Guia de uso, Operação interna (ADMIN) |
 
-## Limites da alteração
+Viagens mostra os quatro indicadores existentes sem recolhê-los. Cadastro de viagem, importação CSV e exportação de contingência ficam visíveis no cabeçalho. Busca, filtros, diferença estimada, caminhão e identificador permanecem na lista. A legenda básica do mapa está aberta; camadas e explicações complementares continuam disponíveis.
 
-`painel-layout.js` move os nós existentes e adapta sua apresentação. Não troca endpoints, modelos, política de acesso, fontes, geometria de rotas ou fórmulas financeiras. `painel-layout.css` concentra a organização visual. O carregamento de arquivos foi versionado para evitar misturar scripts antigos do cache.
+As páginas usam `dialog.show()` sem modalidade para reutilizar o ciclo de abertura/fechamento dos componentes. Não usam `showModal()` nem backdrop para navegação normal, e a lateral continua interativa. Despacho e recuperação de acesso continuam sendo tarefas temporárias em seus formulários próprios.
 
-A comparação usa um diálogo nativo, com fechamento por Escape e retorno ao botão de origem. O mapa fica disponível sem o painel de auditoria permanentemente sobreposto. Os detalhes completos continuam na comparação; valores não são resumidos substituindo a resposta da API. Ao consultar outra viagem, carregar ou falhar, a comparação anterior fica indisponível. Logout fecha os diálogos e limpa a seleção.
+## Viagem selecionada
 
-O modo de demonstração continua explicitamente identificado. Custos estimados, parcelas conhecidas e dados ausentes não passam a ser economia comprovada ou autorização de passagem. O tempo exibido no resumo é identificado como horário de cálculo, sem inventar atualização da fonte.
+O resumo no mapa tem três ações: comparar, conferir pedágios/pontes e registrar decisão. Os detalhes abrem como página com seis abas:
 
-## Verificação de regressões
+| Aba | Conteúdo preservado |
+| --- | --- |
+| Resumo | Recomendação, confiança declarada, rota original e alternativa, distância, tempo, diferença de custo, perda potencial, justificativa e limitações |
+| Pedágios e pontes | Dimensões do veículo, peso, eixos, referências de pedágio, tarifas pendentes, pontes, limites e incompatibilidades |
+| Postos e histórico | Postos e preços próximos, referências da ANP, sinistros, roubos, cobertura, fontes e atualização |
+| Custos e recálculo | Comparação financeira, premissas editáveis, recálculo, espera, detalhes financeiros e dados de referência |
+| Alertas e fontes | Eventos, sua natureza/validade/relação com trechos, atualização explícita e lista de vulnerabilidades |
+| Decisão | Motivo, aprovar desvio/manter/aguardar, confirmação do servidor e histórico da decisão |
 
-- Os 69 IDs existentes no documento anterior são conferidos pelo navegador, exatamente uma vez cada. A lista de referência está em `api/tests/e2e/controles-preservados.json`.
-- Os testes anteriores mantêm as verificações de autenticação, papéis, relatórios reais, recorrência, despacho idempotente, demonstração, usuários, recálculo, decisões, relatos, onboarding e espera.
-- Cenários adicionais verificam navegação única, acesso a infraestrutura e postos, oito camadas, indicadores, escolha de ponte no mapa em desktop/celular, ausência de transbordamento da comparação em 360 px, limpeza no logout e recusa de reutilizar comparação após falha de consulta.
-- Os testes de navegador usam a API real e banco sintético isolado. Os assets externos do mapa são substituídos pela mesma versão local e um estilo vazio para não depender de tiles da Internet. A conferência visual manual usa o mapa externo normal.
-- A suíte de API e a suíte de DOM continuam sendo executadas. A preservação de controles complementa os testes funcionais; ela sozinha não comprova cada combinação possível de dados reais.
+Os blocos de conteúdo dos componentes anteriores são movidos, não copiados. Os mesmos IDs, formulários, funções e closures continuam ativos. As seções da aba selecionada são abertas; não exigem abrir um acordeão dentro de outro. JSON integral de consultas históricas permanece opcional por conter dados brutos extensos. As abas têm associação ARIA, estado selecionado e navegação por setas/Home/End.
 
-Não foi feito cadastro de cliente real nem alteração da base operacional. Avaliar apresentação com operadores e comprovar cobertura e qualidade das fontes no corredor de implantação continua sendo parte da validação do produto.
+O cadastro ADMIN de pedágios e pontes mantém a escolha por clique no mapa, inclusive no celular. Ao concluir ou mudar de área, a captura de coordenadas é cancelada, preservando os valores preenchidos.
 
-Validação local em 17/10/2026: 315 testes de API e 3 subtestes, 89 testes DOM e 14 cenários Chromium aprovados em bancos isolados. CI executa novamente as mesmas suítes no commit publicado.
+## Manifesto CSV
+
+A importação adicionada pela equipe tem página própria e preserva modelo, exemplo de Araraquara, envio/arrastar arquivo, prévia, erros por linha, rejeitadas, confirmação e resultado. A importação JSON permanece disponível por botão explícito na mesma página.
+
+A prévia e a gravação passam pelo transporte autenticado já utilizado pelo painel. Respostas são conferidas contra a geração do arquivo e da sessão; cancelar, trocar arquivo ou sair impede que uma resposta antiga preencha outro estado. A confirmação possui bloqueio de envio simultâneo. Resultado parcial é identificado e permite baixar as rejeitadas. O logout limpa o arquivo e seu conteúdo. Não há nova persistência de credenciais ou do CSV em armazenamento local. Sair da página descarta a resposta visual pendente; uma confirmação já enviada pode continuar no servidor, e o painel orienta conferir as viagens antes de reenviar.
+
+O parser, as regras de validação, as cotas e os endpoints de gravação não foram alterados. A tela informa o resultado efetivamente devolvido pela API; importação não comprova execução de viagem nem economia.
+
+## Preservação e validação
+
+- `api/tests/e2e/controles-preservados.json` lista os 91 IDs anteriores à revisão, incluindo os controles novos do manifesto. Cada um deve continuar presente uma única vez.
+- As oito camadas originais, acessos por papel, fontes, dados ausentes, custos conhecidos/estimados e avisos de simulação continuam preservados.
+- Os testes existentes de cadastro, recorrência, despacho, chuva, espera, custos, decisão, relato, exportação, demonstração, recuperação, isolamento e administração continuam ativos.
+- Cenários adicionais verificam navegação direta sem modais, seis abas com ações abertas, importação CSV real, rejeição de resposta atrasada após trocar de empresa e bloqueio de importação por VIEWER.
+- A suíte usa API real e banco sintético isolado. O teste de CSV usa outra empresa sintética para não concentrar toda a suíte na cota de uma empresa; as proteções permanecem ativas. A fixture reinicia somente a medição de onboarding sintética reservada.
+- O navegador automatizado usa a mesma versão local de MapLibre e estilo vazio, sem depender de tiles externos. A revisão visual manual usa o mapa normal e verifica desktop e celular.
+
+Não foram inseridos dados de teste na base operacional ou alterados arquivos de dados oficiais. Dados e exemplos comerciais recebidos do Git foram preservados, com suas limitações existentes. Esta revisão de interface não equivale à homologação das fontes em um corredor de cliente.
+
+Validação desta revisão (20/10/2026): 436 testes de API e 3 subtestes, 93 testes de interface e 20 testes de navegador aprovados. A suíte de navegador foi executada uma vez em um banco novo exclusivo de teste, com as cotas e proteções reais ativas.
