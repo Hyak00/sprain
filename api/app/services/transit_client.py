@@ -24,8 +24,24 @@ class TransitClient:
         }
 
     @classmethod
+    def consultar_cache(cls, origem_lat: float, origem_lon: float,
+                       destino_lat: float, destino_lon: float) -> Dict[str, Any] | None:
+        if settings.ambiente_atual == "production":
+            return None
+        chave = f"{round(origem_lat, 4)},{round(origem_lon, 4)}:{round(destino_lat, 4)},{round(destino_lon, 4)}"
+        entrada = cls._cache.get(chave)
+        if not entrada:
+            return None
+        ts, dados = entrada
+        if time.time() - ts < cls._cache_ttl:
+            return {**dados, "origem_cache": True}
+        del cls._cache[chave]
+        return None
+
+    @classmethod
     def consultar_transito(
-        cls, origem_lat: float, origem_lon: float, destino_lat: float, destino_lon: float
+        cls, origem_lat: float, origem_lon: float, destino_lat: float, destino_lon: float,
+        *, usar_cache: bool = True,
     ) -> Dict[str, Any]:
         # O OSRM publico e apenas uma demonstracao. Nem o cache deve ser usado em producao.
         if settings.ambiente_atual == "production":
@@ -36,11 +52,10 @@ class TransitClient:
         chave = f"{round(origem_lat, 4)},{round(origem_lon, 4)}:{round(destino_lat, 4)},{round(destino_lon, 4)}"
         agora = time.time()
 
-        if chave in cls._cache:
-            ts, dados = cls._cache[chave]
-            if agora - ts < cls._cache_ttl:
-                return {**dados, "origem_cache": True}
-            del cls._cache[chave]
+        if usar_cache:
+            encontrado = cls.consultar_cache(origem_lat, origem_lon, destino_lat, destino_lon)
+            if encontrado is not None:
+                return encontrado
 
         cls._total_consultas += 1
         url = (
