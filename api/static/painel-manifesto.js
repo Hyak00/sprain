@@ -276,10 +276,23 @@
         setTimeout(function() { window.URL.revokeObjectURL(url); }, 1000);
     }
 
+    async function carregarDemoAraraquara() {
+        try {
+            const res = await fetch("/static/manifesto_araraquara_demo.csv");
+            if (!res.ok) throw new Error("Falha ao obter demo");
+            const blob = await res.blob();
+            const file = new File([blob], "manifesto_araraquara_demo.csv", { type: "text/csv" });
+            await processarArquivo(file);
+        } catch (e) {
+            exibirErro("Nao foi possivel carregar o exemplo de Araraquara.");
+        }
+    }
+
     window.PainelManifesto = {
         abrir: abrir,
         fechar: fechar,
         baixarModelo: baixarModelo,
+        carregarDemoAraraquara: carregarDemoAraraquara,
         processarArquivo: processarArquivo,
         confirmarImportacao: confirmarImportacao,
         baixarLinhasRejeitadas: baixarLinhasRejeitadas,
