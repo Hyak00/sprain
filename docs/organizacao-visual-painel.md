@@ -83,3 +83,5 @@ limites ou sobrepostos. As seis abas também são conferidas em 1280 e 360 px,
 junto com o inventário de controles e os fluxos funcionais existentes.
 
 Durante o salvamento e recálculo das premissas, as abas da viagem ficam temporariamente desabilitadas, com mensagem de progresso. São liberadas quando o fluxo termina, inclusive em erro. Isso impede que a reconstrução do formulário interfira numa troca de aba antecipada. Os cálculos e endpoints permanecem os mesmos.
+
+O cabeçalho permite quebra do nome da empresa/sessão no celular, sem empurrar a página para os lados. A fixture usa um nome longo; a checagem compara a largura do conteúdo com a área útil, descontando a barra de rolagem.

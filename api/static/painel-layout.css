@@ -163,6 +163,10 @@ button:disabled {
   padding: 12px 28px;
   gap: 20px;
 }
+.brand-group > div:not(.brand-logo) {
+  min-width: 0;
+  max-width: 100%;
+}
 .brand-group .brand-logo {
   display: none;
 }
@@ -1305,9 +1309,8 @@ body.ux-escolhendo-mapa #ux-rota-resumo {
   }
   .ux-pronta .brand-sub {
     max-width: none;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
   .ux-pronta .brand-title {
     font-size: 14px;

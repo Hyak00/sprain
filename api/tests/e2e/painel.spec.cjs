@@ -30,7 +30,7 @@ async function conferirCampos(page,seletor){
   for(const campo of r.filter(n=>n.input)){expect(campo.input.x,campo.label).toBeGreaterThanOrEqual(campo.x-1);expect(campo.input.right,campo.label).toBeLessThanOrEqual(campo.right+1);expect(campo.input.bottom,campo.label).toBeLessThanOrEqual(campo.bottom+1);}
   if(width>600){expect(Math.abs(r[0].y-r[1].y),'dois campos alinhados por linha').toBeLessThan(2);expect(r[1].x).toBeGreaterThan(r[0].right);}
   else expect(r[1].y).toBeGreaterThanOrEqual(r[0].bottom);
-  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth)).toBe(true);
  }
  await page.setViewportSize(original);
 }
