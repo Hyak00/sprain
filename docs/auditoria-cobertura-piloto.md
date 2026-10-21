@@ -41,10 +41,17 @@ O número regional da SSP não serve para apontar roubo em um trecho.
 O JSON também lista as fontes carregadas e denuncia fontes ausentes para que
 um banco vazio não pareça um município sem ocorrências.
 
+O corredor de referência `corredor_sp_araraquara` no mesmo banco contém seis
+segmentos entre cidades, cada um com apenas **dois vértices** (`ST_NPoints`).
+Essa geometria não acompanha as curvas e acessos das rodovias. Não use
+proximidade calculada a partir dela como prova de que um acidente ou posto está
+na estrada da viagem real; a Pessoa 1 precisa confirmar a geometria do trajeto.
+
 ## Critério para o piloto com viagens reais
 
 1. Confirmar os primeiros trajetos, incluindo destino e rodovias; a cidade
-   sozinha não define a cobertura da rota.
+   sozinha não define a cobertura da rota. A Pessoa 1 deve entregar geometria
+   viária conferida antes da validação espacial dos dados.
 2. Atualizar as fontes no banco do ambiente do piloto e repetir a auditoria.
 3. Conferir em campo os postos que serão usados na rota e importar somente
    coordenadas verificadas, com fonte e data.
