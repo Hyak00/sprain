@@ -56,3 +56,28 @@ Não foram inseridos dados de teste na base operacional ou alterados arquivos de
 Validação desta revisão (20/10/2026): 436 testes de API e 3 subtestes, 93 testes de interface e 20 testes de navegador aprovados. A suíte de navegador foi executada uma vez em um banco novo exclusivo de teste, com as cotas e proteções reais ativas.
 
 Em 21/10/2026, a aba Decisão passou a incluir o registro pós-viagem, com correções aditivas e histórico paginado. Veja [Resultados de viagem](resultados-viagem-piloto.md). Relatórios passou a expor os indicadores autodeclarados já existentes na API, separados de custos observados e economia comprovada.
+
+## Correção de blocos e formulários (21/10/2026)
+
+A revisão corrige o cartão legado da frota, que mantinha informações e quatro
+blocos em uma única linha flexível. Os cartões agora separam identificação/modelo,
+fonte/atualização e dois botões, com espaço próprio para cada item. O cadastro
+mantém os mesmos campos e IDs, com rótulos visíveis e ação de salvar após as
+medidas. Nenhum handler ou regra de cadastro foi substituído.
+
+Formulários do portal e da comparação usam duas colunas quando há espaço e uma
+em tela estreita. Os campos respeitam o tamanho do bloco; checkboxes conservam
+seu formato e alinhamento. O conteúdo nativo de `details` recebe a grade sem
+colocar o resumo e todos os campos em uma coluna estreita. Navegadores sem suporte
+a `::details-content` mantêm o fluxo vertical legível.
+
+Relatórios e detalhes usam rolagem da página no desktop, em vez de uma caixa de
+altura limitada dentro da tela. O título principal fica no cabeçalho; o título
+interno repetido continua como nome acessível da região. Conteúdo e ações do
+relatório permanecem disponíveis em blocos separados. Na aba Custos e recálculo,
+a comparação fica antes do formulário de edição, sem mudar os cálculos.
+
+As verificações geométricas em Chromium cobrem 1280, 1024, 768 e 360 px: campos
+contidos nos respectivos rótulos, colunas alinhadas e cartões sem filhos fora dos
+limites ou sobrepostos. As seis abas também são conferidas em 1280 e 360 px,
+junto com o inventário de controles e os fluxos funcionais existentes.

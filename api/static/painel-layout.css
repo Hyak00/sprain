@@ -523,13 +523,12 @@ body[data-area="VIAGEM"] > .workspace {
   width: calc(100% - var(--ux-nav) - 56px) !important;
   max-height: none !important;
   min-height: 0;
-  flex: 1;
-  overflow: auto;
-  overscroll-behavior: contain;
-  padding: 24px 28px !important;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: #111e33;
+  flex: none;
+  overflow: visible;
+  padding: 0 !important;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   color: var(--text-main);
   line-height: 1.7;
   box-shadow: none;
@@ -540,12 +539,12 @@ body[data-area="VIAGEM"] > .workspace {
 }
 .ux-pronta #portal-operacional .portal-cab {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 16px;
   align-items: center;
-  border-bottom: 1px solid var(--border);
-  padding-bottom: 14px;
-  margin-bottom: 20px;
+  border: 0;
+  padding: 0;
+  margin-bottom: 8px;
 }
 .portal-cab h2 {
   font-size: 16px;
@@ -898,7 +897,7 @@ body[data-area="VIAGEM"] > .workspace {
 }
 .ux-pronta #lista-frota-cards {
   display: grid !important;
-  grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
   gap: 16px !important;
 }
 .mvp-proveniencia {
@@ -1377,5 +1376,227 @@ body.ux-escolhendo-mapa #ux-rota-resumo {
 @media (max-width: 600px) {
   .ux-resultados form {
     grid-template-columns: 1fr;
+  }
+}
+
+/* Contratos de dimensão: cada controle pertence a um bloco e pode encolher. */
+.ux-pronta
+  :is(#portal-conteudo, #inspector, #frota-panel)
+  :is(section, article, form, details, label, .infra-grid) {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+.ux-pronta
+  :is(#portal-conteudo, #inspector, #frota-panel)
+  :is(input, select, textarea, button) {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+.ux-pronta
+  :is(#portal-conteudo, #inspector, #frota-panel)
+  :is(p, small, strong, summary, h3, h4, h5) {
+  overflow-wrap: anywhere;
+}
+body.ux-pronta:is([data-area="PAGINA"], [data-area="VIAGEM"]) {
+  height: auto;
+  min-height: 100dvh;
+  overflow: auto;
+}
+
+.ux-pronta #portal-operacional .portal-cab h2 {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.ux-pronta #portal-conteudo > :is(article, section, form),
+.ux-pronta #portal-conteudo > div:has(> form),
+.ux-pronta
+  #inspector
+  :is(.ux-comparacao, .mvp-complemento, .infra-complemento, .ux-resultados) {
+  padding: 24px;
+  margin: 20px 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-panel);
+}
+.ux-pronta #portal-conteudo form,
+.ux-pronta #inspector :is(.mvp-complemento, .ux-comparacao) form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px 24px;
+  align-items: start;
+  max-width: none;
+}
+.ux-pronta #portal-conteudo form > :not(label),
+.ux-pronta #inspector :is(.mvp-complemento, .ux-comparacao) form > :not(label) {
+  grid-column: 1/-1;
+}
+.ux-pronta #portal-conteudo form label,
+.ux-pronta #inspector :is(.mvp-complemento, .ux-comparacao) form label {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-self: stretch;
+  font-size: 13px;
+  gap: 6px;
+}
+.ux-pronta #portal-conteudo form label:has(input[type="checkbox"]) {
+  flex-direction: row;
+  align-items: center;
+  align-self: center;
+}
+.ux-pronta
+  #portal-conteudo
+  :is(input:not([type="checkbox"]), select, textarea) {
+  width: 100%;
+  max-width: none;
+  min-height: 44px;
+}
+.ux-pronta
+  #portal-conteudo
+  form
+  :is(input:not([type="checkbox"]), select, textarea) {
+  margin-top: auto;
+}
+.ux-pronta #portal-conteudo form details {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.ux-pronta #portal-conteudo form details > summary {
+  font-weight: 600;
+  padding: 0 0 8px;
+}
+.ux-pronta #portal-conteudo :is(article, section, form) > h4:first-child {
+  margin-top: 0;
+}
+.ux-pronta #portal-conteudo pre {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.ux-pronta #portal-conteudo table {
+  width: 100%;
+  table-layout: fixed;
+}
+.ux-pronta #portal-conteudo :is(th, td) {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  vertical-align: top;
+}
+.ux-pronta #portal-conteudo .portal-tabela {
+  max-width: 100%;
+  overflow-x: auto;
+}
+.ux-pronta #inspector :is(.ux-comparacao, .mvp-complemento) {
+  margin: 0;
+}
+.ux-pronta #inspector .ux-comparacao > h3:first-child {
+  margin-top: 0;
+}
+.ux-pronta #inspector .mvp-complemento .mvp-natureza {
+  margin-bottom: 24px;
+}
+.ux-pronta #inspector .mvp-complemento input {
+  margin-top: auto;
+  min-height: 44px;
+}
+.ux-pronta #lista-frota-cards > div {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  align-content: start;
+  align-items: stretch !important;
+  padding: 18px !important;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 13px !important;
+}
+.ux-pronta #lista-frota-cards > div > div {
+  grid-column: 1/-1;
+  min-width: 0;
+  line-height: 1.7;
+}
+.ux-pronta #lista-frota-cards > div > small {
+  grid-column: 1/-1;
+  grid-row: 2;
+  margin: 0;
+  line-height: 1.7;
+}
+.ux-pronta #lista-frota-cards > div > button {
+  grid-row: 3;
+  width: 100%;
+  min-height: 44px;
+  margin: 0;
+  white-space: normal;
+}
+.ux-pronta #lista-frota-cards > div > div > div {
+  margin-top: 6px;
+  font-size: 12px !important;
+}
+.ux-campo-frota {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+.ux-pronta .ux-campo-frota .ctrl-input {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+}
+.ux-pronta #frota-panel .panel-card > div:has(> .ux-campo-frota) {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 16px !important;
+}
+.ux-pronta
+  #frota-panel
+  .panel-card
+  > button[data-acao="cadastrarNovoCaminhao"] {
+  margin-top: 16px;
+}
+@media (max-width: 600px) {
+  .ux-pronta #portal-conteudo form,
+  .ux-pronta #inspector :is(.mvp-complemento, .ux-comparacao) form,
+  .ux-pronta #frota-panel .panel-card > div:has(> .ux-campo-frota) {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+  .ux-pronta #portal-conteudo > :is(article, section, form),
+  .ux-pronta #portal-conteudo > div:has(> form),
+  .ux-pronta
+    #inspector
+    :is(.ux-comparacao, .mvp-complemento, .infra-complemento, .ux-resultados) {
+    padding: 16px;
+  }
+}
+
+/* Details usa um contêiner interno nativo; a grade pertence ao conteúdo, não ao resumo. */
+.ux-pronta :is(#portal-conteudo, #inspector) form details[open] {
+  display: block;
+}
+.ux-pronta
+  :is(#portal-conteudo, #inspector)
+  form
+  details[open]::details-content {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px 24px;
+}
+.ux-pronta :is(#portal-conteudo, #inspector) form details > :not(label) {
+  grid-column: 1/-1;
+}
+@media (max-width: 600px) {
+  .ux-pronta
+    :is(#portal-conteudo, #inspector)
+    form
+    details[open]::details-content {
+    grid-template-columns: minmax(0, 1fr);
   }
 }

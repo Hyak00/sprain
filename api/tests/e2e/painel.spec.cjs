@@ -21,6 +21,28 @@ async function central(page,secao){await ferramenta(page,secao);}
 async function ferramenta(page,secao){const nav=page.getByRole('navigation',{name:'Navegação principal',exact:true});if(!await nav.isVisible())await page.getByRole('button',{name:'Menu',exact:true}).click();await nav.getByRole('button',{name:secao,exact:true}).click();}
 async function comparar(page){await page.getByRole('button',{name:'Comparar rotas',exact:true}).click();await expect(page.locator('#ux-comparar')).toBeVisible();await page.getByRole('tab',{name:'Custos e recálculo',exact:true}).click();}
 async function baixar(page,nome){const evento=page.waitForEvent('download');await page.getByRole('button',{name:nome,exact:true}).click();const d=await evento;const file=await d.path();expect(file).toBeTruthy();return fs.readFile(file);}
+async function conferirCampos(page,seletor){
+ const original=page.viewportSize();
+ for(const width of [1280,1024,768,360]){
+  await page.setViewportSize({width,height:900});
+  const r=await page.locator(seletor).evaluateAll(ns=>ns.filter(n=>n.getBoundingClientRect().width>0).map(n=>{const a=n.getBoundingClientRect(),i=n.querySelector('input:not([type=checkbox]),select,textarea'),b=i?.getBoundingClientRect();return{label:n.textContent.trim(),x:a.x,y:a.y,bottom:a.bottom,right:a.right,input:b?{x:b.x,y:b.y,right:b.right,bottom:b.bottom}:null};}));
+  expect(r.length).toBeGreaterThan(1);
+  for(const campo of r.filter(n=>n.input)){expect(campo.input.x,campo.label).toBeGreaterThanOrEqual(campo.x-1);expect(campo.input.right,campo.label).toBeLessThanOrEqual(campo.right+1);expect(campo.input.bottom,campo.label).toBeLessThanOrEqual(campo.bottom+1);}
+  if(width>600){expect(Math.abs(r[0].y-r[1].y),'dois campos alinhados por linha').toBeLessThan(2);expect(r[1].x).toBeGreaterThan(r[0].right);}
+  else expect(r[1].y).toBeGreaterThanOrEqual(r[0].bottom);
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+ }
+ await page.setViewportSize(original);
+}
+async function conferirCartoesFrota(page){
+ const original=page.viewportSize();
+ for(const width of [1280,1024,768,360]){
+  await page.setViewportSize({width,height:900});
+  const erros=await page.locator('#lista-frota-cards > div').evaluateAll(cards=>cards.slice(0,6).flatMap(card=>{const r=card.getBoundingClientRect(),ns=[...card.children].map(n=>({nome:n.textContent.slice(0,70),r:n.getBoundingClientRect()}));const erros=[];for(let i=0;i<ns.length;i++){const a=ns[i];if(a.r.left<r.left-1||a.r.right>r.right+1||a.r.bottom>r.bottom+1)erros.push('Fora do cartão: '+a.nome);for(let j=i+1;j<ns.length;j++){const b=ns[j];if(Math.min(a.r.right,b.r.right)-Math.max(a.r.left,b.r.left)>1&&Math.min(a.r.bottom,b.r.bottom)-Math.max(a.r.top,b.r.top)>1)erros.push('Sobreposição: '+a.nome+' / '+b.nome);}}return erros;}));
+  expect(erros).toEqual([]);
+ }
+ await page.setViewportSize(original);
+}
 function proximaSegunda(){
  const hoje=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
  const data=new Date(hoje+'T12:00:00Z');data.setUTCDate(data.getUTCDate()+((8-data.getUTCDay())%7||7));return data.toISOString().slice(0,10);
@@ -49,7 +71,7 @@ test('OPERADOR: corredor persistente, recorrência e despacho idempotente',async
 });
 
 test('ADMIN: premissas versionadas, fontes e falhas internas reais',async({page})=>{
- await entrar(page,'admin');await central(page,'Premissas financeiras');
+ await entrar(page,'admin');await central(page,'Premissas financeiras');await expect(page.getByLabel('Custo total por km (R$/km)',{exact:true})).toBeVisible();await conferirCampos(page,'#portal-conteudo form details > label');
  await page.locator('#portal-operacional').getByLabel('Custo total por km (R$/km)',{exact:true}).fill('4.5');await page.getByRole('button',{name:'Salvar padrões financeiros',exact:true}).click();await expect(page.getByText(/Versão: [1-9]/)).toBeVisible();
  await ferramenta(page,'Plano e consumo');await expect(page.getByRole('table',{name:'Uso e limites retornados pelo servidor'})).toBeVisible();await expect(page.getByRole('rowheader',{name:'Chamadas externas no mês'})).toBeVisible();await expect(page.getByRole('cell',{name:'Não medido',exact:true})).toBeVisible();
  await ferramenta(page,'Painel operacional interno');await expect(page.getByRole('heading',{name:'Fontes e atualização',exact:true})).toBeVisible();
@@ -173,6 +195,8 @@ test('Organização: preserva os controles anteriores, infraestrutura, fontes e 
  await page.getByRole('tab',{name:'Postos e histórico',exact:true}).click();
  await expect(page.getByLabel('Incluir localizacoes aproximadas da ANP (conferir antes de usar)',{exact:true})).toBeVisible();
  await page.getByRole('tab',{name:'Custos e recálculo',exact:true}).click();await expect(page.getByText('Editar premissas e recalcular esta operação',{exact:true})).toBeVisible();
+ await conferirCampos(page,'.mvp-complemento form details > label');
+ const original=page.viewportSize();for(const width of [1280,360]){await page.setViewportSize({width,height:900});for(const nome of ['Resumo','Pedágios e pontes','Postos e histórico','Custos e recálculo','Alertas e fontes','Decisão']){await page.getByRole('tab',{name:nome,exact:true}).click();const painel=page.getByRole('tabpanel',{name:nome,exact:true});expect(await painel.evaluate(e=>e.scrollWidth<=e.clientWidth+1),nome+' em '+width+'px').toBe(true);}}await page.setViewportSize(original);await page.getByRole('tab',{name:'Custos e recálculo',exact:true}).click();
  await expect(page.getByRole('button',{name:'Confirmar primeiro resultado útil',exact:true})).toBeDisabled();
  await page.keyboard.press('Escape');await expect(page.getByRole('button',{name:'Comparar rotas',exact:true})).toBeFocused();
  await nav.getByRole('button',{name:'Frota',exact:true}).click();await nav.getByRole('button',{name:'Operações',exact:true}).click();await comparar(page);
@@ -187,6 +211,7 @@ test('Organização: preserva os controles anteriores, infraestrutura, fontes e 
 
 test('ADMIN: a escolha de ponte no mapa continua utilizável dentro da frota',async({page})=>{
  await entrar(page,'admin');await page.getByRole('navigation',{name:'Navegação principal',exact:true}).getByRole('button',{name:'Frota',exact:true}).click();
+ await expect(page.locator('#lista-frota-cards > div').first()).toBeVisible();await conferirCartoesFrota(page);await conferirCampos(page,'.ux-campo-frota');
  await page.getByText('Administrar pedágios e pontes (ADMIN)',{exact:true}).click();
  await page.getByRole('button',{name:'Escolher localização no mapa',exact:true}).click();
  await expect(page.locator('#map-container')).toBeVisible();await expect(page.getByRole('button',{name:'Concluir escolha no mapa',exact:true})).toBeVisible();

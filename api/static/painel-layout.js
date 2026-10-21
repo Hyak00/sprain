@@ -298,6 +298,7 @@
   }
   function modo(nome) {
     document.body.dataset.area = nome;
+    root.scrollTo({ top: 0, behavior: "instant" });
     root.dispatchEvent(new root.Event("resize"));
   }
   function voltarOperacoes() {
@@ -392,8 +393,8 @@
     (n) => n.tagName === "DETAILS" && n.classList.contains("infra-complemento"),
   );
   move(postos, "postos");
-  move(inspector.querySelector(".mvp-complemento"), "custos");
   move(inspector.querySelector(".ux-comparacao"), "custos");
+  move(inspector.querySelector(".mvp-complemento"), "custos");
   move(dono($("#modal-trechos-lista")), "alertas");
   const detalhesFinanceiros = inspector.querySelector(".ac-painel");
   if (detalhesFinanceiros) apoio.appendChild(detalhesFinanceiros);
@@ -651,6 +652,25 @@
     },
     concluirMapa,
   };
+  // Os campos originais continuam com os mesmos IDs e handlers.
+  const cadastro = $("#frota-panel .panel-card");
+  for (const [id, texto] of [
+    ["veic-id", "Identificação do caminhão"],
+    ["veic-placa", "Placa"],
+    ["veic-modelo", "Modelo"],
+    ["veic-tipo", "Tipo de caminhão"],
+  ]) {
+    const campo = document.getElementById(id),
+      label = document.createElement("label");
+    label.className = "ux-campo-frota";
+    label.textContent = texto;
+    campo.before(label);
+    label.appendChild(campo);
+  }
+  const salvarFrota = cadastro.querySelector(
+    '[data-acao="cadastrarNovoCaminhao"]',
+  );
+  $("#infra-veic").after(salvarFrota, $("#veic-feedback"));
   const legenda = $(".map-legend>details");
   if (legenda) {
     legenda.open = true;
