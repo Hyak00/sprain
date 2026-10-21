@@ -109,7 +109,7 @@
           (r.usuario_id || "Credencial sem identidade individual"),
       );
     }
-    function editar() {
+    function editar(focar = true) {
       if (!vigente() || !carregado || !root.PainelSessao.podeEscrever()) return;
       formulario.replaceChildren();
       U.el(
@@ -256,6 +256,7 @@
             registro(atual, r);
             aviso.textContent =
               "Resultado salvo no servidor. Registro autodeclarado, não verificado.";
+            aviso.tabIndex = -1; aviso.focus();
             U.botao(formulario, "Corrigir este resultado", editar, {
               escrita: true,
               valido: vigente,
@@ -283,6 +284,7 @@
         { escrita: true, valido: () => vigente() && carregado },
       );
       salvar.disabled = gravacoes.has(operacao);
+      if (focar) refs.finalizada_em.focus();
     }
     async function carregar(inicio = 0, preparar = true) {
       const leitura = ++pagina;
@@ -311,7 +313,7 @@
                 escrita: true,
                 valido: vigente,
               });
-            else editar();
+            else editar(false);
           } else
             U.el(
               formulario,

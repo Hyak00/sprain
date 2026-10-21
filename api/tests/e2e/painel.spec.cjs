@@ -89,11 +89,12 @@ test('OPERADOR: comparação, premissas, decisão vinculada, histórico e relato
  await page.getByRole('button',{name:'Aguardar',exact:true}).click();
  await expect(page.getByText(/Decisao \[AGUARDAR_MELHORA\] auditada/)).toBeVisible();
  const area=page.getByRole('region',{name:'Resultado informado da viagem'});
- await expect(area.getByText('Nenhum resultado informado para esta viagem.',{exact:true})).toBeVisible();
+ await expect(area.getByRole('status').first()).toHaveText('Histórico recebido do servidor. Dados autodeclarados, não verificados.');
+ const anteriores=await area.getByRole('article').count();if(anteriores)await area.getByRole('button',{name:'Corrigir este resultado',exact:true}).click();else await expect(area.getByText('Nenhum resultado informado para esta viagem.',{exact:true})).toBeVisible();
  await area.getByLabel('Conclusão da viagem (horário do seu navegador)',{exact:true}).fill('2026-10-18T09:00');await area.getByLabel('Rota efetivamente percorrida',{exact:true}).selectOption('DESVIO');await area.getByLabel('Custo informado (R$)',{exact:true}).fill('0');
- await area.getByRole('button',{name:'Salvar resultado da viagem',exact:true}).click();await expect(area.getByText('Resultado salvo no servidor. Registro autodeclarado, não verificado.',{exact:true})).toBeVisible();
- await area.getByRole('button',{name:'Corrigir este resultado',exact:true}).click();await area.getByLabel('Custo informado (R$)',{exact:true}).fill('123.45');await area.getByRole('button',{name:'Salvar correção do resultado',exact:true}).click();
- await expect(area.getByRole('article')).toHaveCount(2);await expect(area).toContainText('123,45');await expect(area).toContainText('0,00');
+ await area.getByRole('button',{name:anteriores?'Salvar correção do resultado':'Salvar resultado da viagem',exact:true}).click();await expect(area.getByText('Resultado salvo no servidor. Registro autodeclarado, não verificado.',{exact:true})).toBeVisible();
+ await area.getByRole('button',{name:'Corrigir este resultado',exact:true}).click();await expect(area.getByLabel('Conclusão da viagem (horário do seu navegador)',{exact:true})).toBeFocused();await area.getByLabel('Custo informado (R$)',{exact:true}).fill('123.45');await area.getByRole('button',{name:'Salvar correção do resultado',exact:true}).click();
+ await expect(area.getByRole('article')).toHaveCount(anteriores+2);await expect(area).toContainText('123,45');await expect(area).toContainText('0,00');
  await ferramenta(page,'Relatórios e exportações');await expect(page.getByRole('cell',{name:'Custo informado (não verificado)',exact:true})).toBeVisible();await expect(page.locator('p').filter({hasText:/^Viagens com resultado informado: 1 · Com custo informado: 1\.$/})).toBeVisible();
  const pdf=await baixar(page,'Baixar PDF do piloto');expect(pdf.subarray(0,8).toString()).toContain('%PDF-1.4');
  await ferramenta(page,'Histórico de consultas');
