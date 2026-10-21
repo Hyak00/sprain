@@ -1318,3 +1318,64 @@ body.ux-escolhendo-mapa #ux-rota-resumo {
     justify-content: space-between;
   }
 }
+
+/* Resultado pós-viagem separado da decisão e da previsão. */
+.ux-resultados {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  border-top: 1px solid var(--border);
+  padding-top: 24px;
+}
+.ux-resultados h3 {
+  font-size: 20px;
+  margin-bottom: 8px;
+}
+.ux-resultados h4 {
+  margin: 20px 0 10px;
+}
+.ux-resultados form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px 20px;
+  max-width: 850px;
+}
+.ux-resultados label {
+  min-width: 0;
+  display: block;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.ux-resultados input,
+.ux-resultados select,
+.ux-resultados textarea {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  padding: 11px;
+  border: 1px solid #3c5373;
+  border-radius: 6px;
+  background: #0c192c;
+  color: var(--text-main);
+  font: inherit;
+}
+.ux-resultados article {
+  padding: 16px;
+  margin-top: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow-wrap: anywhere;
+}
+.ux-resultados button {
+  padding: 10px 16px;
+  margin: 12px 10px 0 0;
+  border: 1px solid #3c5373;
+  border-radius: 6px;
+  background: #1b3a5d;
+  color: var(--text-main);
+  cursor: pointer;
+}
+@media (max-width: 600px) {
+  .ux-resultados form {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,7 +1,7 @@
 /* O modo vem do servidor/banco, nunca de um parâmetro de URL ou papel da conta. */
 (function(root){
     'use strict';
-    const D=root.PortalDados;let estadoAtual=null,geracao=0,observador;
+    const D=root.PortalDados;let estadoAtual=null,geracao=0,observador,exibindo=false;
     const el=(p,t,s)=>{const e=document.createElement(t);if(s!==undefined)e.textContent=s;p.appendChild(e);return e;};
     const faixa=el(document.body,'div');faixa.id='demo-faixa';faixa.hidden=true;faixa.setAttribute('role','status');
     const legenda=el(document.querySelector('.map-legend'),'p','Exercício sintético: linha roxa original e linha laranja alternativa. Não são vias reais do evento.');legenda.hidden=true;
@@ -16,8 +16,9 @@
         }catch(e){atualizarFaixa('Não foi possível verificar o ambiente. Demonstração desabilitada; confira o servidor antes de apresentar dados como reais.');}
     }
     const vazio=()=>({type:'FeatureCollection',features:[]});
-    function limparMapa(){geracao++;for(const id of ['demo34-original','demo34-alternativa'])map.getSource(id)?.setData(vazio());legenda.hidden=true;}
+    function limparMapa(){geracao++;exibindo=false;for(const id of ['demo34-original','demo34-alternativa'])map.getSource(id)?.setData(vazio());legenda.hidden=true;}
     function mostrarMapa(d){
+        exibindo=true;
         const n=geracao,tenant=root.PainelSessao.empresa();
         const instalar=()=>{
             if(n!==geracao||tenant!==root.PainelSessao.empresa())return;
@@ -69,6 +70,6 @@
         botao('Limpar exercício do mapa',()=>{limparMapa();status.textContent='Camadas do exercício removidas. Nenhum alerta ou cadastro foi apagado.';});
         if(!tenantDemo())avisar('Entre na empresa de demonstração demo_corp para usar este exercício. Nenhum dado de outra empresa será alterado.');
     }
-    root.PainelDemonstracao={render,limparMapa,estado:()=>estadoAtual};
+    root.PainelDemonstracao={render,limparMapa,marcaMapa:()=>geracao,emExibicao:()=>exibindo,estado:()=>estadoAtual};
     carregarEstado();
 })(window);
