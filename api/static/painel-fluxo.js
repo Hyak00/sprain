@@ -33,10 +33,11 @@
         if(!root.PainelSessao.podeEscrever())f.querySelectorAll('input').forEach(i=>i.disabled=true);
         const fb=status(d,root.PainelSessao.podeEscrever()?'Preencha as premissas, confira o cenário e salve para atualizar a comparação.':'Seu perfil permite consultar as premissas, sem alterá-las.');
         botao(d,'Salvar premissas e recalcular',async()=>{
-            if(!f.reportValidity())return;fb.textContent='Salvando e recalculando…';
+            if(!f.reportValidity())return;fb.textContent='Salvando e recalculando…';const token=root.PainelLayout?.iniciarRecalculo();
             try{await enviar('/operacoes/'+encodeURIComponent(dados.id_operacao)+'/premissas',{selo_esperado:c.selo_premissas,custos_operacionais:ler(refs),precipitacao_mm:Number(chuva.value)},'PUT');
                 if(n!==geracao)return;fb.textContent='Premissas salvas. Atualizando a operação…';await root.selecionarOperacao(dados.id_operacao);
             }catch(e){if(n===geracao)fb.textContent=erro(e);}
+            finally{root.PainelLayout?.finalizarRecalculo(token);}
         },{escrita:true,valido:()=>n===geracao});
         botao(caixa,'Ver histórico persistente de consultas',()=>root.PortalOperacional.navegar('consultas'));
         botao(caixa,'Reportar ocorrência não detectada',()=>root.PortalOperacional.navegar('relatos'));

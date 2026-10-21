@@ -104,7 +104,8 @@ test('OPERADOR: comparação, premissas, decisão vinculada, histórico e relato
  await page.locator('#inspector summary').filter({hasText:/^Premissas financeiras$/}).click();
  await page.getByLabel('Custo total por km (R$/km)',{exact:true}).fill('4.75');
  await page.getByLabel('Chuva simulada para este recálculo (mm/h)',{exact:true}).fill('35');
- await page.getByRole('button',{name:'Salvar premissas e recalcular',exact:true}).click();
+ let liberarRecalculo;const respostaRecalculo=new Promise(r=>liberarRecalculo=r);await page.route('**/api/v1/painel/operacoes/*/premissas',async route=>{const response=await route.fetch();await respostaRecalculo;await route.fulfill({response});});
+ await page.getByRole('button',{name:'Salvar premissas e recalcular',exact:true}).click();await expect(page.getByRole('tab',{name:'Decisão',exact:true})).toBeDisabled();liberarRecalculo();await expect(page.getByRole('tab',{name:'Decisão',exact:true})).toBeEnabled();
  await expect(page.getByText('Natureza: SIMULACAO',{exact:true})).toBeVisible();
  await page.getByRole('tab',{name:'Decisão',exact:true}).click();
  const motivo='E2E decisão '+Date.now();await page.getByLabel('Motivo da decisão do gestor',{exact:true}).fill(motivo);

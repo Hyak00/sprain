@@ -81,3 +81,5 @@ As verificações geométricas em Chromium cobrem 1280, 1024, 768 e 360 px: camp
 contidos nos respectivos rótulos, colunas alinhadas e cartões sem filhos fora dos
 limites ou sobrepostos. As seis abas também são conferidas em 1280 e 360 px,
 junto com o inventário de controles e os fluxos funcionais existentes.
+
+Durante o salvamento e recálculo das premissas, as abas da viagem ficam temporariamente desabilitadas, com mensagem de progresso. São liberadas quando o fluxo termina, inclusive em erro. Isso impede que a reconstrução do formulário interfira numa troca de aba antecipada. Os cálculos e endpoints permanecem os mesmos.

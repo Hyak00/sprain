@@ -18,7 +18,9 @@
     operacaoAtual = null,
     ultimaAba = "URBANO",
     abaDetalhe = "resumo";
-  let secundarios = [];
+  let secundarios = [],
+    recalculo = null,
+    sequenciaRecalculo = 0;
   antigo.hidden = true;
   antigo.removeAttribute("aria-label");
   antigo.id = "ux-atalhos-anteriores";
@@ -422,6 +424,22 @@
       }
     });
   }
+  function iniciarRecalculo() {
+    const token = ++sequenciaRecalculo;
+    recalculo = token;
+    Object.values(botoes).forEach((b) => (b.disabled = true));
+    comparacao.setAttribute("aria-busy", "true");
+    status.textContent =
+      "Salvando premissas e recalculando a viagem. Aguarde para comparar e decidir.";
+    return token;
+  }
+  function finalizarRecalculo(token) {
+    if (token !== recalculo) return;
+    recalculo = null;
+    Object.values(botoes).forEach((b) => (b.disabled = false));
+    comparacao.removeAttribute("aria-busy");
+    status.textContent = "";
+  }
   function escolherAba(id) {
     abaDetalhe = id;
     Object.keys(painels).forEach((k) => {
@@ -615,6 +633,7 @@
     ajustar();
   };
   E.limpar = () => {
+    finalizarRecalculo(recalculo);
     usuario = null;
     comparacao.close();
     if (portal.open) portal.close();
@@ -640,6 +659,8 @@
     root.dispatchEvent(new root.Event("resize"));
   }
   root.PainelLayout = {
+    iniciarRecalculo,
+    finalizarRecalculo,
     carregando,
     erro,
     limparSelecao,
