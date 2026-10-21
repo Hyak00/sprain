@@ -1,4 +1,4 @@
-from fastapi import Request, APIRouter, Depends, HTTPException, Header, Query
+from fastapi import Request, APIRouter, Depends, HTTPException, Header, Query, Response, UploadFile, File
 from fastapi.responses import StreamingResponse
 import asyncio
 import io
@@ -468,6 +468,71 @@ async def importar_operacoes_lote(lote: List[Dict[str, Any]], tenant_id: str = D
         'ITENS_REJEITADOS' if erros else None,tenant_id)
     return {'total_recebido':len(lote),'tenant_id':tenant_id,'sucessos':sucessos,
             'falhas':len(erros),'detalhe_falhas':erros}
+
+@router.get("/operacoes/manifesto-modelo", summary="Download de modelo CSV para manifesto de viagens")
+async def obter_manifesto_modelo():
+    modelo_csv = (
+        "placa,data_saida,hora_saida,origem,destino,motorista,telefone_motorista,observacao\r\n"
+        "ABC1D23,2026-10-21,02:30,Ribeirão Preto,Campinas,João Silva,16999998888,Carga refrigerada\r\n"
+        "XYZ-9876,2026-10-21,03:15,Araraquara,São Paulo,Marcos Lima,16988887777,Entrega prioritária\r\n"
+    )
+    return Response(
+        content=modelo_csv.encode("utf-8-sig"),
+        media_type="text/csv",
+        headers={"Content-Disposition": 'attachment; filename="manifesto_modelo.csv"'}
+    )
+
+@router.post("/operacoes/importar-manifesto", dependencies=[Depends(require_role(["ADMIN", "OPERATOR"])), Depends(aplicar_rate_limit)], summary="Importar viagens via arquivo manifesto CSV")
+async def importar_manifesto(
+    request: Request,
+    dry_run: bool = Query(True),
+    file: Optional[UploadFile] = File(None),
+    tenant_id: str = Depends(resolve_tenant),
+    conn: asyncpg.Connection = Depends(get_connection)
+):
+    from app.services.manifesto_service import processar_manifesto
+
+    param_dry = request.query_params.get("dry_run")
+    if param_dry is not None:
+        dry_run = param_dry.lower() not in ("false", "0", "no")
+
+    conteudo_bytes = b""
+    if file is not None:
+        nome = file.filename or ""
+        if nome and not nome.lower().endswith(".csv"):
+            return {
+                "resumo": {"total_linhas": 0, "validas": 0, "com_aviso": 0, "rejeitadas": 0, "duplicadas": 0, "ja_cadastradas": 0},
+                "colunas_ignoradas": [],
+                "erros": [{"linha": 1, "campo": "arquivo", "valor": nome, "mensagem": "Extensao de arquivo invalida. Apenas arquivos .csv sao permitidos."}],
+                "avisos": [],
+                "importadas": 0
+            }
+        conteudo_bytes = await file.read()
+    else:
+        conteudo_bytes = await request.body()
+
+    if not conteudo_bytes:
+        return {
+            "resumo": {"total_linhas": 0, "validas": 0, "com_aviso": 0, "rejeitadas": 0, "duplicadas": 0, "ja_cadastradas": 0},
+            "colunas_ignoradas": [],
+            "erros": [{"linha": 1, "campo": "arquivo", "valor": "", "mensagem": "Nenhum arquivo CSV fornecido."}],
+            "avisos": [],
+            "importadas": 0
+        }
+
+    try:
+        resultado = await processar_manifesto(
+            conteudo_bytes=conteudo_bytes,
+            tenant_id=tenant_id,
+            dry_run=dry_run,
+            conn=conn
+        )
+        return resultado
+    except Exception:
+        raise HTTPException(
+            status_code=500,
+            detail="Erro ao processar gravacao do manifesto. Nenhuma operacao foi importada."
+        )
 
 @router.post("/alertas/disparar-webhook", dependencies=[Depends(require_role(["ADMIN", "OPERATOR"]))])
 async def disparar_alerta_webhook(dados: WebhookAlertaRequest, conn: asyncpg.Connection = Depends(get_connection), tenant_autenticado: str = Depends(resolve_tenant)):
