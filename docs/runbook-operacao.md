@@ -4,6 +4,8 @@ Responsável de backend/infraestrutura para revisão: **yanpefnsc**.
 Este documento é uma proposta executável para revisão conjunta. A existência
 do PR ou a indicação do revisor não representam aprovação humana recebida.
 Os ensaios isolados estão em [evidências](evidencias-validacao-3-6.md).
+Para preparar um ambiente separado com validacoes equivalentes as de producao,
+veja [homologacao isolada](homologacao-isolada.md).
 
 ## Identificar o ambiente antes de agir
 

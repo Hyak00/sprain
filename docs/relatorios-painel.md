@@ -1,6 +1,6 @@
 # Relatórios na interface — seção 3.3
 
-Acesse **Central de trabalho → Relatórios e exportações**. ADMIN, OPERATOR e VIEWER autenticados podem gerar os relatórios de sua própria empresa. A exportação administrativa integral da seção 3.2 permanece separada e com suas permissões originais.
+Acesse **Relatórios** no menu lateral. ADMIN, OPERATOR e VIEWER autenticados podem gerar os relatórios de sua própria empresa. A exportação administrativa integral da seção 3.2 permanece separada e com suas permissões originais.
 
 | Item | Entrega |
 |---|---|
@@ -13,7 +13,7 @@ Acesse **Central de trabalho → Relatórios e exportações**. ADMIN, OPERATOR 
 
 - **Economia comprovada:** indisponível no cadastro atual. O sistema não registra uma medição auditada da execução nem um contrafactual validado. Aprovação de desvio não é comprovação de economia.
 - **Custo observado comprovado:** indisponível. Os resultados de viagem agora aceitam custos informados, mas não verificam comprovantes de despesas; por isso o indicador anterior continua `null`.
-- **Custo informado:** soma parcial dos custos declarados no último resultado de cada operação, com cobertura explícita e natureza `AUTODECLARADO_NAO_VERIFICADO`. Está no JSON do piloto; a apresentação no PDF da interface ainda depende de integração.
+- **Custo informado:** soma parcial dos custos declarados no último resultado de cada operação, com cobertura explícita e natureza `AUTODECLARADO_NAO_VERIFICADO`. Integrado ao JSON, à tela e ao PDF do piloto, sem virar custo comprovado.
 - **Custo estimado:** soma dos valores finitos, não negativos e disponíveis em `operacoes.custo_estimado`, correspondentes às parcelas conhecidas da rota original na emissão. São mostrados os números de operações com e sem valor. Não se apresenta cobertura completa de pedágios/combustível por haver um valor cadastrado.
 - **Impacto potencial:** soma de `prejuizo_potencial_evitado` somente da recomendação mais recente de cada operação selecionada, evitando duplicar recálculos. Também mostra cobertura. Não significa prejuízo realmente evitado.
 

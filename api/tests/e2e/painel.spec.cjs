@@ -70,10 +70,17 @@ test('OPERADOR: corredor persistente, recorrência e despacho idempotente',async
  await page.getByRole('button',{name:'Criar viagem desta recorrência',exact:true}).click();await expect(page.getByText(/nenhum despacho duplicado/)).toBeVisible();
 });
 
-test('ADMIN: premissas versionadas, fontes e falhas internas reais',async({page})=>{
- await entrar(page,'admin');await central(page,'Premissas financeiras');await expect(page.getByLabel('Custo total por km (R$/km)',{exact:true})).toBeVisible();await conferirCampos(page,'#portal-conteudo form details > label');
+test('ADMIN: premissas versionadas, fontes e falhas internas reais',async({page,request})=>{
+ await entrar(page,'admin');await central(page,'Premissas financeiras');await expect(page.locator('#portal-operacional').getByLabel('Custo total por km (R$/km)',{exact:true})).toBeVisible();await conferirCampos(page,'#portal-conteudo form details > label');
  await page.locator('#portal-operacional').getByLabel('Custo total por km (R$/km)',{exact:true}).fill('4.5');await page.getByRole('button',{name:'Salvar padrões financeiros',exact:true}).click();await expect(page.getByText(/Versão: [1-9]/)).toBeVisible();
- await ferramenta(page,'Plano e consumo');await expect(page.getByRole('table',{name:'Uso e limites retornados pelo servidor'})).toBeVisible();await expect(page.getByRole('rowheader',{name:'Chamadas externas no mês'})).toBeVisible();await expect(page.getByRole('cell',{name:'Não medido',exact:true})).toBeVisible();
+ await ferramenta(page,'Plano e consumo');
+ const tabelaPlano=page.getByRole('table',{name:'Uso e limites retornados pelo servidor'});
+ await expect(tabelaPlano).toBeVisible();
+ const linhaChamadas=tabelaPlano.getByRole('row',{name:/Chamadas externas no mês/});
+ const respostaPlano=await request.get('/api/v1/operacional/plano',{headers:{'X-API-Key':'key_admin_demo'}});
+ expect(respostaPlano.ok()).toBeTruthy();
+ const usoExterno=(await respostaPlano.json()).uso.chamadas_externas_mes;
+ await expect(linhaChamadas.getByRole('cell').first()).toHaveText(typeof usoExterno==='number'?String(usoExterno):'Não medido');
  await ferramenta(page,'Painel operacional interno');await expect(page.getByRole('heading',{name:'Fontes e atualização',exact:true})).toBeVisible();
  await expect(page.getByRole('heading',{name:'Métricas de qualidade',exact:true})).toBeVisible();await page.getByRole('combobox',{name:'Situação da importação',exact:true}).selectOption('FALHA');await expect(page.getByText(/offset=0&status=FALHA/)).toBeVisible();
 });
@@ -105,7 +112,7 @@ test('OPERADOR: comparação, premissas, decisão vinculada, histórico e relato
  await page.getByLabel('Custo total por km (R$/km)',{exact:true}).fill('4.75');
  await page.getByLabel('Chuva simulada para este recálculo (mm/h)',{exact:true}).fill('35');
  let liberarRecalculo;const respostaRecalculo=new Promise(r=>liberarRecalculo=r);await page.route('**/api/v1/painel/operacoes/*/premissas',async route=>{const response=await route.fetch();await respostaRecalculo;await route.fulfill({response});});
- await page.getByRole('button',{name:'Salvar premissas e recalcular',exact:true}).click();await expect(page.getByRole('tab',{name:'Decisão',exact:true})).toBeDisabled();liberarRecalculo();await expect(page.getByRole('tab',{name:'Decisão',exact:true})).toBeEnabled();
+ await page.getByRole('button',{name:'Salvar premissas e recalcular',exact:true}).click();await expect(page.getByRole('tab',{name:'Decisão',exact:true})).toBeDisabled();await expect(page.getByRole('button',{name:'Etapa 4: Registrar decisão',exact:true})).toBeDisabled();liberarRecalculo();await expect(page.getByRole('tab',{name:'Decisão',exact:true})).toBeEnabled();await expect(page.getByRole('button',{name:'Etapa 4: Registrar decisão',exact:true})).toBeEnabled();
  await expect(page.getByText('Natureza: SIMULACAO',{exact:true})).toBeVisible();
  await page.getByRole('tab',{name:'Decisão',exact:true}).click();
  const motivo='E2E decisão '+Date.now();await page.getByLabel('Motivo da decisão do gestor',{exact:true}).fill(motivo);
@@ -247,6 +254,7 @@ test('Falha de consulta: não oferece comparação anterior como se fosse a viag
  await page.route('**/api/v1/painel/consultas',route=>route.request().method()==='POST'?route.fulfill({status:503,json:{detail:'Indisponível no teste'}}):route.continue());
  await page.getByRole('row',{name:/^Inspecionar/}).nth(1).click();
  await expect(page.locator('#ux-rota-resumo')).toContainText('Consulta indisponível');await expect(page.getByRole('button',{name:'Comparar rotas',exact:true})).toBeDisabled();
+ await expect(page.getByRole('button',{name:'Etapa 3: Comparar rotas',exact:true})).toBeDisabled();
  await expect(page.locator('#ux-comparar')).not.toBeVisible();
 });
 
@@ -256,6 +264,26 @@ test('Páginas: navegação direta e seis abas sem modais ou acordeões de açõ
  await expect(page.locator('dialog:modal')).toHaveCount(0);
  await ferramenta(page,'Frota');await expect(page.locator('#frota-panel')).toBeVisible();
  await ferramenta(page,'Operações');await expect(page.getByRole('button',{name:'Comparar rotas',exact:true})).toBeEnabled({timeout:45000});
+ const guia=page.getByRole('navigation',{name:'Passos da análise da viagem',exact:true});
+ await expect(guia.getByRole('button')).toHaveText(['1Selecionar viagem','2Entender alertas','3Comparar rotas','4Registrar decisão']);
+ await guia.getByRole('button',{name:'Etapa 2: Entender alertas',exact:true}).click();
+ await expect(page.getByRole('tab',{name:'Alertas e fontes',exact:true})).toHaveAttribute('aria-selected','true');
+ await expect(guia.getByRole('button',{name:'Etapa 2: Entender alertas',exact:true})).toHaveAttribute('aria-current','step');
+ await guia.getByRole('button',{name:'Etapa 3: Comparar rotas',exact:true}).click();
+ await expect(page.getByRole('tab',{name:'Custos e recálculo',exact:true})).toHaveAttribute('aria-selected','true');
+ for(const id of ['box-orig-km','box-orig-min','box-alt-km','box-alt-min'])await expect(page.locator('#'+id)).toBeVisible();
+ await guia.getByRole('button',{name:'Etapa 4: Registrar decisão',exact:true}).click();
+ await expect(page.getByLabel('Motivo da decisão do gestor',{exact:true})).toBeVisible();
+ await guia.getByRole('button',{name:'Etapa 1: Selecionar viagem',exact:true}).click();
+ await expect(page.locator('.search-box')).toBeFocused();
+ const tamanho=page.viewportSize();
+ for(const width of [1280,768,360]){
+  await page.setViewportSize({width,height:900});
+  expect(await guia.evaluate(e=>e.scrollWidth<=e.clientWidth+1)).toBe(true);
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth+1)).toBe(true);
+  if(width!==768)await page.screenshot({path:'test-results/fluxo-'+width+'.png',fullPage:true});
+ }
+ await page.setViewportSize(tamanho);
  for(const id of ['kpi-total','kpi-afetadas','kpi-custo','kpi-evitado'])await expect(page.locator('#'+id)).toBeVisible();
  await page.getByRole('button',{name:'Comparar rotas',exact:true}).click();
  await expect(page.getByRole('tab')).toHaveText(['Resumo','Pedágios e pontes','Postos e histórico','Custos e recálculo','Alertas e fontes','Decisão']);
