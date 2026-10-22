@@ -19,6 +19,7 @@
     ultimaAba = "URBANO",
     abaDetalhe = "resumo";
   let secundarios = [],
+    focoRetorno = null,
     recalculo = null,
     sequenciaRecalculo = 0;
   antigo.hidden = true;
@@ -96,6 +97,45 @@
   visao.className = "ux-visao-geral";
   visao.hidden = true;
   cab.after(visao);
+  const fluxo = U.el(document.body, "nav");
+  fluxo.id = "ux-fluxo-viagem";
+  fluxo.hidden = true;
+  fluxo.setAttribute("aria-label", "Passos da análise da viagem");
+  visao.after(fluxo);
+  const passos = new Map();
+  for (const [id, texto] of [
+    ["selecionar", "Selecionar viagem"],
+    ["alertas", "Entender alertas"],
+    ["custos", "Comparar rotas"],
+    ["decisao", "Registrar decisão"],
+  ]) {
+    const b = U.el(fluxo, "button");
+    b.type = "button";
+    b.setAttribute("aria-label", "Etapa " + (passos.size + 1) + ": " + texto);
+    U.el(b, "span", String(passos.size + 1)).setAttribute("aria-hidden", "true");
+    U.el(b, "strong", texto);
+    b.dataset.passo = id;
+    b.onclick = () => {
+      if (id === "selecionar") {
+        const fechando = comparacao.open;
+        focoRetorno = fechando ? $(".search-box") : null;
+        voltarOperacoes();
+        if (!fechando) $(".search-box").focus();
+      } else abrirComparacao(id);
+    };
+    passos.set(id, b);
+  }
+  function atualizarPassos() {
+    fluxo.hidden = !usuario || !["URBANO", "VIAGEM"].includes(document.body.dataset.area);
+    const atual = document.body.dataset.area === "VIAGEM"
+      ? (["decisao", "alertas"].includes(abaDetalhe) ? abaDetalhe : "custos")
+      : "selecionar";
+    passos.forEach((b, id) => {
+      b.disabled = id !== "selecionar" && (!operacaoAtual || comparar.disabled || !!recalculo);
+      if (id === atual) b.setAttribute("aria-current", "step");
+      else b.removeAttribute("aria-current");
+    });
+  }
   visao.appendChild($(".kpi-grid"));
   const situacao = U.el(visao, "div");
   situacao.className = "ux-situacao";
@@ -300,6 +340,7 @@
   }
   function modo(nome) {
     document.body.dataset.area = nome;
+    atualizarPassos();
     root.scrollTo({ top: 0, behavior: "instant" });
     root.dispatchEvent(new root.Event("resize"));
   }
@@ -346,6 +387,14 @@
   tabs.setAttribute("aria-label", "Detalhes da viagem");
   const painels = {},
     botoes = {};
+  const orientacoes = {
+    resumo: "Confira a recomendação e as medidas da viagem. Depois examine os alertas e suas fontes.",
+    restricoes: "Confira o caminhão, as tarifas e os limites conhecidos. Informação ausente não confirma passagem.",
+    postos: "Confira localização, fonte e data da coleta. Preço histórico não é preço garantido no posto.",
+    custos: "Compare distância, tempo e custos das duas rotas. As premissas e o recálculo ficam logo abaixo.",
+    alertas: "Confira o que foi detectado, a fonte, a validade e as limitações antes de comparar as opções.",
+    decisao: "Registre a escolha e o motivo. Depois da viagem, informe o resultado observado nesta mesma página.",
+  };
   const secoes = [
     ["resumo", "Resumo"],
     ["restricoes", "Pedágios e pontes"],
@@ -380,6 +429,7 @@
     p.setAttribute("role", "tabpanel");
     p.setAttribute("aria-labelledby", b.id);
     painels[id] = p;
+    U.el(p, "p", orientacoes[id]).className = "ux-orientacao-aba";
   });
   function dono(no) {
     while (no && no.parentElement !== inspector) no = no.parentElement;
@@ -431,6 +481,7 @@
     comparacao.setAttribute("aria-busy", "true");
     status.textContent =
       "Salvando premissas e recalculando a viagem. Aguarde para comparar e decidir.";
+    atualizarPassos();
     return token;
   }
   function finalizarRecalculo(token) {
@@ -439,6 +490,7 @@
     Object.values(botoes).forEach((b) => (b.disabled = false));
     comparacao.removeAttribute("aria-busy");
     status.textContent = "";
+    atualizarPassos();
   }
   function escolherAba(id) {
     abaDetalhe = id;
@@ -450,6 +502,7 @@
     expandir(painels[id]);
     if (id === "decisao" && operacaoAtual)
       root.ResultadosViagem.exibir(painels.decisao, operacaoAtual.id_operacao);
+    atualizarPassos();
   }
   function abrirComparacao(id = "resumo") {
     if (comparar.disabled || !operacaoAtual) return;
@@ -484,7 +537,10 @@
   comparacao.addEventListener("close", () => {
     if (comparacao.open || portal.open) return;
     exibirBase(ultimaAba);
-    if (usuario && !comparar.disabled) comparar.focus();
+    const alvo = focoRetorno;
+    focoRetorno = null;
+    if (usuario && alvo) alvo.focus();
+    else if (usuario && !comparar.disabled) comparar.focus();
   });
   comparacao.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
@@ -530,6 +586,7 @@
         secundarios.push(d);
       }
     escolherAba(abaDetalhe);
+    atualizarPassos();
   };
   function limparSelecao() {
     root.ResultadosViagem.limpar();
@@ -543,10 +600,12 @@
     status.textContent = "";
     secundarios.forEach((n) => n.remove());
     secundarios = [];
+    atualizarPassos();
   }
   function carregando(id) {
     resumo.hidden = false;
     comparar.disabled = true;
+    atualizarPassos();
     codigo.textContent = id;
     nome.textContent = "Consultando viagem…";
     mensagem.textContent = "Carregando rotas, fontes e custos.";
@@ -559,6 +618,7 @@
   function erro() {
     inspector.hidden = true;
     comparar.disabled = true;
+    atualizarPassos();
     resumo.hidden = false;
     nome.textContent = "Consulta indisponível";
     mensagem.textContent =
@@ -635,6 +695,7 @@
   E.limpar = () => {
     finalizarRecalculo(recalculo);
     usuario = null;
+    focoRetorno = null;
     comparacao.close();
     if (portal.open) portal.close();
     guardarPaineis();
