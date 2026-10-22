@@ -102,10 +102,15 @@ O serviço `sprain_chuva` fica em perfil separado, com healthcheck próprio.
 **Não o ative para o piloto comercial enquanto o provedor e a licença de uso
 não estiverem aprovados.** O código atual usa o endpoint gratuito da Open-Meteo,
 que é [restrito a uso não comercial](https://open-meteo.com/en/terms).
+O agendador interno de clima do corredor também fica desligado em produção:
+ele consulta a mesma API gratuita e uma fonte de redundância ainda sem aprovação
+para o piloto. Dados antigos devem aparecer como ausentes ou desatualizados,
+nunca como chuva atual. Para ativar a coleta, primeiro integre uma fonte
+permitida para uso comercial e revise os dois caminhos de atualização.
 Depois de configurar uma fonte permitida e conferir as estações ativas, inicie
 o perfil com `--profile chuva` e verifique o estado do contêiner. A API também
-possui um agendador interno de telemetria; revise sobreposição de consultas
-antes de ativar ambos.
+possui esse agendador interno de telemetria, que exigirá revisão antes de
+ser reativado em produção.
 
 ## Evidência necessária para concluir esta etapa
 
