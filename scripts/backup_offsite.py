@@ -87,7 +87,9 @@ def fetch(args: argparse.Namespace) -> None:
     archives = list(folder.glob("*.dump"))
     if len(archives) != 1:
         raise RuntimeError("o destino remoto não contém exatamente um backup completo")
-    verify_archive(archives[0])
+    metadata = verify_archive(archives[0])
+    if metadata.get("source_database") != args.database:
+        raise RuntimeError("o banco do manifesto não corresponde ao solicitado")
     print(f"Backup baixado e SHA-256 validado: {archives[0]}")
     print("Restaure apenas em banco novo com scripts/postgres_backup.py restore.")
 
