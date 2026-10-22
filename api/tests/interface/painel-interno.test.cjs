@@ -8,6 +8,7 @@ async function ambiente({perfil='ADMIN',handler}={}){
  const ctx={atual:()=>ativo,recarregar:()=>{},obter:async(url,o)=>{chamadas.push({url,o});const h=handler?await handler(url,o):undefined;if(h!==undefined)return h;
   if(url.includes('/operacional/fontes'))return{consultado_em:'2026-10-17T12:00:00Z',fontes:[{nome:'Fonte <script>ruim</script>',tipo:'OBSERVACAO',idade_minutos:null,status:'SEM_DATA_VALIDA',limite_minutos:30,criterio:'Não é SLA',registros:0}],tentativas_dados_publicos:[{fonte:'DADOS_PUBLICOS/anp',status:'FALHA',iniciado_em:'2026-10-17T12:00:00Z',encerrado_em:'2026-10-17T12:01:00Z',motivo_codigo:'EXECUCAO_INTERROMPIDA'}],integracoes:[]};
   if(url.includes('/operacional/importacoes'))return{items:[],proximo_offset:null,aviso:'Histórico instrumentado'};
+  if(url.includes('/operacional/metricas-endpoints'))return{periodo:'2026-10',fuso_periodo:'America/Sao_Paulo',endpoints:[],truncado:false};
   if(url.includes('/health/liveness'))return{status:'UP'};if(url.includes('/health/readiness'))return{status:'READY',latencia_db_ms:0};
   if(url.includes('malha/importacoes'))return[];if(url.includes('indicadores'))return{status_geral:'ATENCAO_FONTES',detalhamento_fontes:[],total_registros_base:{trechos:0}};
   if(url.includes('qualidade-precos'))return{total_registros_analisados:0,alertas:{preco_atipico:0,dado_desatualizado:0}};
@@ -17,6 +18,15 @@ async function ambiente({perfil='ADMIN',handler}={}){
  return{p,document,window,ctx,chamadas,botao,encerrar:()=>ativo=false,render:()=>window.PainelInterno.render(p,ctx)};
 }
 test('painel exige ADMIN antes de consultar qualquer endpoint',async()=>{const a=await ambiente({perfil:'VIEWER'});await a.render();assert.equal(a.chamadas.length,0);assert(a.p.textContent.includes('exige perfil ADMIN'));assert(a.document.querySelector('[data-admin]').hidden);});
+
+test('métricas persistidas preservam zero, período, limites e texto sem interpretar HTML',async()=>{
+ const a=await ambiente({handler:url=>url.includes('/metricas-endpoints')?{periodo:'2026-10',fuso_periodo:'America/Sao_Paulo',endpoints:[{metodo:'GET',rota_template:'/<img src=x>',requisicoes:4,erros:0,tempo_medio_ms:0,tempo_max_ms:12}],truncado:true,aviso:'Gravação assíncrona'}:undefined});
+ await a.render();const area=a.document.querySelector('#interno-servicos');assert(area.textContent.includes('2026-10'));assert(area.textContent.includes('GET /<img src=x>'));assert.equal(area.querySelectorAll('img').length,0);assert(area.textContent.includes('há outras rotas'));assert([...area.querySelectorAll('td')].some(n=>n.textContent==='0'));assert(area.textContent.includes('Gravação assíncrona'));
+});
+
+test('falha das métricas persistidas conserva serviços e fontes disponíveis',async()=>{
+ const a=await ambiente({handler:url=>{if(url.includes('/metricas-endpoints'))throw Error('offline');}});await a.render();assert(a.p.textContent.includes('Consulta parcial'));assert(a.p.textContent.includes('Respondendo'));assert(a.p.textContent.includes('Fonte <script>'));assert(a.document.querySelector('#interno-servicos').textContent.includes('Serviço indisponível'));
+});
 test('fontes sem data e amostra vazia não viram dados atuais ou precisão de zero',async()=>{const a=await ambiente();await a.render();for(const s of ['Data ausente/inconsistente','Sem data válida','Amostra insuficiente','Sem amostra','Nenhuma tentativa registrada'])assert(a.p.textContent.includes(s),s);assert.equal(a.document.querySelectorAll('script').length,0);assert(a.p.textContent.includes('<script>ruim</script>'));assert(a.chamadas.every(c=>!c.o?.method));});
 test('falha recente do importador aparece ao lado da fonte sem apagar o último sucesso',async()=>{const a=await ambiente();await a.render();assert(a.p.textContent.includes('DADOS_PUBLICOS/anp'));assert(a.p.textContent.includes('Falha'));assert(a.p.textContent.includes('Uma tentativa com falha pode ocorrer após uma importação bem-sucedida.'));});
 test('falha parcial conserva fontes e métricas e oferece tentativa do histórico',async()=>{const a=await ambiente({handler:url=>{if(url.includes('readiness')||url.includes('/operacional/importacoes'))throw Error('offline');}});await a.render();assert(a.p.textContent.includes('Fonte <script>'));assert(a.p.textContent.includes('Consulta parcial'));assert(a.botao('Tentar histórico novamente'));assert(a.p.textContent.includes('Serviço indisponível'));});

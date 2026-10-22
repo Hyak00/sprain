@@ -21,7 +21,7 @@
    const a=el(p,'section');areas[id]=a;a.id='interno-'+id;el(a,'h4',nome);botao(nav,nome,()=>a.scrollIntoView({block:'start'}));
   }
   const caminhos=['/api/v1/operacional/fontes','/api/v1/indicadores/qualidade','/api/v1/dados-publicos/qualidade-precos',
-   '/api/v1/alertas/precisao','/api/v1/logistica/observabilidade/metricas','/api/v1/health/liveness','/api/v1/health/readiness','/api/v1/infraestrutura/malha/importacoes'];
+   '/api/v1/alertas/precisao','/api/v1/logistica/observabilidade/metricas','/api/v1/health/liveness','/api/v1/health/readiness','/api/v1/infraestrutura/malha/importacoes','/api/v1/operacional/metricas-endpoints'];
   const carregando=aviso(p,'Consultando fontes, serviços e métricas…');
   const respostas=await Promise.allSettled(caminhos.map(url=>ctx.obter(url,{timeout:15000})));
   if(!ctx.atual())return;carregando.remove();const recebido=new Date().toISOString();
@@ -56,6 +56,16 @@
    const erros=metricas.erros_recentes||[];if(!erros.length)aviso(areas.servicos,'Nenhum erro no histórico recente em memória; isso não prova ausência de falhas anteriores.');
    else tabela(areas.servicos,['Rota / método','HTTP','Horário'],erros.map(e=>[e.metodo+' '+e.rota,e.status_code,finito(e.timestamp)?data(new Date(e.timestamp*1000).toISOString()):'Não informado']));
   }else falha(areas.servicos,4);
+  el(areas.servicos,'h5','Histórico mensal por endpoint');
+  const persistidas=obter(8);
+  origem(areas.servicos,caminhos[8],recebido);
+  if(Array.isArray(persistidas?.endpoints)){
+   el(areas.servicos,'p','Período: '+persistidas.periodo+' · Fuso: '+persistidas.fuso_periodo+'. Erros incluem respostas HTTP 4xx e 5xx.');
+   if(persistidas.endpoints.length)tabela(areas.servicos,['Método / rota','Respostas','Erros HTTP','Tempo médio (ms)','Maior tempo (ms)'],persistidas.endpoints.map(e=>[e.metodo+' '+e.rota_template,valor(e.requisicoes),valor(e.erros),valor(e.tempo_medio_ms),valor(e.tempo_max_ms)]));
+   else aviso(areas.servicos,'Nenhuma medição persistida neste período. Isso não comprova ausência de falhas.');
+   if(persistidas.truncado)aviso(areas.servicos,'Exibindo até 100 rotas; há outras rotas neste período.');
+   el(areas.servicos,'p',persistidas.aviso||'Medição assíncrona; uma parada abrupta pode perder amostras recentes. Tempo de resposta não mede CPU ou custo.');
+  }else aviso(areas.servicos,respostas[8].status==='rejected'?erro(respostas[8].reason):'Métricas persistidas indisponíveis nesta consulta.');
   origem(areas.qualidade,caminhos[1],recebido);
   if(q){tabela(areas.qualidade,['Indicador agregado','Valor'],[['Status declarado pela API',q.status_geral],['Verificações dentro de 48 h (%)',q.detalhamento_fontes?.length?valor(q.percentual_fontes_atualizadas_prazo):'Sem fontes'],...Object.entries(q.total_registros_base||{})]);el(areas.qualidade,'p','O percentual de prazo mede a última verificação das fontes externas cadastradas, não a idade de cada registro ou a precisão das previsões.');}else falha(areas.qualidade,1);
   origem(areas.qualidade,caminhos[2],recebido);

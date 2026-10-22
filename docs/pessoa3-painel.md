@@ -1,5 +1,10 @@
 # Pessoa 3 — acompanhamento e contratos do painel
 
+**Registro histórico da primeira entrega.** Para o estado revisado das seções
+3.1 a 3.6, consulte [revisão de 21/10/2026](revisao-painel-20261021.md).
+As pendências abaixo descrevem a entrega de 15/10 e não devem ser lidas como
+inventário atual de funcionalidades ausentes.
+
 Referência desta entrega: main `2b4e575`, consultada em 15/10/2026. Escopo de responsabilidade: seções 3.1–3.7 da “Lista técnica completa do Sprain”. Este arquivo acompanha entregas incrementais; não declara toda a Pessoa 3 ou o MVP concluídos.
 
 ## Atualizações incorporadas dos colegas
