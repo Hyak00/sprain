@@ -445,6 +445,7 @@
     (n) => n.tagName === "DETAILS" && n.classList.contains("infra-complemento"),
   );
   move(postos, "postos");
+  move(inspector.querySelector(".route-compare"), "custos");
   move(inspector.querySelector(".ux-comparacao"), "custos");
   move(inspector.querySelector(".mvp-complemento"), "custos");
   move(dono($("#modal-trechos-lista")), "alertas");

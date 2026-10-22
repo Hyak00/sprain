@@ -271,6 +271,7 @@ test('Páginas: navegação direta e seis abas sem modais ou acordeões de açõ
  await expect(guia.getByRole('button',{name:'Etapa 2: Entender alertas',exact:true})).toHaveAttribute('aria-current','step');
  await guia.getByRole('button',{name:'Etapa 3: Comparar rotas',exact:true}).click();
  await expect(page.getByRole('tab',{name:'Custos e recálculo',exact:true})).toHaveAttribute('aria-selected','true');
+ for(const id of ['box-orig-km','box-orig-min','box-alt-km','box-alt-min'])await expect(page.locator('#'+id)).toBeVisible();
  await guia.getByRole('button',{name:'Etapa 4: Registrar decisão',exact:true}).click();
  await expect(page.getByLabel('Motivo da decisão do gestor',{exact:true})).toBeVisible();
  await guia.getByRole('button',{name:'Etapa 1: Selecionar viagem',exact:true}).click();

@@ -25,6 +25,9 @@ consulta pendente ou recálculo. A primeira etapa devolve o foco à busca; as
 demais abrem a aba correspondente. As seis abas, as páginas administrativas,
 as importações, os relatórios e os controles anteriores continuam disponíveis.
 Cada aba explica brevemente sua finalidade, sem substituir fonte ou dado.
+Distância e tempo originais/alternativos passam para a aba Custos e recálculo,
+ao lado da comparação financeira. Os mesmos elementos e cálculos são usados;
+não há cópia independente de valores.
 
 A mudança não modifica APIs de escrita, autorização, algoritmos de rota,
 custos, regras de decisão ou esquema. Não adiciona dependências ou consultas
