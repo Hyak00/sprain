@@ -1,0 +1,101 @@
+name: sprain-homolog
+
+services:
+  db:
+    image: pgrouting/pgrouting@sha256:5e6767abbd1fd9ead84c9988aa31bac71ca292ef8a1fc2e4a5ee2b613ac6a7bb
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${HOMOLOG_DB_NAME:?defina HOMOLOG_DB_NAME}
+      POSTGRES_USER: ${HOMOLOG_DB_USER:?defina HOMOLOG_DB_USER}
+      POSTGRES_PASSWORD: ${HOMOLOG_DB_PASSWORD:?defina HOMOLOG_DB_PASSWORD}
+    volumes:
+      - homolog_pgdata:/var/lib/postgresql/data
+      - ./db/ci:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks: [homolog_net]
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 4G
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SPRAIN_BUILD_COMMIT: ${HOMOLOG_BUILD_COMMIT:?defina HOMOLOG_BUILD_COMMIT}
+    restart: unless-stopped
+    environment:
+      ENVIRONMENT: production
+      SPRAIN_DEMO_ENABLED: "0"
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_USER: ${HOMOLOG_DB_USER:?defina HOMOLOG_DB_USER}
+      DB_PASSWORD: ${HOMOLOG_DB_PASSWORD:?defina HOMOLOG_DB_PASSWORD}
+      DB_NAME: ${HOMOLOG_DB_NAME:?defina HOMOLOG_DB_NAME}
+      API_KEYS: ${HOMOLOG_API_KEYS:?defina HOMOLOG_API_KEYS}
+      TENANT_API_KEYS: ${HOMOLOG_TENANT_API_KEYS:?defina HOMOLOG_TENANT_API_KEYS}
+      WEBHOOK_SECRET_KEY: ${HOMOLOG_WEBHOOK_SECRET_KEY:?defina HOMOLOG_WEBHOOK_SECRET_KEY}
+      CORS_ORIGINS: ${HOMOLOG_CORS_ORIGINS:-}
+    ports: ["127.0.0.1:18001:8000"]
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/api/v1/health/readiness"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+    networks: [homolog_net]
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+
+  dados-publicos:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SPRAIN_BUILD_COMMIT: ${HOMOLOG_BUILD_COMMIT:?defina HOMOLOG_BUILD_COMMIT}
+    profiles: [dados]
+    restart: unless-stopped
+    command: ["python", "-B", "/app/scripts/worker_dados_publicos.py"]
+    environment:
+      ENVIRONMENT: production
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_USER: ${HOMOLOG_DB_USER:?defina HOMOLOG_DB_USER}
+      DB_PASSWORD: ${HOMOLOG_DB_PASSWORD:?defina HOMOLOG_DB_PASSWORD}
+      DB_NAME: ${HOMOLOG_DB_NAME:?defina HOMOLOG_DB_NAME}
+      DADOS_PUBLICOS_INTERVALO_HORAS: ${DADOS_PUBLICOS_INTERVALO_HORAS:-24}
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-B", "/app/scripts/worker_status.py"]
+      interval: 60s
+      timeout: 5s
+      start_period: 2m
+      retries: 2
+    networks: [homolog_net]
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 2G
+
+networks:
+  homolog_net:
+    driver: bridge
+
+volumes:
+  homolog_pgdata:
+    driver: local

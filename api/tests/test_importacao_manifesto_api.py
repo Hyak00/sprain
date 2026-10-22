@@ -366,6 +366,8 @@ async def test_frontend_manifesto_estatico_e_elementos_ui():
         assert 'id="btn-baixar-rejeitadas"' in html
         assert 'id="tabela-erros-manifesto"' in html
         assert "window.PainelManifesto.baixarModelo()" in html
+        assert 'id="btn-demo-araraquara"' in html
+        assert "Carregar Viagens de Exemplo (Araraquara)" in html
 
         import re
         from urllib.parse import urlsplit
@@ -376,4 +378,5 @@ async def test_frontend_manifesto_estatico_e_elementos_ui():
         assert resp_js.status_code == 200
         assert "window.PainelManifesto" in resp_js.text
         assert "baixarLinhasRejeitadas" in resp_js.text
+        assert "atualizarVisibilidadeDemo" in resp_js.text
 
