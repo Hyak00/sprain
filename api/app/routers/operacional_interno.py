@@ -5,6 +5,7 @@ from app.database import get_connection
 from app.seguranca import require_role, resolver_tenant_autenticado
 from app.versao import informacao_versao
 from app.services.planos_empresa import resumo as resumo_plano_empresa
+from app.services.medicao_processamento import resumo_por_endpoint
 
 router=APIRouter(prefix='/api/v1/operacional',tags=['Painel operacional interno'],
     dependencies=[Depends(require_role(['ADMIN']))])
@@ -21,6 +22,14 @@ async def plano_empresa(response: Response, tenant_id=Depends(resolver_tenant_au
     """Assinatura e consumo persistido da empresa autenticada, para ADMIN."""
     response.headers['Cache-Control']='no-store'
     return await resumo_plano_empresa(conn, tenant_id)
+
+
+@router.get('/metricas-endpoints')
+async def metricas_endpoints(response: Response, tenant_id=Depends(resolver_tenant_autenticado),
+                            conn=Depends(get_connection)):
+    """Tempo e erros agregados por template de rota, no mes local e nesta empresa."""
+    response.headers['Cache-Control'] = 'no-store'
+    return await resumo_por_endpoint(conn, tenant_id)
 
 
 def idade(data, agora):

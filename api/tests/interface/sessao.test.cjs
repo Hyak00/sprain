@@ -121,3 +121,8 @@ for (const temporario of [false, true]) test('429 distingue cota do plano de lim
  const c=criarCliente({fetcher:async()=>new Response('{}',{status:429,headers:temporario?{'Retry-After':'60'}:{}})});c.entrar(operador);
  await assert.rejects(c.request('/api/v1/painel/corredores'),e=>e.status===429&&(temporario?/por minuto/:/Limite do plano/).test(e.message));
 });
+
+test('429 no acesso público informa excesso de tentativas sem atribuir a plano',async()=>{
+ const c=criarCliente({fetcher:async()=>new Response('{}',{status:429})});
+ await assert.rejects(c.request('/api/v1/acesso/login',{publico:true,method:'POST'}),e=>e.status===429&&/tentativas de acesso/.test(e.message)&&!/plano/.test(e.message));
+});

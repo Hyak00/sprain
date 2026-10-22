@@ -93,3 +93,7 @@ test('reenvio de relato apos resposta incerta reutiliza identificador',async()=>
     await a.clicar('Registrar ocorrência não detectada');assert(a.document.body.textContent.includes('envio não foi confirmado'));assert.equal(a.botao('Registrar ocorrência não detectada').disabled,false);
     await a.clicar('Registrar ocorrência não detectada');const envios=a.chamadas.filter(c=>c.options?.method==='POST').map(c=>JSON.parse(c.options.body));assert.equal(envios.length,2);assert.equal(envios[0].chave_idempotencia,envios[1].chave_idempotencia);assert(a.document.body.textContent.includes('exibido no mapa'));
 });
+
+test('falha ao salvar premissas encerra o estado de recálculo e preserva o erro',async()=>{
+ const a=await ambiente('OPERATOR',async url=>{if(url.endsWith('/premissas'))throw Error('Premissas recusadas');return {items:[],mapa:{type:'FeatureCollection',features:[]}};});const estados=[];a.window.PainelLayout={iniciarRecalculo:()=>{estados.push('início');return 7;},finalizarRecalculo:token=>estados.push(token)};a.window.FluxoPainel.exibir(op,{id:'consulta'});await a.clicar('Salvar premissas e recalcular');assert.deepEqual(estados,['início',7]);assert(a.document.body.textContent.includes('Premissas recusadas'));assert.equal(a.selecoes.length,0);
+});

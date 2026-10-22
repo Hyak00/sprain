@@ -9,7 +9,8 @@ from fastapi import HTTPException
 
 from app.config import settings
 from app.services.cotas_plano import verificar_cota
-from app.services.planos_empresa import SCHEMA
+from app.services.medicao_api_externa import reservar_osrm, concluir
+from app.services.planos_empresa import SCHEMA, SCHEMA_CHAMADAS, resumo
 
 
 @pytest.mark.asyncio
@@ -90,6 +91,38 @@ async def test_cota_corredor_ativo_e_consulta_mensal():
         with pytest.raises(HTTPException) as consulta:
             await verificar_cota(conn, tenant, "consultas")
         assert consulta.value.status_code == 429
+    finally:
+        await tx.rollback()
+        await conn.close()
+
+
+@pytest.mark.asyncio
+async def test_reserva_externa_conta_por_empresa_e_bloqueia_segunda_tentativa():
+    conn = await asyncpg.connect(settings.database_url)
+    tx = conn.transaction()
+    await tx.start()
+    tenant = "TEST_EXTERNAL_" + uuid4().hex[:12]
+    outro = "TEST_OTHER_" + uuid4().hex[:12]
+    codigo = "QUOTA_" + uuid4().hex[:12].upper()
+    try:
+        await conn.execute(SCHEMA)
+        await conn.execute(SCHEMA_CHAMADAS)
+        await conn.execute("""
+            INSERT INTO planos_servico(codigo,nome,limite_chamadas_externas_mes)
+            VALUES($1,'Cota sintetica',1)
+        """, codigo)
+        await conn.execute("""
+            INSERT INTO assinaturas_empresa(tenant_id,plano_codigo,status,inicio_em)
+            VALUES($1,$2,'ATIVA',now())
+        """, tenant, codigo)
+        reserva = await reservar_osrm(conn, tenant)
+        await concluir(conn, tenant, reserva, False)
+        assert (await resumo(conn, tenant))["uso"]["chamadas_externas_mes"] == 1
+        assert (await resumo(conn, outro))["uso"]["chamadas_externas_mes"] == 0
+        assert await conn.fetchval("SELECT status FROM chamadas_api_externa WHERE id=$1", reserva) == "FALHA"
+        with pytest.raises(HTTPException) as erro:
+            await reservar_osrm(conn, tenant)
+        assert erro.value.status_code == 429
     finally:
         await tx.rollback()
         await conn.close()

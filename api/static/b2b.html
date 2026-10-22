@@ -134,7 +134,7 @@
     <link rel="stylesheet" href="/static/infraestrutura-caminhoes.css">
     <link rel="stylesheet" href="/static/portal-operacional.css">
     <link rel="stylesheet" href="/static/painel-fluxo.css">
-    <link rel="stylesheet" href="/static/painel-layout.css?v=resultados-1">
+    <link rel="stylesheet" href="/static/painel-layout.css?v=guiado-1">
 </head>
 <body>
 
@@ -242,8 +242,8 @@
                         <button onclick="window.PainelManifesto.baixarModelo()" style="background:none; border:none; color:var(--accent); font-size:11.5px; font-weight:700; cursor:pointer; text-decoration:underline;">
                             📄 Baixar modelo CSV
                         </button>
-                        <button onclick="window.PainelManifesto.carregarDemoAraraquara()" style="background:none; border:none; color:rgb(52, 211, 153); font-size:11.5px; font-weight:700; cursor:pointer; text-decoration:underline;">
-                            🚀 Carregar Exemplo Araraquara
+                        <button id="btn-demo-araraquara" onclick="window.PainelManifesto.carregarDemoAraraquara()" style="background:none; border:none; color:rgb(52, 211, 153); font-size:11.5px; font-weight:700; cursor:pointer; text-decoration:underline; display:none;">
+                            🚀 Carregar Viagens de Exemplo (Araraquara)
                         </button>
                     </div>
                 </div>
@@ -561,7 +561,7 @@
     </div>
 
         <div id="painel-status" role="status" aria-live="polite" aria-atomic="true" hidden></div>
-        <script src="/static/painel-sessao.js?v=paginas-1"></script>
+        <script src="/static/painel-sessao.js?v=guiado-1"></script>
         <script src="/static/painel-manifesto.js?v=paginas-1"></script>
         <script>
         window.API_KEY = '';
@@ -1221,18 +1221,18 @@
     <script src="/static/portal-operacional.js?v=paginas-1"></script>
     <script src="/static/painel-relatorios.js?v=resultados-1"></script>
     <script src="/static/painel-acessibilidade.js?v=paginas-1"></script>
-    <script src="/static/painel-fluxo.js?v=paginas-1"></script>
+    <script src="/static/painel-fluxo.js?v=blocos-2"></script>
     <script src="/static/painel-corredores.js"></script>
     <script src="/static/painel-eventos.js"></script>
     <script src="/static/painel-administracao.js"></script>
     <script src="/static/painel-demonstracao.js?v=mapa-2"></script>
-    <script src="/static/painel-interno.js?v=interno35-3"></script>
+    <script src="/static/painel-interno.js?v=interno35-4"></script>
     <script>window.PainelSessao.instalar();</script>
     <script src="/static/painel-homologacao.js"></script>
     <script src="/static/painel-onboarding.js?v=paginas-1"></script>
     <script src="/static/painel-experiencia.js?v=paginas-1"></script>
     <script src="/static/painel-plano.js?v=paginas-1"></script>
     <script src="/static/painel-resultados.js?v=resultados-1"></script>
-    <script src="/static/painel-layout.js?v=resultados-1"></script>
+    <script src="/static/painel-layout.js?v=guiado-1"></script>
 </body>
 </html>

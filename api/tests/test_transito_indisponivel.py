@@ -1,7 +1,8 @@
 import io
 import json
 import urllib.error
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
+from uuid import uuid4
 
 import pytest
 from fastapi import HTTPException
@@ -77,11 +78,33 @@ async def test_endpoint_nao_anuncia_transito_ao_vivo(monkeypatch):
         origem_lat=-23.542, origem_lon=-46.468,
         destino_lat=-23.535, destino_lon=-46.452,
     )
-    with patch("urllib.request.urlopen", return_value=resposta):
-        resultado = await comparar_tempo_transito(entrada)
+    with patch("urllib.request.urlopen", return_value=resposta), \
+         patch("app.routers.transito.reservar_osrm", new_callable=AsyncMock, return_value=uuid4()) as reservar, \
+         patch("app.routers.transito.concluir", new_callable=AsyncMock) as concluir:
+        resultado = await comparar_tempo_transito(entrada, tenant_id="demo_corp", conn=object())
+    reservar.assert_awaited_once()
+    concluir.assert_awaited_once()
     assert resultado["status"] == "ESTIMATIVA"
     assert resultado["transito"]["tempo_observado_min"] is None
     assert "sem transito observado" in resultado["aviso"]
+
+
+@pytest.mark.asyncio
+async def test_cache_nao_reserva_chamada_externa(monkeypatch):
+    monkeypatch.setenv("ENVIRONMENT", "testing")
+    TransitClient._cache.clear()
+    entrada = TransitoRequest(
+        origem_lat=-23.542, origem_lon=-46.468,
+        destino_lat=-23.535, destino_lon=-46.452,
+    )
+    TransitClient._cache["-23.542,-46.468:-23.535,-46.452"] = (
+        10**15, {"status": "ESTIMATIVA_DISPONIVEL", "tempo_observado_min": None}
+    )
+    with patch("app.routers.transito.reservar_osrm", new_callable=AsyncMock) as reservar:
+        resultado = await comparar_tempo_transito(entrada, tenant_id="demo_corp", conn=object())
+    assert resultado["transito"]["origem_cache"] is True
+    reservar.assert_not_awaited()
+    TransitClient._cache.clear()
 
 
 @pytest.mark.asyncio
@@ -93,6 +116,6 @@ async def test_endpoint_em_producao_responde_indisponivel_sem_rede(monkeypatch):
     )
     with patch("urllib.request.urlopen") as urlopen:
         with pytest.raises(HTTPException) as erro:
-            await comparar_tempo_transito(entrada)
+            await comparar_tempo_transito(entrada, tenant_id="demo_corp", conn=object())
     assert erro.value.status_code == 502
     urlopen.assert_not_called()
