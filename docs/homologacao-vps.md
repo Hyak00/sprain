@@ -4,6 +4,12 @@ Este roteiro prepara o acesso externo à API pelo Caddy e o serviço de coleta d
 chuva. Ele ainda precisa ser executado em uma VPS com domínio real antes de ser
 considerado homologado. Não use um banco ou credenciais de produção para ensaios.
 
+O CI também sobe `docker-compose.prod.yml` com `compose.vps.yml` em um runner
+Linux descartável, gera chaves de ensaio, confirma que o banco nasce sem a carga
+de demonstração, aplica os arquivos `db/ci` somente nesse runner e verifica
+PostGIS, pgRouting, `readiness` e a revisão da API. Esse ensaio cobre a subida
+dos contêineres; não valida HTTPS público, a malha aprovada ou a operação em VPS.
+
 ## Pré-requisitos
 
 1. VPS Linux com Docker Engine e plugin Compose instalados conforme a
