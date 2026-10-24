@@ -34,12 +34,35 @@ docker compose --env-file .env.prod -p sprain-prod \
   -f docker-compose.prod.yml -f compose.vps.yml config --quiet
 ```
 
-Provisione e valide o banco inicial aprovado antes de iniciar a API. Depois:
+Inicie **somente** o PostgreSQL na primeira instalação:
+
+```sh
+docker compose --env-file .env.prod -p sprain-prod \
+  -f docker-compose.prod.yml -f compose.vps.yml up -d --wait sprain_db
+```
+
+Pare nesse ponto até a equipe responsável pela malha fornecer e aplicar o
+provisionamento sanitizado. A composição de produção não carrega os arquivos de
+`db/ci` automaticamente; o dump de CI contém dados de ensaio. Antes de iniciar
+a API, confira no **banco novo** as extensões e a malha aprovada:
+
+```sh
+docker compose --env-file .env.prod -p sprain-prod \
+  -f docker-compose.prod.yml -f compose.vps.yml exec -T sprain_db \
+  sh -c 'psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAc "SELECT PostGIS_Version(), pgr_version()"'
+docker compose --env-file .env.prod -p sprain-prod \
+  -f docker-compose.prod.yml -f compose.vps.yml exec -T sprain_db \
+  sh -c 'psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAc "SELECT count(*) FROM trechos_osm"'
+```
+
+As duas versões devem aparecer, a contagem de trechos deve ser positiva e a
+equipe de rotas deve conferir a origem e a cobertura da malha. Só então inicie
+a API e o proxy:
 
 ```sh
 docker compose --env-file .env.prod -p sprain-prod \
   -f docker-compose.prod.yml -f compose.vps.yml up -d --build --wait \
-  sprain_db sprain_api caddy
+  sprain_api caddy
 
 docker compose --env-file .env.prod -p sprain-prod \
   -f docker-compose.prod.yml -f compose.vps.yml ps
