@@ -74,6 +74,50 @@ jobs:
           test "$source_count" = "$restored_count"
           docker exec sprain_db psql -v ON_ERROR_STOP=1 -U enchentes -d sprain_restore_ci -tA -c 'SELECT PostGIS_Version()' | grep -q .
 
+      - name: Verify encrypted backup round trip in disposable storage
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends rclone
+          umask 077
+          staging_dir="$(mktemp -d "${RUNNER_TEMP}/sprain-crypt-staging-XXXXXX")"
+          encrypted_dir="$(mktemp -d "${RUNNER_TEMP}/sprain-crypt-storage-XXXXXX")"
+          download_dir="$(mktemp -d "${RUNNER_TEMP}/sprain-crypt-download-XXXXXX")"
+          config="$(mktemp "${RUNNER_TEMP}/sprain-rclone-XXXXXX.conf")"
+          passphrase="$(python3 -c 'import secrets; print(secrets.token_hex(32))')"
+          obscured="$(rclone obscure "$passphrase")"
+          unset passphrase
+          printf '[spraincrypt]\ntype = crypt\nremote = %s\npassword = %s\nfilename_encryption = standard\ndirectory_name_encryption = true\n' \
+            "$encrypted_dir" "$obscured" > "$config"
+          unset obscured
+          python3 scripts/backup_offsite.py run \
+            --container sprain_db --database enchentes --user enchentes \
+            --staging-dir "$staging_dir" --remote spraincrypt: \
+            --config "$config" --allow-local-test
+          run_id="$(find "$staging_dir/enchentes" -mindepth 1 -maxdepth 1 -type d -printf '%f\n')"
+          test -n "$run_id"
+          test "$(find "$encrypted_dir" -type f | wc -l)" -eq 2
+          python3 scripts/backup_offsite.py fetch \
+            --database enchentes --run-id "$run_id" \
+            --download-dir "$download_dir" --remote spraincrypt: \
+            --config "$config" --allow-local-test
+          original="$(find "$staging_dir/enchentes/$run_id" -name '*.dump' -print -quit)"
+          downloaded="$(find "$download_dir/enchentes/$run_id" -name '*.dump' -print -quit)"
+          test -n "$original" && test -n "$downloaded"
+          cmp "$original" "$downloaded"
+          python3 scripts/postgres_backup.py restore \
+            --container sprain_db --user enchentes \
+            --new-database sprain_crypt_restore_ci --backup "$downloaded"
+          for table in trechos_osm operacoes veiculos; do
+            source_count="$(docker exec sprain_db psql -v ON_ERROR_STOP=1 \
+              -U enchentes -d enchentes -tA -c "SELECT count(*) FROM $table")"
+            restored_count="$(docker exec sprain_db psql -v ON_ERROR_STOP=1 \
+              -U enchentes -d sprain_crypt_restore_ci -tA -c "SELECT count(*) FROM $table")"
+            test "$source_count" = "$restored_count"
+          done
+          docker exec sprain_db psql -v ON_ERROR_STOP=1 -U enchentes \
+            -d sprain_crypt_restore_ci -tA -c 'SELECT PostGIS_Version()' | grep -q .
+
       - name: Test Panel Session and Request Isolation
         run: |
           npm ci --ignore-scripts --no-audit --no-fund

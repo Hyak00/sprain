@@ -141,6 +141,12 @@ Compara a contagem de `trechos_osm` entre origem e cópia e consulta a extensão
 PostGIS restaurada. Esse ensaio verifica o caminho básico a cada PR; não valida
 retenção, cópia externa ou restauração do banco de produção.
 
+O CI também exercita `backup_offsite.py` com um remote `rclone crypt` sobre uma
+pasta temporária: envia, confere com `cryptcheck`, baixa e restaura em outro banco
+novo. Compara o dump original ao baixado, PostGIS e contagens de trechos,
+operações e veículos. A pasta simulada desaparece com o runner; o ensaio não
+comprova o provedor externo nem a retenção operacional.
+
 `scripts/check_deploy.ps1` faz apenas verificações básicas de Compose e
 readiness. Ele não roda testes contra um banco em uso nem afirma que uma
 implantação está pronta para produção.
