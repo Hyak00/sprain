@@ -105,18 +105,32 @@ jobs:
           downloaded="$(find "$download_dir/enchentes/$run_id" -name '*.dump' -print -quit)"
           test -n "$original" && test -n "$downloaded"
           cmp "$original" "$downloaded"
+          database_image="$(docker inspect -f '{{.Image}}' sprain_db)"
+          docker run -d --rm --name sprain-offsite-restore-ci \
+            -e POSTGRES_USER=enchentes -e POSTGRES_PASSWORD=ensaio_ci \
+            -e POSTGRES_DB=postgres "$database_image" > /dev/null
+          trap 'docker stop sprain-offsite-restore-ci > /dev/null 2>&1 || true' EXIT
+          for attempt in $(seq 1 60); do
+            if docker exec sprain-offsite-restore-ci pg_isready \
+              -U enchentes -d postgres > /dev/null; then
+              break
+            fi
+            sleep 2
+          done
+          docker exec sprain-offsite-restore-ci pg_isready -U enchentes -d postgres
           python3 scripts/postgres_backup.py restore \
-            --container sprain_db --user enchentes \
+            --container sprain-offsite-restore-ci --user enchentes \
             --new-database sprain_crypt_restore_ci --backup "$downloaded"
           for table in trechos_osm operacoes veiculos; do
             source_count="$(docker exec sprain_db psql -v ON_ERROR_STOP=1 \
               -U enchentes -d enchentes -tA -c "SELECT count(*) FROM $table")"
-            restored_count="$(docker exec sprain_db psql -v ON_ERROR_STOP=1 \
+            restored_count="$(docker exec sprain-offsite-restore-ci psql -v ON_ERROR_STOP=1 \
               -U enchentes -d sprain_crypt_restore_ci -tA -c "SELECT count(*) FROM $table")"
             test "$source_count" = "$restored_count"
           done
-          docker exec sprain_db psql -v ON_ERROR_STOP=1 -U enchentes \
-            -d sprain_crypt_restore_ci -tA -c 'SELECT PostGIS_Version()' | grep -q .
+          docker exec sprain-offsite-restore-ci psql -v ON_ERROR_STOP=1 \
+            -U enchentes -d sprain_crypt_restore_ci -tA \
+            -c 'SELECT PostGIS_Version(), pgr_version()' | grep -q .
 
       - name: Test Panel Session and Request Isolation
         run: |
