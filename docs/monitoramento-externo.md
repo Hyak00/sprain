@@ -33,6 +33,9 @@ minuto. Falha ao enviar o webhook mantém o alerta pendente para nova tentativa.
 Um teste local com servidor HTTP simulado confirmou: duas respostas 503 geram
 um aviso; a recuperação gera outro; sondas posteriores não duplicam mensagens.
 HTTP só é aceito com `--allow-http-local-test` e endereço loopback.
+O CI repete esse ciclo por HTTP de verdade em um servidor local descartável,
+incluindo o POST do alerta e o estado persistido entre sondagens. O ensaio não
+envia mensagens ao Discord nem substitui a verificação do webhook real.
 
 Antes de considerar a etapa concluída no piloto, configure a URL real e o
 webhook, simule uma indisponibilidade controlada no ambiente de homologação e
