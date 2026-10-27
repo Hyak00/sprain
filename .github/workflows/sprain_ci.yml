@@ -238,6 +238,66 @@ jobs:
           print("Production Compose: API READY, PostGIS active, image revision verified.")
           PY
 
+      - name: Exercise API image switch and rollback without replacing PostGIS
+        run: |
+          set -euo pipefail
+          original_image="$(docker inspect -f '{{.Image}}' sprain_api_prod)"
+          original_revision="$SPRAIN_BUILD_COMMIT"
+          database_container="$(docker inspect -f '{{.Id}}' sprain_db_prod)"
+          original_count="$(docker exec sprain_db_prod psql -v ON_ERROR_STOP=1 \
+            -U sprain_ci_prod -d sprain_ci_prod -tAc 'SELECT count(*) FROM trechos_osm')"
+          candidate_revision="$(python3 -c 'import hashlib; print(hashlib.sha1(b"sprain-ci-release-candidate").hexdigest())')"
+          test "$candidate_revision" != "$original_revision"
+          docker image tag "$original_image" sprain-smoke-base:local
+          docker build --quiet --build-arg SPRAIN_BUILD_COMMIT="$candidate_revision" \
+            -t sprain-smoke-candidate:local - <<'DOCKERFILE'
+          FROM sprain-smoke-base:local
+          ARG SPRAIN_BUILD_COMMIT
+          ENV SPRAIN_BUILD_COMMIT=${SPRAIN_BUILD_COMMIT}
+          LABEL org.opencontainers.image.revision=${SPRAIN_BUILD_COMMIT}
+          DOCKERFILE
+          candidate_image="$(docker image inspect -f '{{.Id}}' sprain-smoke-candidate:local)"
+
+          verify_revision() {
+            EXPECTED_REVISION="$1" python3 - <<'PY'
+          import json
+          import os
+          import urllib.request
+
+          base = "http://127.0.0.1:8000"
+          with urllib.request.urlopen(base + "/api/v1/health/readiness", timeout=10) as response:
+              ready = json.load(response)
+          assert ready["status"] == "READY" and ready["total_trechos_osm"] > 0
+          with open(".env.prod", encoding="utf-8") as config:
+              key = next(line.split("=", 1)[1].strip() for line in config if line.startswith("API_KEYS="))
+          request = urllib.request.Request(base + "/api/v1/operacional/versao", headers={"X-API-Key": key})
+          with urllib.request.urlopen(request, timeout=10) as response:
+              version = json.load(response)
+          assert version["revisao"] == os.environ["EXPECTED_REVISION"]
+          PY
+          }
+
+          export SPRAIN_API_IMAGE="$candidate_image" SPRAIN_BUILD_COMMIT="$candidate_revision"
+          python3 scripts/validar_imagem_release.py \
+            --image "$SPRAIN_API_IMAGE" --commit "$SPRAIN_BUILD_COMMIT"
+          docker compose --env-file .env.prod -p sprain-prod-smoke \
+            -f docker-compose.prod.yml -f compose.vps.yml -f compose.release.yml \
+            up -d --no-deps --no-build --wait sprain_api
+          verify_revision "$candidate_revision"
+          test "$(docker inspect -f '{{.Id}}' sprain_db_prod)" = "$database_container"
+
+          export SPRAIN_API_IMAGE="$original_image" SPRAIN_BUILD_COMMIT="$original_revision"
+          python3 scripts/validar_imagem_release.py \
+            --image "$SPRAIN_API_IMAGE" --commit "$SPRAIN_BUILD_COMMIT"
+          docker compose --env-file .env.prod -p sprain-prod-smoke \
+            -f docker-compose.prod.yml -f compose.vps.yml -f compose.release.yml \
+            up -d --no-deps --no-build --wait sprain_api
+          verify_revision "$original_revision"
+          test "$(docker inspect -f '{{.Id}}' sprain_db_prod)" = "$database_container"
+          test "$(docker exec sprain_db_prod psql -v ON_ERROR_STOP=1 \
+            -U sprain_ci_prod -d sprain_ci_prod -tAc 'SELECT count(*) FROM trechos_osm')" = "$original_count"
+          echo 'API image switch and rollback preserved the PostGIS container and road count.'
+
       - name: Show production container logs on failure
         if: failure()
         run: |
