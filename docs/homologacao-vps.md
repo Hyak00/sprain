@@ -9,6 +9,11 @@ Linux descartável, gera chaves de ensaio, confirma que o banco nasce sem a carg
 de demonstração, aplica os arquivos `db/ci` somente nesse runner e verifica
 PostGIS, pgRouting, `readiness` e a revisão da API. Esse ensaio cobre a subida
 dos contêineres; não valida HTTPS público, a malha aprovada ou a operação em VPS.
+O mesmo CI também troca apenas a imagem da API por uma variante sintética da
+imagem construída, retorna à imagem original e confirma que o contêiner do banco
+e a contagem de trechos não mudaram. Isso exercita o mecanismo de retorno do
+Compose, mas não demonstra compatibilidade com uma migração futura ou com dados
+reais do piloto.
 
 ## Pré-requisitos
 
