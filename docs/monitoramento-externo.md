@@ -12,6 +12,21 @@ HTTPS para readiness e um webhook do Discord criado para a equipe. O endpoint
 não precisa de chave de API; não inclua token na URL. Guarde o webhook apenas
 em `/etc/sprain/monitor.env` na máquina de monitoramento, com permissão 0600.
 
+## Opção sem segunda máquina para o piloto
+
+Um serviço externo pode fazer a mesma checagem básica. O [plano gratuito do
+UptimeRobot](https://help.uptimerobot.com/en/articles/11604710-who-should-use-uptimerobot-s-free-plan)
+aceita uso comercial e inclui verificações HTTP a cada cinco minutos. A
+[documentação do serviço](https://uptimerobot.com/blog/your-ai-agent-can-now-set-up-uptime-monitoring-no-signup-required/)
+descreve alertas por e-mail e integração com Discord. Configure um monitor HTTP
+para `https://DOMINIO_DO_PILOTO/api/v1/health/readiness`, com HTTP 200 esperado,
+e os contatos da equipe. Esse endpoint já devolve 503 quando a API, o banco,
+PostGIS, tabelas essenciais ou a malha estão indisponíveis. Teste uma falha
+controlada e confirme o aviso e a recuperação recebidos pela equipe. Nesta
+opção, não instale o timer abaixo: ele é uma alternativa para uma máquina de
+monitoramento própria. O intervalo gratuito de cinco minutos não promete
+alerta imediato e não verifica atraso de workers ou sucesso do backup.
+
 Exemplo de conteúdo (preencher fora do Git):
 
 ```ini
