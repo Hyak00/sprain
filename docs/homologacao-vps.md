@@ -1,5 +1,8 @@
 # Homologação em uma VPS Linux
 
+Para a escolha de hospedagem mensal no Brasil, consulte também o
+[planejamento da VPS](planejamento-vps-brasil.md).
+
 Este roteiro prepara o acesso externo à API pelo Caddy e o serviço de coleta de
 chuva. Ele ainda precisa ser executado em uma VPS com domínio real antes de ser
 considerado homologado. Não use um banco ou credenciais de produção para ensaios.
