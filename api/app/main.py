@@ -11,6 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.services.manutencao import carregar_janela
+from app.services.open_meteo_endpoint import fonte_disponivel, producao
 from app.versao import API_VERSION, informacao_versao
 from app.services.demonstracao import validar_configuracao as validar_demonstracao, habilitada as demonstracao_habilitada
 from app.seguranca import validar_configuracao_producao
@@ -64,8 +65,8 @@ async def agendador_telemetria_corredor():
 
 
 def coleta_corredor_automatica_habilitada() -> bool:
-    """A coleta gratuita do corredor não deve iniciar no piloto comercial."""
-    return settings.ambiente_atual != "production" and not demonstracao_habilitada()
+    """A coleta em produção exige a fonte comercial configurada."""
+    return not demonstracao_habilitada() and fonte_disponivel()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -88,6 +89,10 @@ async def lifespan(app: FastAPI):
     await garantir_acesso()
     await garantir_administracao()
     await garantir_planos_empresa()
+    if producao() and not fonte_disponivel():
+        logging.getLogger("uvicorn.error").warning(
+            "Coleta de clima desativada: configure fonte comercial Open-Meteo."
+        )
     task_clima = (asyncio.create_task(agendador_telemetria_corredor())
                   if coleta_corredor_automatica_habilitada() else None)
     try:

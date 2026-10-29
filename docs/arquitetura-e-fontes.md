@@ -36,7 +36,7 @@ não são probabilidades calibradas de ocorrência.
 | Pedágios | Catálogo/importação, fonte e vigência da tarifa | Conferência por praça/categoria/eixos e sentido; cobertura parcial, tarifa desconhecida não é zero |
 | Pontes/restrições | Tags da malha OSM e registros de infraestrutura importados | Atualidade depende da importação e da completude das tags; ausência de limite não confirma passagem |
 | Malha | OpenStreetMap, PostGIS e pgRouting | Conectividade e snap dependem da malha importada; consulta de referência não cadastra corredor do cliente |
-| Clima | Script de sincronização/Open-Meteo; integração CGE limitada | Scheduler do backend tenta a cada 30 min somente fora da demo e de produção; tentativa não prova leitura atual. Em produção, a coleta gratuita fica desligada até haver fonte aprovada para uso comercial |
+| Clima | [Script de sincronização/Open-Meteo](clima-comercial.md); integração CGE limitada | Scheduler tenta a cada 30 min fora da demo; em produção, exige chave comercial e fica desligado sem ela. Tentativa não prova leitura atual. Fonte desativada não é substituída silenciosamente |
 | Trânsito/ocorrências | Endpoints/importações e relatos com natureza explícita | Conferir observação, validade e fonte. Relato de usuário não é confirmação |
 | Demonstração | Base CI e exercício sintético reservado | Nenhum dado de exercício deve ser interpretado como condição real; referência histórica pesquisada é identificada separadamente |
 

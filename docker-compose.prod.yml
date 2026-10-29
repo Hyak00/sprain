@@ -46,6 +46,7 @@ services:
       MANUTENCAO_FIM: ${MANUTENCAO_FIM:-}
       MANUTENCAO_AVISO: ${MANUTENCAO_AVISO:-}
       WEBHOOK_SECRET_KEY: ${WEBHOOK_SECRET_KEY:?defina WEBHOOK_SECRET_KEY no .env.prod}
+      OPEN_METEO_API_KEY: ${OPEN_METEO_API_KEY:-}
     ports:
       - "127.0.0.1:8000:8000"
     depends_on:

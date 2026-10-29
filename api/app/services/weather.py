@@ -5,6 +5,8 @@ import urllib.request
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Optional
 
+from app.services.open_meteo_endpoint import url_previsao
+
 TETO_CHUVA_MM = 1000.0
 FOLGA_RELOGIO_MIN = 5
 
@@ -182,12 +184,11 @@ class OpenMeteoProvider(WeatherProvider):
             if isinstance(days, bool) or not isinstance(days, int) or not 0 <= days <= 15:
                 return None
 
-            url = (
-                "https://api.open-meteo.com/v1/forecast?"
-                f"latitude={lat}&longitude={lon}"
-                "&daily=precipitation_sum&timezone=America%2FSao_Paulo"
-                f"&forecast_days={days + 1}"
-            )
+            url = url_previsao({
+                "latitude": lat, "longitude": lon,
+                "daily": "precipitation_sum", "timezone": "America/Sao_Paulo",
+                "forecast_days": days + 1,
+            })
             req = urllib.request.Request(url, headers={"User-Agent": "SPRain-B2B/3.0"})
             with urllib.request.urlopen(req, timeout=8) as resp:
                 data = json.loads(resp.read().decode("utf-8"))

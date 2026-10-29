@@ -136,18 +136,21 @@ validação estática e o script de imagem não constituem prova de rollback rea
 ## Coleta meteorológica
 
 O serviço `sprain_chuva` fica em perfil separado, com healthcheck próprio.
-**Não o ative para o piloto comercial enquanto o provedor e a licença de uso
-não estiverem aprovados.** O código atual usa o endpoint gratuito da Open-Meteo,
-que é [restrito a uso não comercial](https://open-meteo.com/en/terms).
-O agendador interno de clima do corredor também fica desligado em produção:
-ele consulta a mesma API gratuita e uma fonte de redundância ainda sem aprovação
-para o piloto. Dados antigos devem aparecer como ausentes ou desatualizados,
-nunca como chuva atual. Para ativar a coleta, primeiro integre uma fonte
-permitida para uso comercial e revise os dois caminhos de atualização.
-Depois de configurar uma fonte permitida e conferir as estações ativas, inicie
-o perfil com `--profile chuva` e verifique o estado do contêiner. A API também
-possui esse agendador interno de telemetria, que exigirá revisão antes de
-ser reativado em produção.
+**Não o ative para o piloto comercial enquanto a licença e a chave do provedor
+não estiverem disponíveis.** A [API gratuita da Open-Meteo](https://open-meteo.com/en/terms)
+é restrita a uso não comercial. Sem `OPEN_METEO_API_KEY` no `.env.prod`, o
+agendador interno do corredor fica desligado em produção e o perfil `chuva`
+recusa iniciar. A [integração comercial](clima-comercial.md) usa o endpoint
+reservado quando a chave está configurada; o fallback `wttr.in` não é usado
+em produção. Dados antigos devem aparecer como ausentes ou desatualizados,
+nunca como chuva atual.
+
+Após contratar a fonte e conferir as estações ativas, valide uma consulta real
+em homologação. Então ative o perfil com `--profile chuva` e verifique seu
+healthcheck. A API passa a agendar a coleta do corredor quando recebe a chave;
+confira separadamente a leitura, a procedência e o consumo de chamadas nos dois
+caminhos. Sem assinatura e teste externo, a integração continua preparada,
+mas não homologada.
 
 ## Evidência necessária para concluir esta etapa
 

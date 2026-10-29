@@ -53,7 +53,11 @@ def test_coleta_automatica_corredor_fica_desligada_em_producao(monkeypatch):
 
     monkeypatch.setattr(main, "demonstracao_habilitada", lambda: False)
     monkeypatch.setenv("ENVIRONMENT", "production")
+    monkeypatch.delenv("OPEN_METEO_API_KEY", raising=False)
     assert not main.coleta_corredor_automatica_habilitada()
+
+    monkeypatch.setenv("OPEN_METEO_API_KEY", "chave-sintetica")
+    assert main.coleta_corredor_automatica_habilitada()
 
     monkeypatch.setenv("ENVIRONMENT", "testing")
     assert main.coleta_corredor_automatica_habilitada()

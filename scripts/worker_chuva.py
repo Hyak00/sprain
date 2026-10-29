@@ -14,6 +14,7 @@ from typing import Optional
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "api"))
 
 from app.url_segura import post_seguro
+from app.services.open_meteo_endpoint import fonte_disponivel, url_previsao
 
 if __package__:
     from .worker_chuva_status import write_chuva_status, STATUS_FILE_CHUVA
@@ -79,12 +80,11 @@ def _valor_valido(bruto) -> Optional[float]:
 
 
 def coletar_open_meteo(id_estacao: str, lat: float, lon: float) -> Optional[float]:
-    url = (
-        f"https://api.open-meteo.com/v1/forecast?"
-        f"latitude={lat}&longitude={lon}"
-        "&current=precipitation&timezone=America%2FSao_Paulo"
-    )
     try:
+        url = url_previsao({
+            "latitude": lat, "longitude": lon,
+            "current": "precipitation", "timezone": "America/Sao_Paulo",
+        })
         req = urllib.request.Request(url, headers={"User-Agent": "SPRain-chuva/1.0"})
         with urllib.request.urlopen(req, timeout=15) as resp:
             dados = json.loads(resp.read().decode("utf-8"))
@@ -93,7 +93,7 @@ def coletar_open_meteo(id_estacao: str, lat: float, lon: float) -> Optional[floa
             raise ValueError("resposta sem bloco current")
         return _valor_valido(atual.get("precipitation"))
     except Exception as e:
-        logger.warning("Open-Meteo %s (%s,%s): %s", id_estacao, lat, lon, e)
+        logger.warning("Open-Meteo %s (%s,%s): %s", id_estacao, lat, lon, type(e).__name__)
         return None
 
 
@@ -159,6 +159,8 @@ def executar_rodada() -> bool:
 def main():
     if not 60 <= INTERVALO_SEGUNDOS <= 1800:
         sys.exit("CHUVA_INTERVALO_SEGUNDOS deve estar entre 60 e 1800")
+    if not fonte_disponivel():
+        sys.exit("Coletor de chuva em produção exige OPEN_METEO_API_KEY comercial")
 
     logger.info("Worker de coleta de chuva iniciado. Intervalo: %ds", INTERVALO_SEGUNDOS)
     last_result = None

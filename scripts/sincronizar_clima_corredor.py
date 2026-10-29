@@ -9,6 +9,7 @@ from sqlalchemy.engine import URL
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "api"))
 from app.services.limiares_chuva import impacto_corredor as calcular_impacto
+from app.services.open_meteo_endpoint import fonte_disponivel, producao, url_previsao
 
 URL_BANCO = os.getenv("URL_BANCO") or URL.create(
     "postgresql+psycopg2",
@@ -42,11 +43,10 @@ def _validar_precipitacao(bruto):
 
 
 def _consultar_open_meteo_primario(lat, lon):
-    url = (
-        f"https://api.open-meteo.com/v1/forecast?"
-        f"latitude={lat}&longitude={lon}"
-        "&current=precipitation,rain&timezone=America%2FSao_Paulo"
-    )
+    url = url_previsao({
+        "latitude": lat, "longitude": lon,
+        "current": "precipitation,rain", "timezone": "America/Sao_Paulo",
+    })
     req = urllib.request.Request(url, headers={"User-Agent": "SPRain/2.0"})
     with urllib.request.urlopen(req, timeout=5) as resp:
         if resp.status == 200:
@@ -58,11 +58,11 @@ def _consultar_open_meteo_primario(lat, lon):
 
 
 def _consultar_open_meteo_gfs(lat, lon):
-    url = (
-        f"https://api.open-meteo.com/v1/forecast?"
-        f"latitude={lat}&longitude={lon}"
-        "&hourly=precipitation&forecast_days=1&models=gfs_seamless"
-    )
+    url = url_previsao({
+        "latitude": lat, "longitude": lon,
+        "hourly": "precipitation", "forecast_days": 1,
+        "models": "gfs_seamless",
+    })
     req = urllib.request.Request(url, headers={"User-Agent": "SPRain/2.0"})
     with urllib.request.urlopen(req, timeout=5) as resp:
         if resp.status == 200:
@@ -88,19 +88,24 @@ def _consultar_wttr_in(lat, lon):
 
 
 def consultar_precipitacao_resiliente(lat, lon):
+    if not fonte_disponivel():
+        return None, "INDISPONIVEL"
     try:
         v = _consultar_open_meteo_primario(lat, lon)
         if v is not None:
             return v, "OPEN_METEO_PRIMARIO"
     except Exception as e:
-        print(f"Aviso de falha na fonte primaria ({lat}, {lon}): {e}")
+        print(f"Aviso de falha na fonte primaria ({lat}, {lon}): {type(e).__name__}")
 
     try:
         v = _consultar_open_meteo_gfs(lat, lon)
         if v is not None:
             return v, "OPEN_METEO_GFS_REDUNDANCIA"
     except Exception as e:
-        print(f"Aviso de falha na fonte redundante GFS ({lat}, {lon}): {e}")
+        print(f"Aviso de falha na fonte redundante GFS ({lat}, {lon}): {type(e).__name__}")
+
+    if producao():
+        return None, "INDISPONIVEL"
 
     try:
         v = _consultar_wttr_in(lat, lon)

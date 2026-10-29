@@ -39,6 +39,7 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:?defina DB_PASSWORD no .env.prod}
       DB_NAME: ${DB_NAME:?defina DB_NAME no .env.prod}
       CHUVA_INTERVALO_SEGUNDOS: ${CHUVA_INTERVALO_SEGUNDOS:-600}
+      OPEN_METEO_API_KEY: ${OPEN_METEO_API_KEY:-}
       WEBHOOK_ALERTA_DADOS: ${WEBHOOK_ALERTA_DADOS:-}
     depends_on:
       sprain_db:
